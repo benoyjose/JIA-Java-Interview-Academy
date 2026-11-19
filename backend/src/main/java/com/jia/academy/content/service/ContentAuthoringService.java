@@ -157,7 +157,7 @@ public class ContentAuthoringService {
         long totalItems = jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM lessons l JOIN categories c ON c.id=l.category_id
-                WHERE (? IS NULL OR l.status=?)
+                WHERE (CAST(? AS text) IS NULL OR l.status=?)
                   AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
                 """, Long.class, status, status, search, pattern, pattern, pattern);
         long offset = (long) page * size;
@@ -167,7 +167,7 @@ public class ContentAuthoringService {
                        (SELECT revision_number FROM lesson_revisions WHERE id=l.draft_revision_id) AS draft_revision,
                        l.updated_at
                 FROM lessons l JOIN categories c ON c.id=l.category_id
-                WHERE (? IS NULL OR l.status=?)
+                WHERE (CAST(? AS text) IS NULL OR l.status=?)
                   AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
                 ORDER BY l.updated_at DESC,l.id DESC
                 LIMIT ? OFFSET ?
