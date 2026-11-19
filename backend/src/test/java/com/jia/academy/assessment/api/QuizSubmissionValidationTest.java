@@ -11,6 +11,27 @@ class QuizSubmissionValidationTest {
     private static final Set<Integer> EXPECTED = Set.of(1, 2, 3);
 
     @Test
+    void acceptsPracticeMode() {
+        assertThatCode(() -> QuizController.validateMode("PRACTICE"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsModesUntilTheirWorkflowsAreImplemented() {
+        for (String mode : Set.of("TIMED_MOCK", "DAILY_CHALLENGE", "WEAK_AREA", "UNKNOWN")) {
+            assertThatThrownBy(() -> QuizController.validateMode(mode))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .hasMessageContaining("Quiz mode is not available yet");
+        }
+    }
+
+    @Test
+    void rejectsNullMode() {
+        assertThatThrownBy(() -> QuizController.validateMode(null))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
     void acceptsExactlyOneAnswerForEveryAttemptQuestion() {
         assertThatCode(() -> QuizController.validateCompleteAnswers(EXPECTED, Set.of(1, 2, 3)))
                 .doesNotThrowAnyException();
