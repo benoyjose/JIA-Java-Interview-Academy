@@ -97,7 +97,7 @@ Official starting point: [Sign in with Apple](https://developer.apple.com/sign-i
 
 ## 4. Phone number login (SMS OTP)
 
-**Do not enable phone login yet.** JIA's SMS vendor has not been selected and the OTP send/verify endpoints are not yet implemented.
+Phone OTP send/verify endpoints are implemented, but **do not enable phone login in production until an SMS vendor is selected, credentials are configured and delivery/end-to-end tests pass.**
 
 When selecting a provider, evaluate:
 
@@ -108,9 +108,17 @@ When selecting a provider, evaluate:
 - API security, data residency, retention and support.
 - Spend limits, fraud controls and rate limiting.
 
-After a provider is selected, obtain its API credentials and sender/template configuration. Store them only as server-side secrets. The integration must enforce E.164 phone normalization, short OTP expiry, single use, resend cooldown, attempt limits and per-phone/IP/device throttling. Store only a keyed digest of the OTP; never log the code.
+The current backend integration uses a vendor-neutral HTTP gateway contract: POST JSON `{ "to": "+<E.164-number>", "message": "<text>" }` with a Bearer token. The gateway must return a successful 2xx response only when it has accepted the message for delivery. Map the chosen vendor's API to this contract in a small adapter or gateway service; do not expose vendor credentials to mobile clients.
 
-Add the final provider-specific environment variable names and setup instructions here after the SMS vendor is approved. Do not invent credentials or configure a fake OTP delivery path.
+Configure these server-side values in both backends:
+
+```env
+JIA_SMS_ENDPOINT=<gateway-endpoint>
+JIA_SMS_TOKEN=<gateway-api-token>
+JIA_OTP_HMAC_SECRET=<at-least-32-random-bytes>
+```
+
+The backend uses six-digit codes, five-minute expiry, single-use challenges, HMAC-SHA256 digests, a maximum of five verification attempts and a maximum of five challenges per phone number per hour. Add gateway-side spend controls and provider delivery monitoring. Store secrets only in a secret manager and never log OTP codes.
 
 ## 5. Backend environment variables
 
@@ -157,7 +165,7 @@ At the time this guide was written:
 
 - Spring Boot and Laravel have Google and Apple ID-token verification endpoints and provider-neutral identity persistence.
 - Android and iOS provider SDK integrations are still pending.
-- Phone OTP send/verify endpoints and the SMS vendor integration are still pending.
+- Phone OTP request/verify endpoints exist in both backends; a generic SMS HTTP gateway contract is implemented, but the SMS vendor, credentials and end-to-end delivery tests are pending.
 - Email/password login is implemented in both backend foundations.
 
 External configuration alone does not make a sign-in method production-ready. Enable each method only after its app integration, backend implementation, security review and end-to-end tests are complete.
