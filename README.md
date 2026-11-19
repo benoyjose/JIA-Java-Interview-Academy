@@ -2,12 +2,16 @@
 
 JIA is a learning and interview-readiness platform built around structured technical content, concise interview answers, hands-on code, and topic-wise assessments.
 
+## Product family
+
+JIA is the first academy. The platform is designed to add PIA (Python Interview Academy) and GIA (Go Interview Academy) later through academy-specific curriculum and configuration, without duplicating shared platform services.
+
 ## Product surfaces
 
 - **Android app:** Kotlin + Jetpack Compose; offline-first learning and practice.
 - **iOS app:** Swift + SwiftUI; feature parity with the learner experience on Android.
-- **Backend A:** Java 21 + Spring Boot.
-- **Backend B:** PHP 8.3+ + Laravel 13; equivalent API and business functionality.
+- **Backend A:** Java 25 + Spring Boot.
+- **Backend B:** PHP 8.5 + Laravel 13; equivalent API and business functionality.
 - **Admin portal:** React + TypeScript; content, assessment, publishing and release management.
 
 ## Backend deployment principle
@@ -25,6 +29,10 @@ Spring Boot and Laravel are interchangeable implementations of one versioned API
 7. Android and iOS should share product behavior and API contracts, with platform-native UX.
 
 ## Learning tracks
+
+See [JIA Java Curriculum](docs/JIA_JAVA_CURRICULUM.md) for the comprehensive coverage blueprint and [Multi-Academy Platform Strategy](docs/MULTI_ACADEMY_PLATFORM.md) for the shared platform architecture.
+
+## Initial JIA tracks
 
 Core Java; Advanced Java; Spring Framework; Spring Boot; Hibernate/JPA; Microservices; Messaging (Kafka and RabbitMQ); Databases; System Design; DevOps; Cloud and Observability; Engineering Excellence.
 
