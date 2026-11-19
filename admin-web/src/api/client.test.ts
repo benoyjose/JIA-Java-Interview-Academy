@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, getStoredToken, storeToken, validateLessonContent } from "./client";
+import { api, getStoredToken, storeToken, validateLessonContent } from "./client";
 
 const sessionValues = new Map<string, string>();
 beforeEach(() => {
@@ -32,7 +32,7 @@ describe("admin API client", () => {
       JSON.stringify({ code: "FORBIDDEN", message: "Permission denied." }),
       { status: 403, headers: { "Content-Type": "application/json" } },
     )));
-    await expect(api.me()).rejects.toMatchObject<ApiError>({
+    await expect(api.me()).rejects.toMatchObject({
       status: 403, code: "FORBIDDEN", message: "Permission denied.",
     });
   });
