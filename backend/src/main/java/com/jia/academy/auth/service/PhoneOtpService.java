@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.HexFormat;
 import java.util.Map;
+import java.sql.Timestamp;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -55,7 +56,7 @@ public class PhoneOtpService {
         jdbc.update("""
             INSERT INTO phone_otp_challenges(id,phone_e164,code_digest,expires_at,attempts,created_at)
             VALUES (?,?,?,?,0,now())
-            """, id, phone, digest(id, phone, Integer.toString(code)), java.time.Instant.now().plusSeconds(300));
+            """, id, phone, digest(id, phone, Integer.toString(code)), Timestamp.from(java.time.Instant.now().plusSeconds(300)));
         try {
             restClient.post().uri(URI.create(endpoint)).headers(h -> h.setBearerAuth(token))
                 .body(Map.of("to", phone, "message",
