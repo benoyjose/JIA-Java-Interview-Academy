@@ -17,6 +17,32 @@ class AuthRepository {
         post(baseUrl, "/auth/register", JSONObject().put("name", name).put("email", email).put("password", password))
 
 
+    suspend fun requestPhoneOtp(baseUrl: String, phoneNumber: String): Unit = withContext(Dispatchers.IO) {
+        val connection = (URL(url(baseUrl, "/auth/phone/otp")).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10_000
+            readTimeout = 15_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+        }
+        try {
+            connection.outputStream.bufferedWriter(Charsets.UTF_8).use {
+                it.write(JSONObject().put("phoneNumber", phoneNumber).toString())
+            }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) {
+                val message = runCatching { JSONObject(response).optString("detail") }.getOrNull()
+                error(message?.takeIf(String::isNotBlank) ?: "OTP request failed (HTTP $status).")
+            }
+        } finally { connection.disconnect() }
+    }
+
+    suspend fun verifyPhoneOtp(baseUrl: String, phoneNumber: String, code: String): JiaSession =
+        post(baseUrl, "/auth/phone/verify", JSONObject().put("phoneNumber", phoneNumber).put("code", code))
+
     suspend fun currentUser(baseUrl: String, token: String): JiaAccount = withContext(Dispatchers.IO) {
         val connection = (URL(url(baseUrl, "/auth/me")).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
