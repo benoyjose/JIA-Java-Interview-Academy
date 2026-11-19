@@ -16,6 +16,28 @@ class AuthRepository {
     suspend fun register(baseUrl: String, name: String, email: String, password: String): JiaSession =
         post(baseUrl, "/auth/register", JSONObject().put("name", name).put("email", email).put("password", password))
 
+
+    suspend fun currentUser(baseUrl: String, token: String): JiaAccount = withContext(Dispatchers.IO) {
+        val connection = (URL(url(baseUrl, "/auth/me")).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 10_000
+            readTimeout = 10_000
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer $token")
+        }
+        try {
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) error("Session validation failed (HTTP $status).")
+            val user = JSONObject(response)
+            val rolesJson = user.optJSONArray("roles")
+            val roles = (0 until (rolesJson?.length() ?: 0)).map { rolesJson!!.getString(it) }
+            JiaAccount(user.getString("id"), user.getString("name"),
+                user.optString("email").takeIf(String::isNotBlank), roles)
+        } finally { connection.disconnect() }
+    }
+
     suspend fun logout(baseUrl: String, token: String) = withContext(Dispatchers.IO) {
         val connection = (URL(url(baseUrl, "/auth/logout")).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
