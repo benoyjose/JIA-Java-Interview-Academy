@@ -4,13 +4,13 @@ namespace Tests\Unit;
 
 use App\Services\LessonImportService;
 use PHPUnit\Framework\TestCase;
-use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class LessonImportValidationTest extends TestCase
 {
     public function test_rejects_unsupported_format_version(): void
     {
-        $this->expectException(ValidationException::class);
+        $this->expectException(BadRequestHttpException::class);
         (new LessonImportService())->import(['formatVersion' => 2, 'lessons' => []], (object) ['id' => 'actor']);
     }
 
