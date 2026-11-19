@@ -38,7 +38,7 @@ class AuthRepository {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                val message = runCatching { JSONObject(response).optString("detail") }.getOrNull()
+                val message = runCatching { JSONObject(response).let { it.optString("message").ifBlank { it.optString("detail") } } }.getOrNull()
                 error(message?.takeIf(String::isNotBlank) ?: "OTP request failed (HTTP $status).")
             }
         } finally { connection.disconnect() }
@@ -97,7 +97,7 @@ class AuthRepository {
             if (status !in 200..299) {
                 val message = runCatching {
                     val error = JSONObject(response)
-                    error.optString("detail").ifBlank { error.optString("message") }
+                    error.optString("message").ifBlank { error.optString("detail") }
                 }.getOrNull()
                 error(message?.takeIf(String::isNotBlank) ?: "Sign in failed (HTTP $status).")
             }
