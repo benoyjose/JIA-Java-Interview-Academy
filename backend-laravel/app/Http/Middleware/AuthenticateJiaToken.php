@@ -18,7 +18,7 @@ final class AuthenticateJiaToken
         }
         $rawToken = trim(substr($header, 7));
         if ($rawToken === '' || strlen($rawToken) > 160) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return ApiErrorResponse::forStatus(401);
         }
         $token = DB::table('api_tokens')->join('users', 'users.id', '=', 'api_tokens.user_id')
             ->where('api_tokens.token_hash', hash('sha256', $rawToken))
@@ -26,7 +26,7 @@ final class AuthenticateJiaToken
             ->where('users.status', 'ACTIVE')
             ->select('api_tokens.id as token_id', 'users.id', 'users.name', 'users.email')->first();
         if ($token === null) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return ApiErrorResponse::forStatus(401);
         }
         $roles = DB::table('roles')->join('user_roles', 'user_roles.role_id', '=', 'roles.id')
             ->where('user_roles.user_id', $token->id)->pluck('roles.code')->all();
