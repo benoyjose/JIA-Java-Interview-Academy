@@ -27,6 +27,8 @@ jobs:
           coverage: none
       - name: Validate Composer manifest
         run: composer validate --no-check-publish backend-laravel/composer.json
+      - name: Resolve PHP dependencies
+        run: composer install --working-dir backend-laravel --no-interaction --prefer-dist --no-progress
       - name: PHP syntax checks
         run: |
           find backend-laravel -type f -name "*.php" -print0 | xargs -0 -n1 php -l
