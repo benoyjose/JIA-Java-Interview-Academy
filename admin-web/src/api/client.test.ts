@@ -27,6 +27,17 @@ describe("admin API client", () => {
     expect(getStoredToken()).toBe("test-token");
   });
 
+  it("requests a bounded server-side lesson page and prefix filter", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(
+      JSON.stringify({ items: [], page: 1, size: 25, totalItems: 0, totalPages: 0 }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const page = await api.lessons({ status: "DRAFT", q: "spring", page: 1, size: 25 });
+    expect(page.page).toBe(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/admin/lessons?page=1&size=25&status=DRAFT&q=spring");
+  });
+
   it("normalizes the shared API error envelope", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(
       JSON.stringify({ code: "FORBIDDEN", message: "Permission denied." }),
