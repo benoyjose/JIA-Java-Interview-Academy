@@ -152,6 +152,7 @@ class QuizControllerPostgresIntegrationTest {
         try {
             return controller.start(learnerOne, Map.of("difficulty", "BEGINNER", "questionCount", 2));
         } catch (org.springframework.jdbc.BadSqlGrammarException ex) {
+            System.err.println("QUIZ_START_SQL_DIAGNOSTIC: " + ex.getMostSpecificCause().getMessage());
             throw new AssertionError("Quiz start SQL failed: " + ex.getMostSpecificCause().getMessage(), ex);
         }
     }
