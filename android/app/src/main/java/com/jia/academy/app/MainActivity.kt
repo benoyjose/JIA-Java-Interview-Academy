@@ -370,7 +370,7 @@ private fun LessonScreen(
                 if (raw.isNullOrBlank() || raw == "null") {
                     Text("This lesson has no published content yet.")
                 } else {
-                    Text(raw, style = MaterialTheme.typography.bodyMedium)
+                    com.jia.academy.app.lesson.LessonContentRenderer(raw)
                 }
             }
             else -> Text(fallbackTitle)
