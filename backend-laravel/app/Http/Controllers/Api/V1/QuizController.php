@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -15,7 +16,6 @@ final class QuizController
 {
     private const ACADEMY_ID = '50000000-0000-0000-0000-000000000001';
     private const DIFFICULTIES = ['BEGINNER', 'NOVICE', 'PROFESSIONAL', 'EXPERT'];
-    private const MODES = ['PRACTICE', 'TIMED_MOCK', 'DAILY_CHALLENGE', 'WEAK_AREA'];
 
     public function availability(Request $request): JsonResponse
     {
@@ -35,8 +35,9 @@ final class QuizController
             'technologySlug' => ['nullable', 'string', 'max:80'],
             'categorySlug' => ['nullable', 'string', 'max:100'],
             'questionCount' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'mode' => ['nullable', Rule::in(self::MODES)],
+            'mode' => ['nullable', 'string', 'max:40'],
         ]);
+        self::assertAvailableMode($validated['mode'] ?? 'PRACTICE');
         $filters = $this->filters($request);
         $count = (int) ($validated['questionCount'] ?? 10);
         $user = $request->attributes->get('jia_user');
@@ -281,6 +282,13 @@ final class QuizController
             'startedAt' => $row->started_at,
             'status' => $row->status,
         ])->values());
+    }
+
+    public static function assertAvailableMode(string $mode): void
+    {
+        if ($mode !== 'PRACTICE') {
+            throw new BadRequestHttpException('Quiz mode is not available yet: '.$mode);
+        }
     }
 
     public static function assertCompleteAnswerPositions(array $expectedPositions, array $submittedPositions): void
