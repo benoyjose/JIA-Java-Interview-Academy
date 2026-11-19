@@ -174,7 +174,7 @@ final class QuizController
     public function submit(Request $request, string $attemptId): JsonResponse
     {
         $validated = $request->validate([
-            'answers' => ['required', 'array', 'min:1'],
+            'answers' => ['sometimes', 'array', 'max:100'],
             'answers.*.position' => ['required', 'integer', 'min:1', 'distinct'],
             'answers.*.response' => ['required', 'array'],
             'answers.*.timeSpentMs' => ['nullable', 'integer', 'min:0'],
