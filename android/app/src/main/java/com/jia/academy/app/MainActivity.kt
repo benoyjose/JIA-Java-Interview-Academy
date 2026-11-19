@@ -34,6 +34,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -151,6 +153,16 @@ fun JiaApp() {
     var route by remember { mutableStateOf<BrowseRoute>(BrowseRoute.Home) }
     var backStack by remember { mutableStateOf(listOf<BrowseRoute>()) }
     var signedInAccount by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val authRepository = remember { AuthRepository() }
+    LaunchedEffect(Unit) {
+        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+        if (!token.isNullOrBlank()) {
+            runCatching { authRepository.currentUser(BuildConfig.JIA_API_BASE_URL, token) }
+                .onSuccess { signedInAccount = it.name }
+                .onFailure { com.jia.academy.app.auth.SecureSessionStore(context).clear() }
+        }
+    }
     fun navigate(next: BrowseRoute) {
         backStack = backStack + route
         route = next
@@ -172,7 +184,7 @@ fun JiaApp() {
         )
     }) { padding ->
         when (val current = route) {
-            BrowseRoute.Home -> TechnologyScreen(repository, signedInAccount, Modifier.padding(padding), ::navigate)
+            BrowseRoute.Home -> TechnologyScreen(repository, signedInAccount, Modifier.padding(padding), ::navigate, onSignOut = { signedInAccount = null })
             BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, Modifier.padding(padding))
             BrowseRoute.Authentication -> AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
                 signedInAccount = session.account.name
@@ -190,11 +202,14 @@ private fun TechnologyScreen(
     repository: CatalogueRepository,
     signedInAccount: String?,
     modifier: Modifier,
-    navigate: (BrowseRoute) -> Unit
+    navigate: (BrowseRoute) -> Unit,
+    onSignOut: () -> Unit
 ) {
     var items by remember { mutableStateOf<List<Technology>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         runCatching { repository.getTechnologies(BuildConfig.JIA_API_BASE_URL) }
             .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load Java topics." }
@@ -206,6 +221,16 @@ private fun TechnologyScreen(
             Button(onClick = { navigate(BrowseRoute.Authentication) }) { Text("Sign in / Create account") }
         } else {
             Text("Signed in as $signedInAccount", style = MaterialTheme.typography.labelLarge)
+            TextButton(onClick = {
+                val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                scope.launch {
+                    if (!token.isNullOrBlank()) runCatching {
+                        AuthRepository().logout(BuildConfig.JIA_API_BASE_URL, token)
+                    }
+                    com.jia.academy.app.auth.SecureSessionStore(context).clear()
+                    onSignOut()
+                }
+            }) { Text("Sign out") }
         }
         Text("Quick explanations. Practical code. Interview-ready answers.")
         Button(onClick = { navigate(BrowseRoute.QuizSelection) }) { Text("Choose a quiz difficulty") }
