@@ -20,7 +20,6 @@ return new class extends Migration
             $table->string('status', 20)->default('DRAFT');
             $table->unsignedInteger('current_revision')->default(1);
             $table->timestampsTz();
-            $table->timestampsTz();
             $table->foreign('academy_id')->references('id')->on('academies');
             $table->foreign('technology_id')->references('id')->on('technologies');
             $table->foreign('category_id')->references('id')->on('categories');
