@@ -1,0 +1,32 @@
+name: Laravel API CI
+
+on:
+  push:
+    paths:
+      - "backend-laravel/**"
+      - ".github/workflows/laravel-ci.yml"
+      - "docs/api/openapi.yaml"
+  pull_request:
+    paths:
+      - "backend-laravel/**"
+      - ".github/workflows/laravel-ci.yml"
+      - "docs/api/openapi.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  php-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish backend-laravel/composer.json
+      - name: PHP syntax checks
+        run: |
+          find backend-laravel -type f -name "*.php" -print0 | xargs -0 -n1 php -l
