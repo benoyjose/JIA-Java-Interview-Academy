@@ -17,6 +17,7 @@ Flyway applies schema migrations automatically. Hibernate uses schema validation
 - `GET /api/v1/technologies/{slug}`
 - `GET /api/v1/technologies/{technologySlug}/categories`
 - `GET /api/v1/categories/{categorySlug}/lessons`
+- `GET /api/v1/lessons/{slug}`
 
 Only records in `PUBLISHED` status are returned. The initial migration seeds the technology taxonomy and a small starter category structure, but intentionally does not invent or publish lesson bodies.
 
