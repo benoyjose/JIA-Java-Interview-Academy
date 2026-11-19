@@ -8,14 +8,14 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-enum class QuizMode(val apiValue: String, val displayName: String, val availableToLearners: Boolean) {
+enum class JiaQuizMode(val apiValue: String, val displayName: String, val availableToLearners: Boolean) {
     PRACTICE("PRACTICE", "Practice", true),
     TIMED_MOCK("TIMED_MOCK", "Timed mock interview", false),
     DAILY_CHALLENGE("DAILY_CHALLENGE", "Daily challenge", false),
     WEAK_AREA("WEAK_AREA", "Weak-area practice", false);
 
     companion object {
-        val learnerOptions: List<QuizMode> = entries.filter { it.availableToLearners }
+        val learnerOptions: List<JiaQuizMode> = values().filter { it.availableToLearners }
     }
 }
 
