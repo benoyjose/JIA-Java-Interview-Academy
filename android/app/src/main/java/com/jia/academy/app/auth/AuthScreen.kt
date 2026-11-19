@@ -33,6 +33,10 @@ fun AuthScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var registering by remember { mutableStateOf(false) }
+    var phoneMode by remember { mutableStateOf(false) }
+    var phoneNumber by remember { mutableStateOf("") }
+    var otpCode by remember { mutableStateOf("") }
+    var otpRequested by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -43,9 +47,46 @@ fun AuthScreen(
         modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(if (registering) "Create your JIA account" else "Sign in to JIA",
+        Text(if (phoneMode) "Sign in with phone" else if (registering) "Create your JIA account" else "Sign in to JIA",
             style = MaterialTheme.typography.headlineSmall)
         Text("You can continue browsing public lessons without signing in.")
+        if (phoneMode) {
+            OutlinedTextField(value = phoneNumber, onValueChange = { phoneNumber = it },
+                label = { Text("Phone number (E.164, e.g. +919876543210)") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
+            if (otpRequested) {
+                OutlinedTextField(value = otpCode, onValueChange = { otpCode = it.filter(Char::isDigit).take(6) },
+                    label = { Text("6-digit verification code") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(onClick = {
+                loading = true
+                error = null
+                scope.launch {
+                    runCatching {
+                        if (otpRequested) repository.verifyPhoneOtp(baseUrl, phoneNumber.trim(), otpCode)
+                        else { repository.requestPhoneOtp(baseUrl, phoneNumber.trim()); null }
+                    }.onSuccess { session ->
+                        if (session == null) otpRequested = true
+                        else {
+                            runCatching {
+                                val userJson = org.json.JSONObject().put("id", session.account.id)
+                                    .put("name", session.account.name).put("email", session.account.email)
+                                    .put("roles", org.json.JSONArray(session.account.roles)).toString()
+                                SecureSessionStore(context).save(session.accessToken, session.expiresAt, userJson)
+                            }.onSuccess { onAuthenticated(session) }
+                                .onFailure { error = "Could not securely save this session." }
+                        }
+                    }.onFailure { error = it.message ?: "Phone verification failed." }
+                    loading = false
+                }
+            }, enabled = !loading && phoneNumber.startsWith("+") && phoneNumber.count { it.isDigit() } in 8..15 &&
+                (!otpRequested || otpCode.length == 6), modifier = Modifier.fillMaxWidth()) {
+                if (loading) CircularProgressIndicator() else Text(if (otpRequested) "Verify and sign in" else "Send verification code")
+            }
+            if (otpRequested) TextButton(onClick = { otpRequested = false; otpCode = ""; error = null }) { Text("Change phone number") }
+            TextButton(onClick = { phoneMode = false; otpRequested = false; error = null }) { Text("Use email instead") }
+        } else {
         if (registering) {
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -90,6 +131,10 @@ fun AuthScreen(
         }
         TextButton(onClick = { registering = !registering; error = null }) {
             Text(if (registering) "Already have an account? Sign in" else "New to JIA? Create an account")
+        }
+        TextButton(onClick = { phoneMode = true; registering = false; error = null }) {
+            Text("Continue with phone number")
+        }
         }
     }
 }
