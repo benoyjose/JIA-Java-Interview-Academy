@@ -20,7 +20,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class QuizController {
     private static final UUID JIA_ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000001");
     private static final List<String> LEVELS = List.of("BEGINNER", "NOVICE", "PROFESSIONAL", "EXPERT");
-    private static final List<String> MODES = List.of("PRACTICE", "TIMED_MOCK", "DAILY_CHALLENGE", "WEAK_AREA");
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -50,7 +49,7 @@ public class QuizController {
         int count = body.get("questionCount") instanceof Number n ? n.intValue() : 10;
         String mode = body.get("mode") instanceof String s ? s : "PRACTICE";
         if (count < 1 || count > 100) throw badRequest("questionCount must be between 1 and 100");
-        if (!MODES.contains(mode)) throw badRequest("Unsupported quiz mode");
+        validateMode(mode);
         Filters filters = filters(difficulty, technologySlug, categorySlug);
 
         String sql = """
@@ -252,6 +251,13 @@ public class QuizController {
             item.put("status", rs.getString("status"));
             return item;
         }, user.id(), JIA_ACADEMY, difficulty, difficulty, limit);
+    }
+
+    static void validateMode(String mode) {
+        if (!"PRACTICE".equals(mode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Quiz mode is not available yet: " + mode);
+        }
     }
 
     static void validateCompleteAnswers(Set<Integer> expectedPositions, Set<Integer> submittedPositions) {
