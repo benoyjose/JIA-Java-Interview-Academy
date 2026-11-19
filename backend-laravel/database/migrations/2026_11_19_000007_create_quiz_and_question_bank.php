@@ -26,7 +26,8 @@ return new class extends Migration
             $table->foreign('lesson_id')->references('id')->on('lessons');
             $table->index(['academy_id', 'technology_id', 'category_id', 'difficulty', 'status'], 'idx_questions_quiz_filter');
         });
-        DB::statement("ALTER TABLE questions ADD COLUMN tags TEXT[] NOT NULL DEFAULT '{}'");\n        DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_type CHECK (question_type IN ('SINGLE_SELECT','MULTI_SELECT','TRUE_FALSE','OUTPUT_PREDICTION','DEBUGGING','CODING','SQL','SCENARIO'))");
+        DB::statement("ALTER TABLE questions ADD COLUMN tags TEXT[] NOT NULL DEFAULT '{}'");
+        DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_type CHECK (question_type IN ('SINGLE_SELECT','MULTI_SELECT','TRUE_FALSE','OUTPUT_PREDICTION','DEBUGGING','CODING','SQL','SCENARIO'))");
         DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_difficulty CHECK (difficulty IN ('BEGINNER','NOVICE','PROFESSIONAL','EXPERT'))");
         DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_status CHECK (status IN ('DRAFT','IN_REVIEW','APPROVED','PUBLISHED','ARCHIVED'))");
 
