@@ -30,7 +30,7 @@ final class LessonImportService
         $keys = [];
         foreach ($records as $index => $item) {
             $this->validateRecord($item, $index);
-            $key = trim($item['categorySlug']).'/'.trim($item['slug']);
+            $key = trim($item['slug']);
             if (isset($keys[$key])) {
                 throw new BadRequestHttpException('Invalid lesson import request.');
             }
@@ -70,7 +70,7 @@ final class LessonImportService
                     'source_type' => $source,
                     'status' => 'DRAFT',
                     'published_revision_id' => null,
-                    'draft_revision_id' => null,
+                    'draft_revision_id' => $revisionId,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
