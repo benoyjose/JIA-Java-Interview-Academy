@@ -4,4 +4,5 @@ import java.util.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
  List<Lesson> findAllByCategorySlugAndStatusOrderByTitleAsc(String categorySlug, PublicationStatus status);
+    java.util.Optional<Lesson> findBySlugAndStatus(String slug, PublicationStatus status);
 }
