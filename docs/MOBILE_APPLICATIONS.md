@@ -26,6 +26,13 @@ Both mobile applications provide the same learner capabilities with platform-nat
 - One JIA account must retain the same learner progress, subscriptions and history regardless of sign-in method or device. Store provider identities separately from the user record and allow multiple identities to link to one user.
 - Provide logout and server-side token revocation. Native clients store issued credentials securely (Android Keystore-backed storage; iOS Keychain).
 
+## Access model
+
+- Published lessons, technology tracks, code examples and public interview-reference answers are available without login.
+- Prompt sign-in only when the learner wants bookmarks, cross-device progress/history sync, account-specific practice history or paid features.
+- Keep sign-in optional and easy to resume; do not block quick-reference reading behind registration.
+- Protect personal progress and account data with server-side ownership checks. Keep admin APIs separately authenticated and role-protected.
+
 ## Shared functional scope
 
 - Authentication and account
