@@ -59,7 +59,7 @@ export function LessonsPage() {
         <div className="list-controls"><input aria-label="Search lessons" placeholder="Search title, slug or category…" value={search} onChange={event => setSearch(event.target.value)} />
           <select aria-label="Filter by status" value={status} onChange={event => setStatus(event.target.value)}>{statuses.map(item => <option key={item} value={item}>{item === "ALL" ? "All statuses" : item.replace("_", " ")}</option>)}</select></div>
         {loading ? <div className="loading-line">Loading lessons…</div> : visible.length === 0 ? <div className="empty-state"><span>▤</span><strong>No lessons found</strong><p>Try another filter or create a lesson draft.</p></div> :
-          <div className="lesson-list">{visible.map(item => <button key={item.id} className={selectedId === item.id ? "lesson-row selected" : "lesson-row"} onClick={() => { setSelectedId(item.id); setCreating(false); setNotice(""); }}>
+          <div className="lesson-list">{visible.map(item => <button key={item.id} className={selectedId === item.id ? "lesson-row selected" : "lesson-row"} onClick={() => { setSelected(null); setSelectedId(item.id); setCreating(false); setNotice(""); }}>
             <span className="lesson-row-main"><strong>{item.title}</strong><small>{item.categorySlug} / {item.slug}</small></span><span className={`status-badge status-${item.status.toLowerCase()}`}>{item.status.replace("_", " ")}</span><span className="row-chevron">›</span>
           </button>)}</div>}
       </div>
