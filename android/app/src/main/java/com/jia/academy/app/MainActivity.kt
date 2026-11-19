@@ -30,6 +30,7 @@ import com.jia.academy.app.auth.AuthRepository
 import com.jia.academy.app.auth.AuthScreen
 import com.jia.academy.app.auth.JiaSession
 import com.jia.academy.app.assessment.QuizRepository
+import com.jia.academy.app.assessment.JiaQuizMode
 import com.jia.academy.app.assessment.JiaQuizAttempt
 import com.jia.academy.app.assessment.JiaQuizResult
 import com.jia.academy.app.assessment.JiaQuizHistoryItem
@@ -408,6 +409,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
     val scope = rememberCoroutineScope()
     val quizRepository = remember { QuizRepository() }
     var selected by remember { mutableStateOf("BEGINNER") }
+    var selectedMode by remember { mutableStateOf(JiaQuizMode.PRACTICE) }
     var availability by remember { mutableStateOf<QuizAvailability?>(null) }
     var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
     var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
@@ -509,6 +511,14 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                 ) { Text(if (loading) "Submitting…" else "Submit all answers") }
             }
             else -> {
+                Text("Quiz mode", style = MaterialTheme.typography.titleMedium)
+                JiaQuizMode.learnerOptions.forEach { mode ->
+                    FilterChip(
+                        selected = selectedMode == mode,
+                        onClick = { selectedMode = mode },
+                        label = { Text(mode.displayName) }
+                    )
+                }
                 Text("Choose your difficulty", style = MaterialTheme.typography.titleMedium)
                 levels.forEach { (value, label) ->
                     Card(Modifier.fillMaxWidth()) {
@@ -541,13 +551,13 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                             error = null
                             val count = minOf(10, availability?.availableQuestionCount ?: 0)
                             scope.launch {
-                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count) }
+                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode) }
                                     .onSuccess { attempt = it; answers = emptyMap(); result = null }
                                     .onFailure { error = it.message ?: "Unable to start quiz." }
                                 loading = false
                             }
                         }
-                    ) { Text("Start practice quiz") }
+                    ) { Text("Start ${selectedMode.displayName.lowercase()} quiz") }
                     TextButton(onClick = {
                         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                         if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }

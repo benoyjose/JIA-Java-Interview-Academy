@@ -8,6 +8,17 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+enum class JiaQuizMode(val apiValue: String, val displayName: String, val availableToLearners: Boolean) {
+    PRACTICE("PRACTICE", "Practice", true),
+    TIMED_MOCK("TIMED_MOCK", "Timed mock interview", false),
+    DAILY_CHALLENGE("DAILY_CHALLENGE", "Daily challenge", false),
+    WEAK_AREA("WEAK_AREA", "Weak-area practice", false);
+
+    companion object {
+        val learnerOptions: List<JiaQuizMode> = values().filter { it.availableToLearners }
+    }
+}
+
 data class JiaQuizQuestion(
     val position: Int,
     val questionType: String,
@@ -49,9 +60,9 @@ class QuizRepository {
         } finally { connection.disconnect() }
     }
 
-    suspend fun start(baseUrl: String, token: String, difficulty: String, count: Int = 10): JiaQuizAttempt =
+    suspend fun start(baseUrl: String, token: String, difficulty: String, count: Int = 10, mode: JiaQuizMode = JiaQuizMode.PRACTICE): JiaQuizAttempt =
         withContext(Dispatchers.IO) {
-            val body = JSONObject().put("difficulty", difficulty).put("questionCount", count).put("mode", "PRACTICE")
+            val body = JSONObject().put("difficulty", difficulty).put("questionCount", count).put("mode", mode.apiValue)
             val json = JSONObject(request(baseUrl, "/quiz-attempts", token, "POST", body))
             val questionsJson = json.getJSONArray("questions")
             val questions = (0 until questionsJson.length()).map { index ->
