@@ -6,6 +6,7 @@ plugins {
 }
 
 val jiaApiBaseUrl = providers.gradleProperty("JIA_API_BASE_URL").orElse("")
+val googleWebClientId = providers.gradleProperty("JIA_GOOGLE_WEB_CLIENT_ID").orElse("")
 
 android {
     namespace = "com.jia.academy.app"
@@ -38,5 +39,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
