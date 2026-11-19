@@ -1,6 +1,6 @@
-# JIA Laravel API
+# JIA Laravel API — Secondary Implementation
 
-Laravel 13.x / PHP 8.5 backend implementation of the JIA shared API contract.
+Laravel 13.x / PHP 8.5 is retained as a secondary compatibility/reference implementation. Spring Boot is the primary production backend. Do not deploy Laravel alongside Spring Boot or use it as an independent production writer. Implement new product capabilities in Spring Boot first; update Laravel when a backend switch is planned or a specific compatibility requirement justifies it.
 
 ## Requirements
 
