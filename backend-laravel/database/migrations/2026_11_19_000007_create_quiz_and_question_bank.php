@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('difficulty', 20);
             $table->string('status', 20)->default('DRAFT');
             $table->unsignedInteger('current_revision')->default(1);
-            $table->jsonb('tags')->default('[]');
+            $table->timestampsTz();
             $table->timestampsTz();
             $table->foreign('academy_id')->references('id')->on('academies');
             $table->foreign('technology_id')->references('id')->on('technologies');
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreign('lesson_id')->references('id')->on('lessons');
             $table->index(['academy_id', 'technology_id', 'category_id', 'difficulty', 'status'], 'idx_questions_quiz_filter');
         });
-        DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_type CHECK (question_type IN ('SINGLE_SELECT','MULTI_SELECT','TRUE_FALSE','OUTPUT_PREDICTION','DEBUGGING','CODING','SQL','SCENARIO'))");
+        DB::statement("ALTER TABLE questions ADD COLUMN tags TEXT[] NOT NULL DEFAULT '{}'");\n        DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_type CHECK (question_type IN ('SINGLE_SELECT','MULTI_SELECT','TRUE_FALSE','OUTPUT_PREDICTION','DEBUGGING','CODING','SQL','SCENARIO'))");
         DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_difficulty CHECK (difficulty IN ('BEGINNER','NOVICE','PROFESSIONAL','EXPERT'))");
         DB::statement("ALTER TABLE questions ADD CONSTRAINT chk_question_status CHECK (status IN ('DRAFT','IN_REVIEW','APPROVED','PUBLISHED','ARCHIVED'))");
 
