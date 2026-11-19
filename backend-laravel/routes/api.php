@@ -1,11 +1,12 @@
 <?php
 
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\FederatedAuthController;
-use App\Http\Controllers\Api\V1\PhoneOtpController;
-use App\Http\Controllers\Api\V1\CatalogueController;
-use App\Http\Middleware\AuthenticateJiaToken;
-use Illuminate\Support\Facades\Route;
+use App\\Http\\Controllers\\Api\\V1\\AuthController;
+use App\\Http\\Controllers\\Api\\V1\\FederatedAuthController;
+use App\\Http\\Controllers\\Api\\V1\\PhoneOtpController;
+use App\\Http\\Controllers\\Api\\V1\\CatalogueController;
+use App\\Http\\Controllers\\Api\\V1\\QuizController;
+use App\\Http\\Middleware\\AuthenticateJiaToken;
+use Illuminate\\Support\\Facades\\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -14,13 +15,20 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/auth/federated/apple', [FederatedAuthController::class, 'apple'])->middleware('throttle:10,1');
     Route::post('/auth/phone/otp', [PhoneOtpController::class, 'request'])->middleware('throttle:5,1');
     Route::post('/auth/phone/verify', [PhoneOtpController::class, 'verify'])->middleware('throttle:10,1');
+
     Route::middleware(AuthenticateJiaToken::class)->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+        Route::post('/quiz-attempts', [QuizController::class, 'start']);
+        Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);
+        Route::get('/me/quiz-performance', [QuizController::class, 'performance']);
+        Route::get('/me/quiz-attempts', [QuizController::class, 'history']);
     });
+
     Route::get('/technologies', [CatalogueController::class, 'technologies']);
     Route::get('/technologies/{slug}', [CatalogueController::class, 'technology']);
     Route::get('/technologies/{technologySlug}/categories', [CatalogueController::class, 'categories']);
     Route::get('/categories/{categorySlug}/lessons', [CatalogueController::class, 'lessons']);
-    Route::get('/lessons/{slug}', [CatalogueController::class, 'lesson']);\n    Route::get('/quizzes/availability', [QuizController::class, 'availability']);\n    Route::middleware(AuthenticateJiaToken::class)->group(function (): void {\n        Route::post('/quiz-attempts', [QuizController::class, 'start']);\n        Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);\n        Route::get('/me/quiz-performance', [QuizController::class, 'performance']);\n        Route::get('/me/quiz-attempts', [QuizController::class, 'history']);\n    });
+    Route::get('/lessons/{slug}', [CatalogueController::class, 'lesson']);
+    Route::get('/quizzes/availability', [QuizController::class, 'availability']);
 });
