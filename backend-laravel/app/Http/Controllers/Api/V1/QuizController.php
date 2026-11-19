@@ -36,14 +36,24 @@ final class QuizController
             'categorySlug' => ['nullable', 'string', 'max:100'],
             'questionCount' => ['nullable', 'integer', 'min:1', 'max:100'],
             'mode' => ['nullable', 'string', 'max:40'],
+            'durationSeconds' => ['nullable', 'integer', 'min:60', 'max:21600'],
         ]);
-        self::assertAvailableMode($validated['mode'] ?? 'PRACTICE');
+        $mode = $validated['mode'] ?? 'PRACTICE';
+        $durationLimitSeconds = null;
+        if ($mode === 'TIMED_MOCK') {
+            $durationLimitSeconds = (int) ($validated['durationSeconds'] ?? 0);
+            if ($durationLimitSeconds < 60 || $durationLimitSeconds > 21600) {
+                throw new BadRequestHttpException('durationSeconds must be between 60 and 21600');
+            }
+        } else {
+            self::assertAvailableMode($mode);
+        }
         $filters = $this->filters($request);
         $count = (int) ($validated['questionCount'] ?? 10);
         $user = $request->attributes->get('jia_user');
         abort_if($user === null, 401, 'Unauthenticated');
 
-        return DB::transaction(function () use ($filters, $count, $validated, $user): JsonResponse {
+        return DB::transaction(function () use ($filters, $count, $validated, $user, $mode, $durationLimitSeconds): JsonResponse {
             $selected = $this->questionQuery($filters)
                 ->inRandomOrder()
                 ->limit($count)
@@ -66,6 +76,7 @@ final class QuizController
 
             $attemptId = (string) Str::uuid();
             $startedAt = now();
+            $deadlineAt = $durationLimitSeconds === null ? null : $startedAt->copy()->addSeconds($durationLimitSeconds);
             DB::table('quiz_attempts')->insert([
                 'id' => $attemptId,
                 'user_id' => $user->id,
@@ -73,10 +84,12 @@ final class QuizController
                 'technology_id' => $filters['technologyId'],
                 'category_id' => $filters['categoryId'],
                 'difficulty' => $filters['difficulty'],
-                'mode' => $validated['mode'] ?? 'PRACTICE',
+                'mode' => $mode,
                 'status' => 'IN_PROGRESS',
                 'question_count' => $count,
                 'started_at' => $startedAt,
+                'duration_limit_seconds' => $durationLimitSeconds,
+                'deadline_at' => $deadlineAt,
             ]);
 
             $questions = [];
@@ -104,8 +117,10 @@ final class QuizController
             return response()->json([
                 'attemptId' => $attemptId,
                 'difficulty' => $filters['difficulty'],
-                'mode' => $validated['mode'] ?? 'PRACTICE',
+                'mode' => $mode,
                 'questionCount' => $count,
+                'durationLimitSeconds' => $durationLimitSeconds,
+                'deadlineAt' => $deadlineAt?->toISOString(),
                 'questions' => $questions,
             ], 201);
         });
