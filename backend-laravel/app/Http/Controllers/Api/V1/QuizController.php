@@ -286,7 +286,7 @@ final class QuizController
     public static function assertCompleteAnswerPositions(array $expectedPositions, array $submittedPositions): void
     {
         if ($expectedPositions === [] || $submittedPositions !== $expectedPositions) {
-            throw new \\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException(
+            throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
                 'Submit exactly one answer for every question in this attempt'
             );
         }
