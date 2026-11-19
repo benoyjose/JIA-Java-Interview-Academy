@@ -63,11 +63,11 @@ public class QuizController {
         }
         Filters filters = filters(difficulty, technologySlug, categorySlug);
         if ("DAILY_CHALLENGE".equals(mode)) {
-            jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || CURRENT_DATE::text, 0))",
+            jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))",
                     rs -> {}, user.id().toString());
             List<UUID> existing = jdbc.query("""
                 SELECT id FROM quiz_attempts
-                WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=CURRENT_DATE
+                WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
                 """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), JIA_ACADEMY);
             if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst());
         }
@@ -93,7 +93,7 @@ public class QuizController {
         jdbc.update("""
             INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,
                 question_count,started_at,duration_limit_seconds,deadline_at,challenge_date)
-            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,CASE WHEN ?='DAILY_CHALLENGE' THEN CURRENT_DATE ELSE NULL END)
+            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,CASE WHEN ?='DAILY_CHALLENGE' THEN (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date ELSE NULL END)
             """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
                 difficulty, mode, count, Timestamp.from(startedAt), durationLimitSeconds,
                 deadlineAt == null ? null : Timestamp.from(deadlineAt), mode);
