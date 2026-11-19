@@ -33,7 +33,7 @@ public class LessonImportService {
         Set<String> keys = new HashSet<>();
         for (LessonRecord item : batch.lessons()) {
             if (item == null || item.provenance() == null || item.content() == null) badRequest("Lesson record is incomplete");
-            String key = item.categorySlug().trim() + "/" + item.slug().trim();
+            String key = item.slug().trim();
             if (!keys.add(key)) badRequest("Duplicate categorySlug/slug in import batch: " + key);
             if (!List.of("BEGINNER","NOVICE","PROFESSIONAL","EXPERT").contains(item.difficulty()))
                 badRequest("Unsupported lesson difficulty for " + item.slug());
@@ -52,9 +52,8 @@ public class LessonImportService {
                 if (categoryCount == null || categoryCount == 0)
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Category not found: "+item.categorySlug());
                 Integer exists = jdbc.queryForObject("""
-                    SELECT COUNT(*) FROM lessons l JOIN categories c ON c.id=l.category_id
-                    WHERE c.slug=? AND l.slug=?
-                    """,Integer.class,item.categorySlug(),item.slug());
+                    SELECT COUNT(*) FROM lessons WHERE slug=?
+                    """,Integer.class,item.slug());
                 if (exists != null && exists > 0)
                     throw new ResponseStatusException(HttpStatus.CONFLICT,"Lesson already exists: "+key);
             } catch (ResponseStatusException ex) { throw ex; }
