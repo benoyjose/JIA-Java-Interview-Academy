@@ -1,6 +1,6 @@
 # API error response contract
 
-**Status:** Proposed; not yet implemented  
+**Status:** Initial implementation in PR #13; cross-backend parity and rollout validation pending  
 **Applies to:** Spring Boot and Laravel implementations of `/api/v1`  
 **Purpose:** Define one client-facing error representation before changing either backend's runtime behavior.
 
@@ -56,15 +56,15 @@ Unknown fields must be tolerated by clients for forward compatibility. Error bod
 | 429 | `RATE_LIMITED` | Rate limit exceeded. |
 | 500 | `INTERNAL_ERROR` | Unexpected server failure; response must not reveal implementation details. |
 
-The mapping is a target convention, not a claim about current behavior. Preserve existing status semantics unless a separately reviewed API compatibility change is approved.
+The mapping is implemented for the common statuses covered by the current handlers. Less common framework-generated statuses still require parity verification. Preserve existing status semantics unless a separately reviewed API compatibility change is approved.
 
 ## Implementation requirements
 
-1. Implement the envelope in Spring MVC exception handling and in Spring Security's authentication-entry-point and access-denied handling. Filter-chain failures must not fall back to a different response shape.
-2. Implement the same envelope in Laravel's exception rendering for validation, authentication, authorization, HTTP exceptions, throttling, not-found, and unexpected failures.
-3. Keep status codes aligned with the mapping above. Do not convert every exception to 400 or 500.
-4. Normalize validation field paths and message arrays without leaking rejected secrets or request bodies.
-5. Generate or propagate a correlation ID safely. If no trusted request ID is supplied, generate one server-side; validate any client-supplied value before echoing it.
+1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Filter-chain integration tests remain required.
+2. Implemented in Laravel's API exception rendering for validation, authentication, authorization, HTTP exceptions, not-found, throttling status mapping, and unexpected failures. Middleware-generated token and permission errors use the same envelope.
+3. Status-to-code mapping is implemented for the documented statuses. Add parity tests to prove status preservation across framework-specific exceptions.
+4. Validation field paths and message arrays are included; tests must verify they do not leak rejected secrets or request bodies.
+5. Correlation IDs are not emitted by the initial implementation; add a trusted request correlation strategy in a follow-up before relying on `traceId`.
 6. Keep successful response payloads unchanged.
 7. Verify that Android and web clients do not depend on framework-specific error fields before switching the API v1 runtime format. If clients do depend on them, deploy a compatibility reader first or version the breaking behavior.
 
@@ -84,8 +84,8 @@ Assertions should verify required envelope fields, optional field behavior, no s
 
 ## Rollout sequence
 
-1. Add shared OpenAPI schemas and reusable error responses for the statuses used by implemented routes.
-2. Add backend error mappers and unit/integration tests behind the current response contract.
+1. Added shared OpenAPI schema and reusable error responses for the documented statuses.
+2. Added backend error mappers and initial Spring unit tests; full integration and Laravel parity tests remain outstanding.
 3. Add parity tests that execute equivalent fixtures against both implementations.
 4. Audit Android and web API clients for error parsing dependencies; add backward-compatible parsing before changing server responses.
 5. Switch both backends together, run all CI workflows, and update `CONTRACT_PARITY.md` only after evidence confirms parity.
@@ -98,4 +98,4 @@ Assertions should verify required envelope fields, optional field behavior, no s
 - Android and web clients handle the common envelope.
 - CI fails when the two implementations diverge on the parity fixtures.
 
-Until these criteria pass, the current framework-specific behavior remains the implementation reality and this document remains a proposed target contract.
+The initial implementation is in progress. Do not treat the contract as production-ready until cross-backend integration tests pass and Android/web client compatibility has been verified.
