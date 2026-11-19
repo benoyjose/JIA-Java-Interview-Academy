@@ -205,6 +205,7 @@ public class QuizController {
         }
 
         if (timedMock) {
+            if (timedOut) submitted.clear();
             List<Map<String,Object>> saved = jdbc.query("""
                 SELECT position, response_json::text AS response_json, time_spent_ms
                 FROM quiz_attempt_answers WHERE attempt_id=?
