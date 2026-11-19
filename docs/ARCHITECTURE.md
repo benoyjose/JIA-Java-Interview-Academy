@@ -4,7 +4,7 @@
 
 - Android: Kotlin + Jetpack Compose.
 - iOS: Swift + SwiftUI.
-- Backend A: Java 25 LTS + Spring Boot 4.1.x.
+- Backend A: Java 25 LTS + Spring Boot 4.1.2.
 - Backend B: PHP 8.5 + Laravel 13.x.
 - Admin portal: React 19 + TypeScript.
 - Shared data platform: PostgreSQL 18 and S3-compatible object storage.
@@ -14,7 +14,7 @@
 Use the latest stable, non-preview release at implementation time, and pin exact tool versions in build files and CI. Prefer an LTS runtime where one exists for production; do not adopt beta, release-candidate or canary dependencies in production without an explicit decision.
 
 Current baseline checked 19 November 2026:
-- Java 25 LTS; Spring Boot 4.1.x.
+- Java 25 LTS; Spring Boot 4.1.2.
 - PHP 8.5; Laravel 13.x.
 - Gradle 9.9.1.
 - Kotlin 2.4.x; Android Gradle Plugin 9.5.x; Jetpack Compose BOM 2026.11.01.
