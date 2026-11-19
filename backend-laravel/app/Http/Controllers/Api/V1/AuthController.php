@@ -25,7 +25,7 @@ final class AuthController
         $userId = (string) Str::uuid();
         DB::table('users')->insert([
             'id' => $userId, 'name' => trim($data['name']), 'email' => $email,
-            'password_hash' => Hash::driver('argon2id')->make($data['password']),
+            'password_hash' => Hash::driver('bcrypt')->make($data['password']),
             'status' => 'ACTIVE', 'created_at' => now(), 'updated_at' => now(),
         ]);
         $learnerRoleId = DB::table('roles')->where('code', 'LEARNER')->value('id');
@@ -42,8 +42,8 @@ final class AuthController
         ]);
         $user = DB::table('users')->whereRaw('lower(email) = ?', [mb_strtolower(trim($data['email']))])->first();
         if ($user === null || $user->status !== 'ACTIVE'
-            || ! Hash::driver('argon2id')->check($data['password'], $user->password_hash)) {
-            throw ValidationException::withMessages(['email' => ['Invalid email or password']]);
+            || ! Hash::driver('bcrypt')->check($data['password'], $user->password_hash)) {
+            return response()->json(['message' => 'Invalid email or password'], 401);
         }
         $roles = DB::table('roles')->join('user_roles', 'user_roles.role_id', '=', 'roles.id')
             ->where('user_roles.user_id', $user->id)->orderBy('roles.code')->pluck('roles.code')->all();
