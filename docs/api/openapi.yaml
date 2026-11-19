@@ -65,7 +65,6 @@ paths:
       security: []
       tags: [Authentication]
       operationId: authenticateWithGoogle
-      summary: Verify a Google ID token and issue a JIA session
       requestBody:
         required: true
         content:
@@ -92,7 +91,6 @@ paths:
       security: []
       tags: [Authentication]
       operationId: authenticateWithApple
-      summary: Verify an Apple identity token and issue a JIA session
       requestBody:
         required: true
         content:
