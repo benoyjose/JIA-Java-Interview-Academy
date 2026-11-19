@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,6 +55,8 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.time.Duration
+import java.time.Instant
 
 data class Technology(val id: String, val slug: String, val name: String, val description: String?)
 data class Category(val id: String, val slug: String, val name: String, val technologySlug: String)
@@ -410,6 +413,8 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
     val quizRepository = remember { QuizRepository() }
     var selected by remember { mutableStateOf("BEGINNER") }
     var selectedMode by remember { mutableStateOf(JiaQuizMode.PRACTICE) }
+    var selectedDuration by remember { mutableStateOf(1800) }
+    var remainingSeconds by remember { mutableStateOf<Int?>(null) }
     var availability by remember { mutableStateOf<QuizAvailability?>(null) }
     var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
     var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
@@ -429,6 +434,38 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
 
     val activeAttempt = attempt
     val completed = result
+    LaunchedEffect(activeAttempt?.id, answers) {
+        val current = activeAttempt
+        if (current?.mode == JiaQuizMode.TIMED_MOCK) {
+            val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+            if (!token.isNullOrBlank()) {
+                delay(500)
+                runCatching { quizRepository.saveAnswers(BuildConfig.JIA_API_BASE_URL, token, current, answers) }
+                    .onFailure { error = it.message ?: "Unable to save timed mock progress." }
+            }
+        }
+    }
+    LaunchedEffect(activeAttempt?.deadlineAt) {
+        val deadline = activeAttempt?.deadlineAt
+        if (deadline != null) {
+            while (result == null) {
+                val seconds = Duration.between(Instant.now(), Instant.parse(deadline)).seconds.coerceAtLeast(0).toInt()
+                remainingSeconds = seconds
+                if (seconds == 0) {
+                    val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                    if (!token.isNullOrBlank()) {
+                        loading = true
+                        runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt!!, answers) }
+                            .onSuccess { result = it }
+                            .onFailure { error = it.message ?: "Timed mock expired; unable to submit saved answers." }
+                        loading = false
+                    }
+                    break
+                }
+                delay(1000)
+            }
+        } else remainingSeconds = null
+    }
     val answeredCount = activeAttempt?.questions?.count { !answers[it.position].isNullOrEmpty() } ?: 0
     val totalQuestions = activeAttempt?.questions?.size ?: 0
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -454,7 +491,13 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                 Button(onClick = { attempt = null; result = null; answers = emptyMap() }) { Text("Back to difficulty selection") }
             }
             activeAttempt != null -> {
-                Text("${levels.first { it.first == activeAttempt.difficulty }.second} practice · ${activeAttempt.questions.size} questions")
+                Text("${levels.first { it.first == activeAttempt.difficulty }.second} · ${activeAttempt.mode.displayName} · ${activeAttempt.questions.size} questions")
+                if (activeAttempt.mode == JiaQuizMode.TIMED_MOCK) {
+                    val seconds = remainingSeconds ?: activeAttempt.durationLimitSeconds ?: 0
+                    Text("Time remaining: ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = if (seconds <= 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                }
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(activeAttempt.questions, key = { it.position }) { question ->
                         Card(Modifier.fillMaxWidth()) {
@@ -495,7 +538,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Button(
-                    enabled = !loading && answeredCount == totalQuestions,
+                    enabled = !loading && (activeAttempt.mode == JiaQuizMode.TIMED_MOCK || answeredCount == totalQuestions),
                     onClick = {
                         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                         if (token.isNullOrBlank()) { error = "Please sign in again to submit this quiz."; return@Button }
@@ -508,7 +551,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(if (loading) "Submitting…" else "Submit all answers") }
+                ) { Text(if (loading) "Submitting…" else if (activeAttempt.mode == JiaQuizMode.TIMED_MOCK) "Submit mock interview" else "Submit all answers") }
             }
             else -> {
                 Text("Quiz mode", style = MaterialTheme.typography.titleMedium)
@@ -518,6 +561,13 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                         onClick = { selectedMode = mode },
                         label = { Text(mode.displayName) }
                     )
+                }
+                if (selectedMode == JiaQuizMode.TIMED_MOCK) {
+                    Text("Mock duration", style = MaterialTheme.typography.titleMedium)
+                    listOf(900 to "15 minutes", 1800 to "30 minutes", 3600 to "60 minutes").forEach { (seconds, label) ->
+                        FilterChip(selected = selectedDuration == seconds,
+                            onClick = { selectedDuration = seconds }, label = { Text(label) })
+                    }
                 }
                 Text("Choose your difficulty", style = MaterialTheme.typography.titleMedium)
                 levels.forEach { (value, label) ->
@@ -551,7 +601,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                             error = null
                             val count = minOf(10, availability?.availableQuestionCount ?: 0)
                             scope.launch {
-                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode) }
+                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, selectedDuration) }
                                     .onSuccess { attempt = it; answers = emptyMap(); result = null }
                                     .onFailure { error = it.message ?: "Unable to start quiz." }
                                 loading = false
