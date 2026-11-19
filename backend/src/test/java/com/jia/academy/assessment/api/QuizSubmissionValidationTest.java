@@ -33,4 +33,21 @@ class QuizSubmissionValidationTest {
         assertThatThrownBy(() -> QuizController.validateCompleteAnswers(Set.of(), Set.of()))
                 .isInstanceOf(ResponseStatusException.class);
     }
+    @Test
+    void acceptsNullOrNonNegativeIntegerTimeSpent() {
+        assertThatCode(() -> QuizController.validateTimeSpentMs(null)).doesNotThrowAnyException();
+        assertThatCode(() -> QuizController.validateTimeSpentMs(0)).doesNotThrowAnyException();
+        assertThatCode(() -> QuizController.validateTimeSpentMs(1250L)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsNegativeFractionalAndNonNumericTimeSpent() {
+        assertThatThrownBy(() -> QuizController.validateTimeSpentMs(-1))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> QuizController.validateTimeSpentMs(1.5))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> QuizController.validateTimeSpentMs("100"))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
 }

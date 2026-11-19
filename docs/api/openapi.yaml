@@ -1,8 +1,11 @@
 openapi: 3.1.0
 info:
   title: JIA API
-  version: 1.2.0
-  description: Shared versioned API contract for Spring Boot and Laravel backends.
+  version: 1.3.0
+  description: >-
+    Normative contract for currently implemented Spring Boot and Laravel API routes.
+    Planned CMS, progress, synchronization and release endpoints are added only when
+    implemented and tested in both backends.
 servers:
   - url: /api/v1
 security:
@@ -149,7 +152,7 @@ paths:
               properties:
                 phoneNumber:
                   type: string
-                  pattern: '^\\+[1-9][0-9]{7,14}$'
+                  pattern: '^\+[1-9][0-9]{7,14}$'
                 code:
                   type: string
                   pattern: '^[0-9]{6}$'
@@ -539,7 +542,7 @@ components:
             type: object
             required: [technologySlug, difficulty, attempts, accuracyPercent]
             properties:
-              technologySlug: { type: string }
+              technologySlug: { type: [string, 'null'] }
               categorySlug: { type: [string, 'null'] }
               difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
               attempts: { type: integer }

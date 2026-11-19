@@ -1,0 +1,28 @@
+name: OpenAPI contract lint
+
+on:
+  pull_request:
+    paths:
+      - 'docs/api/openapi.yaml'
+      - '.github/workflows/openapi-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/api/openapi.yaml'
+      - '.github/workflows/openapi-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Lint OpenAPI contract
+        run: npx --yes @redocly/cli lint docs/api/openapi.yaml --extends=minimal
