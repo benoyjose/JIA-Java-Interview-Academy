@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ApiErrorResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ final class AuthenticateJiaToken
     {
         $header = $request->header('Authorization', '');
         if (! str_starts_with($header, 'Bearer ')) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
+            return ApiErrorResponse::forStatus(401);
         }
         $rawToken = trim(substr($header, 7));
         if ($rawToken === '' || strlen($rawToken) > 160) {
