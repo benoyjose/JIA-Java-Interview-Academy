@@ -144,12 +144,16 @@ public class ContentAuthoringService {
                     "Decision must be APPROVE, REQUEST_CHANGES or REJECT");
         }
         var tasks = jdbc.query("""
-                SELECT lesson_id FROM content_review_tasks WHERE id=? AND status='PENDING'
-                """, (rs, row) -> rs.getObject("lesson_id", UUID.class), taskId);
+                SELECT lesson_id,submitted_by FROM content_review_tasks WHERE id=? AND status='PENDING'
+                """, (rs, row) -> new ReviewTaskOwner(
+                        rs.getObject("lesson_id", UUID.class), rs.getObject("submitted_by", UUID.class)), taskId);
         if (tasks.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending review task not found");
         }
-        UUID lessonId = tasks.getFirst();
+        UUID lessonId = tasks.getFirst().lessonId();
+        if (tasks.getFirst().submittedBy().equals(actor.id())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Authors cannot review their own submissions");
+        }
         String taskStatus = switch (decision) {
             case "APPROVE" -> "APPROVED";
             case "REQUEST_CHANGES" -> "CHANGES_REQUESTED";
@@ -177,6 +181,8 @@ public class ContentAuthoringService {
         audit(actor, "LESSON_PUBLISHED", lessonId, Map.of());
         return Map.of("lessonId", lessonId, "status", "PUBLISHED");
     }
+
+    private record ReviewTaskOwner(UUID lessonId, UUID submittedBy) {}
 
     private void validateContent(String contentJson) {
         try {
