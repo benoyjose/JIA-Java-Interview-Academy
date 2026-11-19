@@ -14,7 +14,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,18 +50,18 @@ class SecurityConfigurationHttpIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "learner", authorities = {"catalogue.read"})
     void authenticatedUserWithoutRequiredPermissionGetsContract403() throws Exception {
-        mvc.perform(get("/api/v1/__test/permission-protected"))
+        mvc.perform(get("/api/v1/__test/permission-protected")
+                        .with(user("learner").authorities(new SimpleGrantedAuthority("catalogue.read"))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"))
                 .andExpect(jsonPath("$.message").value("You do not have permission to perform this action."));
     }
 
     @Test
-    @WithMockUser(username = "publisher", authorities = {"content.publish"})
     void authenticatedUserWithRequiredPermissionCanAccessResource() throws Exception {
-        mvc.perform(get("/api/v1/__test/permission-protected"))
+        mvc.perform(get("/api/v1/__test/permission-protected")
+                        .with(user("publisher").authorities(new SimpleGrantedAuthority("content.publish"))))
                 .andExpect(status().isOk());
     }
 
