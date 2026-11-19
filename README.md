@@ -31,6 +31,10 @@ Spring Boot and Laravel are interchangeable implementations of one versioned API
 ## JIA learning tracks
 See [JIA Java Curriculum](docs/JIA_JAVA_CURRICULUM.md) for comprehensive coverage and [Multi-Academy Platform Strategy](docs/MULTI_ACADEMY_PLATFORM.md) for the shared-app/backend/admin architecture.
 
+## External service setup
+
+Follow the [External Configuration Setup Guide](docs/EXTERNAL_CONFIGURATION_SETUP.md) for Google Sign-In, Sign in with Apple and future SMS OTP provider configuration. Keep all credentials in environment secrets; never commit them.
+
 ## Repository layout
 ```
 android/          Shared Android modules and academy app flavors
