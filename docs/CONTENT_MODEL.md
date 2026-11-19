@@ -92,3 +92,47 @@ A user-original revision must remain retrievable even after later revisions. New
 7. Last-known-good content remains available if a sync fails.
 
 Content releases and APK releases are independent version streams.
+
+## Difficulty taxonomy and learner quizzes
+
+Question difficulty is a separate, controlled dimension from lesson difficulty. Use exactly these API/database values and display labels:
+
+| Stored value | Display label | Expected question profile |
+|---|---|---|
+| BEGINNER | Beginner | Definitions, syntax, core concepts and direct examples |
+| NOVICE | Novice | Apply concepts, trace short code, recognize common pitfalls |
+| PROFESSIONAL | Professional | Multi-concept problem solving, framework behavior, concurrency and data access |
+| EXPERT | Expert | JVM/runtime internals, distributed systems, architecture, performance trade-offs and complex scenarios |
+
+Difficulty is assigned to each reviewed question, not inferred from the learner's self-selected level. Editors should calibrate questions against the profile above. A learner may select any level at any time; the system must not lock higher levels behind a progression gate.
+
+### Quiz selection
+
+A learner can start a quiz by selecting:
+- difficulty (required: one of the four levels);
+- technology track (optional);
+- category (optional, constrained to the selected technology);
+- question count (default 10; configurable within server limits);
+- mode: PRACTICE, TIMED_MOCK, DAILY_CHALLENGE or WEAK_AREA.
+
+Only PUBLISHED question revisions are eligible. The API returns prompt/options/hint but never the answer key or grading-only fields before submission. A quiz attempt snapshots the exact question revision IDs and order so later edits cannot change historic grading.
+
+### Performance tracking
+
+For each learner, aggregate at least:
+- attempts, questions attempted, correct answers and accuracy percentage;
+- latest attempt and best score;
+- average completion time where available;
+- per-difficulty performance across all topics;
+- per-topic and per-category performance within each difficulty;
+- incorrect/retry queue and recent attempt history.
+
+The learner dashboard should show a four-level comparison and topic breakdown. Do not automatically promote or demote a learner based on one quiz. Recommendations should use a meaningful sample size; label sparse data as "not enough attempts". Keep public lesson and quiz discovery readable without login, but require login to save server-side attempts and cross-device performance history. An anonymous user may preview quiz availability and be prompted to sign in when saving a result.
+
+### Question provenance and review
+
+Question revisions use the same provenance contract as lesson revisions: USER_ORIGINAL, ADMIN_AUTHORED or EXTERNAL_REFERENCE, with attribution for external material. Only APPROVED content may be published. Objective answer keys must be reviewed before publication. Store answer keys separately from the learner-facing prompt payload and never return them in quiz-start responses.
+
+### Attempt grading
+
+Grade deterministic formats on the server. Store the submitted response, correctness, marks and time spent. Keep the question revision snapshot on each attempt. The initial release should support single-select, multi-select and true/false objective grading; output prediction, debugging, SQL and coding formats can be added with their own explicit evaluators. Do not pretend free-form coding or architecture answers are objectively graded until an evaluation rubric or test harness exists.
