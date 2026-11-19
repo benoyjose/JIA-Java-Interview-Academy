@@ -36,8 +36,7 @@ final class LessonImportService
             if ($categoryId === null) {
                 throw new NotFoundHttpException('Category not found: '.trim($item['categorySlug']));
             }
-            $exists = DB::table('lessons')->where('category_id', $categoryId)
-                ->where('slug', trim($item['slug']))->exists();
+            $exists = DB::table('lessons')->where('slug', trim($item['slug']))->exists();
             if ($exists) {
                 throw new ConflictHttpException('Lesson already exists: '.$key);
             }
@@ -112,6 +111,16 @@ final class LessonImportService
         if (! is_array($item)) {
             throw ValidationException::withMessages([$field => 'Lesson record must be an object.']);
         }
+        $allowed = ['categorySlug','slug','title','summary','difficulty','provenance','content','changeNote'];
+        if (array_diff(array_keys($item), $allowed) !== []) {
+            throw ValidationException::withMessages([$field => 'Unknown lesson record fields are not allowed.']);
+        }
+        if (isset($item['summary']) && (! is_string($item['summary']) || strlen($item['summary']) > 700)) {
+            throw ValidationException::withMessages(["$field.summary" => 'Summary must be text up to 700 characters.']);
+        }
+        if (isset($item['changeNote']) && (! is_string($item['changeNote']) || strlen($item['changeNote']) > 500)) {
+            throw ValidationException::withMessages(["$field.changeNote" => 'Change note must be text up to 500 characters.']);
+        }
         foreach (['categorySlug', 'slug', 'title'] as $name) {
             if (! is_string($item[$name] ?? null) || trim($item[$name]) === '') {
                 throw ValidationException::withMessages(["$field.$name" => 'This field is required.']);
@@ -125,6 +134,9 @@ final class LessonImportService
             throw ValidationException::withMessages(["$field.difficulty" => 'Unsupported lesson difficulty.']);
         }
         $provenance = $item['provenance'] ?? null;
+        if (is_array($provenance) && array_diff(array_keys($provenance), ['sourceType','sourceDescription','attribution']) !== []) {
+            throw ValidationException::withMessages(["$field.provenance" => 'Unknown provenance fields are not allowed.']);
+        }
         if (! is_array($provenance)
             || ! in_array($provenance['sourceType'] ?? null, self::SOURCES, true)
             || ! is_string($provenance['sourceDescription'] ?? null)
@@ -138,6 +150,9 @@ final class LessonImportService
             throw ValidationException::withMessages(["$field.provenance.attribution" => 'External references require attribution.']);
         }
         $content = $item['content'] ?? null;
+        if (is_array($content) && array_diff(array_keys($content), ['schemaVersion','blocks']) !== []) {
+            throw ValidationException::withMessages(["$field.content" => 'Unknown content fields are not allowed.']);
+        }
         if (! is_array($content) || ($content['schemaVersion'] ?? null) !== 1
             || ! is_array($content['blocks'] ?? null) || count($content['blocks']) > 250) {
             throw ValidationException::withMessages(["$field.content" => 'Content must use schemaVersion 1 and contain at most 250 blocks.']);
