@@ -4,7 +4,6 @@ import com.jia.academy.content.api.ContentAuthoringDtos.*;
 import com.jia.academy.content.service.ContentAuthoringService;
 import com.jia.academy.security.CurrentUser;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,8 +21,12 @@ public class ContentAuthoringController {
 
     @GetMapping("/lessons")
     @PreAuthorize("hasAuthority('content.create')")
-    public List<LessonAdminListItem> lessons(@RequestParam(required = false) String status) {
-        return content.adminLessons(status);
+    public PageResult<LessonAdminListItem> lessons(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return content.adminLessons(status, q, page, size);
     }
 
     @GetMapping("/lessons/{lessonId}")
@@ -56,8 +59,11 @@ public class ContentAuthoringController {
 
     @GetMapping("/reviews")
     @PreAuthorize("hasAuthority('content.review')")
-    public List<ReviewQueueItem> reviewQueue() {
-        return content.reviewQueue();
+    public PageResult<ReviewQueueItem> reviewQueue(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return content.reviewQueue(q, page, size);
     }
 
     @GetMapping("/reviews/{taskId}")

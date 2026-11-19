@@ -119,7 +119,7 @@ class ContentAuthoringPostgresIntegrationTest {
         assertThat(new ObjectMapper().readTree(detail.contentJson()).path("schemaVersion").asInt()).isEqualTo(1);
         assertThat(detail.editingDraft()).isTrue();
 
-        var list = service.adminLessons("DRAFT");
+        var list = service.adminLessons("DRAFT", null, 0, 25).items();
         assertThat(list).anySatisfy(item -> {
             assertThat(item.id()).isEqualTo(draft.id());
             assertThat(item.status()).isEqualTo("DRAFT");
@@ -132,6 +132,38 @@ class ContentAuthoringPostgresIntegrationTest {
         assertThat(review.title()).isEqualTo("Read API draft");
         assertThat(new ObjectMapper().readTree(review.contentJson()).path("blocks").isArray()).isTrue();
         assertThat(review.revisionNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void adminLessonAndReviewQueuesSupportBoundedSearchAndPagination() {
+        String query = "page-pagination-" + UUID.randomUUID();
+        var first = service.createDraft(editor, request(query + "-a", "Pagination lesson A"));
+        var second = service.createDraft(editor, request(query + "-b", "Pagination lesson B"));
+        service.submitForReview(editor, first.id());
+        service.submitForReview(editor, second.id());
+
+        var lessonsPage0 = service.adminLessons(null, query, 0, 1);
+        var lessonsPage1 = service.adminLessons(null, query, 1, 1);
+        assertThat(lessonsPage0.totalItems()).isEqualTo(2);
+        assertThat(lessonsPage0.totalPages()).isEqualTo(2);
+        assertThat(lessonsPage0.items()).hasSize(1);
+        assertThat(lessonsPage1.items()).hasSize(1);
+        assertThat(lessonsPage0.items().getFirst().id())
+                .isNotEqualTo(lessonsPage1.items().getFirst().id());
+
+        var reviewsPage0 = service.reviewQueue(query, 0, 1);
+        var reviewsPage1 = service.reviewQueue(query, 1, 1);
+        assertThat(reviewsPage0.totalItems()).isEqualTo(2);
+        assertThat(reviewsPage0.totalPages()).isEqualTo(2);
+        assertThat(reviewsPage0.items()).hasSize(1);
+        assertThat(reviewsPage1.items()).hasSize(1);
+        assertThat(reviewsPage0.items().getFirst().taskId())
+                .isNotEqualTo(reviewsPage1.items().getFirst().taskId());
+
+        assertThatThrownBy(() -> service.adminLessons(null, null, -1, 25))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.reviewQueue(null, 0, 101))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test

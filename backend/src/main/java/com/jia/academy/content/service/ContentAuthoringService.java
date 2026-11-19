@@ -147,24 +147,37 @@ public class ContentAuthoringService {
     }
 
     @Transactional(readOnly = true)
-    public List<LessonAdminListItem> adminLessons(String status) {
+    public PageResult<LessonAdminListItem> adminLessons(String status, String query, int page, int size) {
+        validatePage(query, page, size);
         if (status != null && !List.of("DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED").contains(status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported lesson status filter");
         }
-        return jdbc.query("""
+        String search = normalizeSearch(query);
+        String pattern = search == null ? null : search + "%";
+        long totalItems = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM lessons l JOIN categories c ON c.id=l.category_id
+                WHERE (CAST(? AS text) IS NULL OR l.status=?)
+                  AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
+                """, Long.class, status, status, search, pattern, pattern, pattern);
+        long offset = (long) page * size;
+        List<LessonAdminListItem> items = jdbc.query("""
                 SELECT l.id,l.slug,l.title,c.slug AS category_slug,l.status,l.content_revision,
                        (SELECT revision_number FROM lesson_revisions WHERE id=l.published_revision_id) AS published_revision,
                        (SELECT revision_number FROM lesson_revisions WHERE id=l.draft_revision_id) AS draft_revision,
                        l.updated_at
                 FROM lessons l JOIN categories c ON c.id=l.category_id
-                WHERE (? IS NULL OR l.status=?)
-                ORDER BY l.updated_at DESC
-                LIMIT 100
+                WHERE (CAST(? AS text) IS NULL OR l.status=?)
+                  AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
+                ORDER BY l.updated_at DESC,l.id DESC
+                LIMIT ? OFFSET ?
                 """, (rs, row) -> new LessonAdminListItem(
                 rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
                 rs.getString("category_slug"), rs.getString("status"), rs.getInt("content_revision"),
                 (Integer) rs.getObject("published_revision"), (Integer) rs.getObject("draft_revision"),
-                rs.getTimestamp("updated_at").toInstant()), status, status);
+                rs.getTimestamp("updated_at").toInstant()),
+                status, status, search, pattern, pattern, pattern, size, offset);
+        return new PageResult<>(items, page, size, totalItems, totalPages(totalItems, size));
     }
 
     @Transactional(readOnly = true)
@@ -219,8 +232,21 @@ public class ContentAuthoringService {
     }
 
     @Transactional(readOnly = true)
-    public List<ReviewQueueItem> reviewQueue() {
-        return jdbc.query("""
+    public PageResult<ReviewQueueItem> reviewQueue(String query, int page, int size) {
+        validatePage(query, page, size);
+        String search = normalizeSearch(query);
+        String pattern = search == null ? null : search + "%";
+        long totalItems = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM content_review_tasks t
+                JOIN lessons l ON l.id=t.lesson_id
+                JOIN lesson_revisions r ON r.id=t.revision_id
+                JOIN users u ON u.id=t.submitted_by
+                WHERE t.status='PENDING'
+                  AND (CAST(? AS text) IS NULL OR lower(l.slug) LIKE lower(?) OR lower(r.title) LIKE lower(?) OR lower(u.name) LIKE lower(?))
+                """, Long.class, search, pattern, pattern, pattern);
+        long offset = (long) page * size;
+        List<ReviewQueueItem> items = jdbc.query("""
                 SELECT t.id AS task_id,l.id AS lesson_id,r.id AS revision_id,l.slug,r.title,
                        u.name AS submitted_by,t.status,t.submitted_at
                 FROM content_review_tasks t
@@ -228,12 +254,15 @@ public class ContentAuthoringService {
                 JOIN lesson_revisions r ON r.id=t.revision_id
                 JOIN users u ON u.id=t.submitted_by
                 WHERE t.status='PENDING'
-                ORDER BY t.submitted_at ASC
+                  AND (CAST(? AS text) IS NULL OR lower(l.slug) LIKE lower(?) OR lower(r.title) LIKE lower(?) OR lower(u.name) LIKE lower(?))
+                ORDER BY t.submitted_at ASC,t.id ASC
+                LIMIT ? OFFSET ?
                 """, (rs, row) -> new ReviewQueueItem(
                 rs.getObject("task_id", UUID.class), rs.getObject("lesson_id", UUID.class),
                 rs.getObject("revision_id", UUID.class), rs.getString("slug"), rs.getString("title"),
                 rs.getString("submitted_by"), rs.getString("status"),
-                rs.getTimestamp("submitted_at").toInstant()));
+                rs.getTimestamp("submitted_at").toInstant()), search, pattern, pattern, pattern, size, offset);
+        return new PageResult<>(items, page, size, totalItems, totalPages(totalItems, size));
     }
 
     @Transactional
@@ -368,6 +397,24 @@ public class ContentAuthoringService {
     private record ReviewTaskOwner(UUID lessonId, UUID submittedBy, UUID revisionId, String lessonStatus) {}
     private record PublishState(String status, UUID draftRevisionId) {}
     private record PublishedLessonState(String slug, int contentRevision, UUID draftRevisionId, String categorySlug) {}
+
+    private static void validatePage(String query, int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page must be non-negative and size must be between 1 and 100");
+        }
+        if (query != null && query.length() > 120) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Search query must not exceed 120 characters");
+        }
+    }
+
+    private static String normalizeSearch(String query) {
+        if (query == null || query.isBlank()) return null;
+        return query.trim();
+    }
+
+    private static int totalPages(long totalItems, int size) {
+        return totalItems == 0 ? 0 : (int) ((totalItems + size - 1) / size);
+    }
 
     private void validateContent(String contentJson) {
         try {

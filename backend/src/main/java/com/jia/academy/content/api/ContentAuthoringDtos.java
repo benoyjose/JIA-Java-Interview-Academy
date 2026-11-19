@@ -3,6 +3,7 @@ package com.jia.academy.content.api;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public final class ContentAuthoringDtos {
@@ -44,4 +45,7 @@ public final class ContentAuthoringDtos {
             String summary, String difficulty, String sourceType, String contentJson,
             int revisionNumber, String changeNote, String submittedBy,
             Instant submittedAt, String lessonStatus) {}
+
+    public record PageResult<T>(
+            List<T> items, int page, int size, long totalItems, int totalPages) {}
 }
