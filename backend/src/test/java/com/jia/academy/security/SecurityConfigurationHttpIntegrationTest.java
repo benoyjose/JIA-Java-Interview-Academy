@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -57,6 +58,11 @@ class SecurityConfigurationHttpIntegrationTest {
     @Configuration(proxyBeanMethods = false)
     @EnableWebSecurity
     static class MockJdbcConfiguration {
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+
         @Bean
         JdbcTemplate jdbcTemplate() {
             return Mockito.mock(JdbcTemplate.class);
