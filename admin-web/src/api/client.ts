@@ -4,8 +4,13 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/,
 const TOKEN_KEY = "jia.admin.access-token";
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number, readonly code?: string) {
-    super(message); this.name = "ApiError";
+  readonly status: number;
+  readonly code?: string;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
   }
 }
 export function getStoredToken(): string | null { return window.sessionStorage.getItem(TOKEN_KEY); }
