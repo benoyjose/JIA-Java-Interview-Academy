@@ -11,7 +11,7 @@ import java.net.URL
 enum class JiaQuizMode(val apiValue: String, val displayName: String, val availableToLearners: Boolean) {
     PRACTICE("PRACTICE", "Practice", true),
     TIMED_MOCK("TIMED_MOCK", "Timed mock interview", true),
-    DAILY_CHALLENGE("DAILY_CHALLENGE", "Daily challenge", false),
+    DAILY_CHALLENGE("DAILY_CHALLENGE", "Daily challenge", true),
     WEAK_AREA("WEAK_AREA", "Weak-area practice", false);
 
     companion object {
@@ -30,7 +30,7 @@ data class JiaQuizQuestion(
 )
 data class JiaQuizAttempt(
     val id: String, val difficulty: String, val questions: List<JiaQuizQuestion>,
-    val mode: JiaQuizMode, val deadlineAt: String?, val durationLimitSeconds: Int?
+    val mode: JiaQuizMode, val deadlineAt: String?, val durationLimitSeconds: Int?, val challengeDate: String?
 )
 data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double,
     val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
@@ -88,7 +88,7 @@ class QuizRepository {
             }
             JiaQuizAttempt(json.getString("attemptId"), json.getString("difficulty"), questions, mode,
                 json.optString("deadlineAt").takeIf { it.isNotBlank() && it != "null" },
-                if (json.isNull("durationLimitSeconds")) null else json.optInt("durationLimitSeconds"))
+                if (json.isNull("durationLimitSeconds")) null else json.optInt("durationLimitSeconds"),\n                json.optString("challengeDate").takeIf { it.isNotBlank() && it != "null" })
         }
 
     suspend fun saveAnswers(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>) =
