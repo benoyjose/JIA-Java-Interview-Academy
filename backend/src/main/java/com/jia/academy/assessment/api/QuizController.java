@@ -142,9 +142,7 @@ public class QuizController {
                 rs.getString("answer_json"), rs.getString("explanation")), attemptId);
         Set<Integer> expectedPositions = new HashSet<>();
         for (GradingRow row : rows) expectedPositions.add(row.position());
-        if (rows.isEmpty() || !submitted.keySet().equals(expectedPositions)) {
-            throw badRequest("Submit exactly one answer for every question in this attempt");
-        }
+        validateCompleteAnswers(expectedPositions, submitted.keySet());
 
         int correct = 0;
         List<Map<String, Object>> results = new ArrayList<>();
@@ -252,6 +250,13 @@ public class QuizController {
             item.put("status", rs.getString("status"));
             return item;
         }, user.id(), JIA_ACADEMY, difficulty, difficulty, limit);
+    }
+
+    static void validateCompleteAnswers(Set<Integer> expectedPositions, Set<Integer> submittedPositions) {
+        if (expectedPositions.isEmpty() || !submittedPositions.equals(expectedPositions)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Submit exactly one answer for every question in this attempt");
+        }
     }
 
     private Filters filters(String difficulty, String technologySlug, String categorySlug) {
