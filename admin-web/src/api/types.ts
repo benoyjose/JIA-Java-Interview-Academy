@@ -28,3 +28,10 @@ export type ReviewDetail = {
   revisionNumber: number; changeNote: string | null; submittedBy: string;
   submittedAt: string; lessonStatus: LessonStatus;
 };
+export type PageResult<T> = {
+  items: T[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+};
