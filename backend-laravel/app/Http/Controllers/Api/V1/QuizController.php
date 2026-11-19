@@ -420,7 +420,7 @@ final class QuizController
 
     public static function assertAvailableMode(string $mode): void
     {
-        if ($mode !== 'PRACTICE') {
+        if (! in_array($mode, ['PRACTICE', 'DAILY_CHALLENGE'], true)) {
             throw new BadRequestHttpException('Quiz mode is not available yet: '.$mode);
         }
     }
