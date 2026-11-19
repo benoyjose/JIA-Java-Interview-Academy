@@ -187,7 +187,7 @@ final class QuestionImportService
             throw new BadRequestHttpException('SINGLE_SELECT requires exactly one correct value.');
         }
         if ($item['questionType'] === 'TRUE_FALSE'
-            && (array_keys($values) !== ['true', 'false'] && (count($values) !== 2 || ! isset($values['true'], $values['false']) || count($correct) !== 1))) {
+            && (count($values) !== 2 || ! isset($values['true'], $values['false']) || count($correct) !== 1)) {
             throw new BadRequestHttpException('TRUE_FALSE requires true/false options and one correct value.');
         }
         if (isset($item['hint']) && $item['hint'] !== null && (! is_string($item['hint']) || strlen($item['hint']) > 2000)) {
