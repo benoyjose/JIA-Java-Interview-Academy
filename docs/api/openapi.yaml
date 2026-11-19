@@ -108,7 +108,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '401': { description: Invalid, expired or untrusted provider token }
+        '401': { description: 'Invalid, expired or untrusted provider token' }
         '409': { description: Identity requires explicit account linking }
         '503': { description: Provider sign-in is not configured }
   /auth/phone/otp:
@@ -167,6 +167,7 @@ paths:
   /auth/me:
     get:
       summary: Get the current authenticated account
+      operationId: getCurrentAccount
       tags: [Authentication]
       security: [{ bearerAuth: [] }]
       responses:
@@ -179,6 +180,7 @@ paths:
   /auth/logout:
     post:
       summary: Revoke the current session token
+      operationId: logout
       tags: [Authentication]
       security: [{ bearerAuth: [] }]
       responses:
