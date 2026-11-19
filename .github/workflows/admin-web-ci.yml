@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   admin-web:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: admin-web
@@ -21,10 +21,14 @@ jobs:
           cache-dependency-path: admin-web/package.json
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Verify runner Chrome
+        run: google-chrome --version
       - name: Type-check
         run: npm run check
       - name: Unit tests
         run: npm test
+      - name: Browser end-to-end tests
+        run: npm run test:e2e
       - name: Production build
         run: npm run build
       - name: Enforce initial bundle budget

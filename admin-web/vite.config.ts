@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: { target: "es2022", chunkSizeWarningLimit: 250, sourcemap: false },
-    test: { environment: "node", clearMocks: true },
+    test: {
+      environment: "node",
+      clearMocks: true,
+      exclude: ["e2e/**", "**/node_modules/**", "**/dist/**"],
+    },
   };
 });

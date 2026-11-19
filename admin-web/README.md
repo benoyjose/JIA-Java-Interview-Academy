@@ -44,4 +44,6 @@ Lesson content is edited as JSON. The portal validates syntax and the required `
 - `npm run dev` — development server
 - `npm run check` — TypeScript validation
 - `npm test` — unit tests
+- `npx playwright install chromium` — install the local browser used by E2E tests
+- `npm run test:e2e` — Chromium browser tests (starts Vite automatically and uses a deterministic mocked API)
 - `npm run build` — type-check and production bundle
