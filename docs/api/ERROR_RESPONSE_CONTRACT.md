@@ -59,7 +59,7 @@ The mapping is implemented for the common statuses covered by the current handle
 
 ## Implementation requirements
 
-1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Spring MVC response tests and production-filter-chain tests for missing/invalid bearer tokens are merged in PR #14. Spring method security is enabled and a production-filter-chain test now verifies a principal without `content.publish` receives the common 403 envelope; an authorized principal is allowed. The permission test seeds the authenticated principal with Spring Security's test support, so it validates authorization enforcement and error handling but does not yet exercise permission loading from a persisted bearer token.
+1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Spring MVC response tests and production-filter-chain tests for missing/invalid bearer tokens are merged in PR #14. Spring method security is enabled and a production-filter-chain test now verifies a principal without `content.publish` receives the common 403 envelope; an authorized principal is allowed. The permission test seeds the authenticated principal with Spring Security's test support, so it validates authorization enforcement and error handling but does not yet exercise permission loading from a persisted bearer token. Expired-token integration coverage is being added against persisted PostgreSQL token records in both runtimes.
 2. Implemented in Laravel's API exception rendering for validation, authentication, authorization, HTTP exceptions, not-found, throttling status mapping, and unexpected failures. Laravel HTTP feature tests cover authentication, permission denial, validation, bad request, not-found, and unexpected exceptions in PR #14.
 3. Status-to-code mapping is implemented for the documented statuses. Add parity tests to prove status preservation across framework-specific exceptions.
 4. Validation field paths and message arrays are included; tests must verify they do not leak rejected secrets or request bodies.
@@ -90,13 +90,13 @@ Assertions should verify required envelope fields, optional field behavior, no s
 2. Added backend error mappers and initial Spring unit tests; full integration and Laravel parity tests remain outstanding.
 3. Shared status-code fixtures, Spring MVC/filter-chain tests, and Laravel HTTP feature tests are merged in PR #14; not every documented scenario is yet exercised through both runtimes.
 4. Android compatibility parsing is centralized; this repository contains no web client implementation to audit.
-5. Spring permission-denial enforcement is now covered at the method-security/filter-chain boundary. Complete persisted-token permission parity, cross-runtime expired-token behavior and rate-limit parity, then run all CI workflows before considering any runtime rollout.
+5. Spring permission-denial enforcement is covered at the method-security/filter-chain boundary. Persisted expired-token checks are being added to both backends; persisted-token permission parity and rate-limit parity remain outstanding.
 
 ## Exit criteria
 
 - Every documented error response references the common schema.
 - Both backend implementations return the same status and envelope semantics for the parity matrix.
-- Security-generated errors are covered, including Spring method-security denial and missing/invalid bearer-token authentication paths. Persisted-token permission loading remains to be verified.
+- Security-generated errors are covered, including Spring method-security denial and missing/invalid bearer-token authentication paths. Persisted-token permission loading remains to be verified. Expired-token rejection is covered by persisted-record integration tests in both backends.
 - Android and web clients handle the common envelope.
 - CI fails when the two implementations diverge on the parity fixtures.
 
