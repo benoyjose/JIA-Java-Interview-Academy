@@ -37,7 +37,6 @@ final class QuizController
             'questionCount' => ['nullable', 'integer', 'min:1', 'max:100'],
             'mode' => ['nullable', 'string', 'max:40'],
             'durationSeconds' => ['nullable', 'integer', 'min:60', 'max:21600'],
-            'durationSeconds' => ['nullable', 'integer', 'min:60', 'max:21600'],
         ]);
         $mode = $validated['mode'] ?? 'PRACTICE';
         $durationLimitSeconds = null;
@@ -198,6 +197,7 @@ final class QuizController
             $submitted = collect($validated['answers'] ?? [])->keyBy('position');
             $savedAnswers = collect();
             if ($timedMock) {
+                if ($timedOut) $submitted = collect();
                 $savedAnswers = DB::table('quiz_attempt_answers')->where('attempt_id', $attemptId)->get()
                     ->keyBy('position');
                 foreach ($savedAnswers as $position => $saved) {
