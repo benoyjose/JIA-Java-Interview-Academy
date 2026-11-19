@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Http\\Middleware\\RequireJiaPermission;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Route;
-use Illuminate\\Support\\Facades\\Validator;
-use Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException;
-use Tests\\TestCase;
+use App\Http\Middleware\RequireJiaPermission;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Tests\TestCase;
 
 final class ApiErrorHttpParityTest extends TestCase
 {
@@ -36,7 +36,7 @@ final class ApiErrorHttpParityTest extends TestCase
         })->middleware(RequireJiaPermission::class.':test:permission');
 
         Route::get('/api/__parity/unexpected', function () {
-            throw new \\RuntimeException('database password must never leak');
+            throw new \RuntimeException('database password must never leak');
         });
     }
 
