@@ -15,11 +15,14 @@ final class LessonImportService
 
     public function import(array $batch, object $actor): array
     {
+        if (array_diff(array_keys($batch), ['formatVersion', 'lessons']) !== []) {
+            throw ValidationException::withMessages(['batch' => 'Unknown batch fields are not allowed.']);
+        }
         if (($batch['formatVersion'] ?? null) !== 1) {
             throw ValidationException::withMessages(['formatVersion' => 'Unsupported lesson import format version.']);
         }
         $records = $batch['lessons'] ?? null;
-        if (! is_array($records) || count($records) < 1 || count($records) > 100) {
+        if (! is_array($records) || ! array_is_list($records) || count($records) < 1 || count($records) > 100) {
             throw ValidationException::withMessages(['lessons' => 'Import batch must contain between 1 and 100 lessons.']);
         }
 
@@ -144,6 +147,9 @@ final class LessonImportService
             || strlen($provenance['sourceDescription']) > 500) {
             throw ValidationException::withMessages(["$field.provenance" => 'Valid provenance and sourceDescription are required.']);
         }
+        if (isset($provenance['attribution']) && (! is_string($provenance['attribution']) || strlen($provenance['attribution']) > 1000)) {
+            throw ValidationException::withMessages(["$field.provenance.attribution" => 'Attribution must be text up to 1000 characters.']);
+        }
         if ($provenance['sourceType'] === 'EXTERNAL_REFERENCE'
             && (! is_string($provenance['attribution'] ?? null) || trim($provenance['attribution']) === ''
                 || strlen($provenance['attribution']) > 1000)) {
@@ -154,7 +160,7 @@ final class LessonImportService
             throw ValidationException::withMessages(["$field.content" => 'Unknown content fields are not allowed.']);
         }
         if (! is_array($content) || ($content['schemaVersion'] ?? null) !== 1
-            || ! is_array($content['blocks'] ?? null) || count($content['blocks']) > 250) {
+            || ! is_array($content['blocks'] ?? null) || ! array_is_list($content['blocks']) || count($content['blocks']) > 250) {
             throw ValidationException::withMessages(["$field.content" => 'Content must use schemaVersion 1 and contain at most 250 blocks.']);
         }
         foreach ($content['blocks'] as $blockIndex => $block) {
