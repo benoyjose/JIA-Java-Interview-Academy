@@ -137,7 +137,7 @@ test("admin can create, submit, review, approve and publish a lesson", async ({ 
   await expect(page.getByRole("status")).toContainText("submitted for review");
   await page.getByRole("button", { name: /Review queue/ }).click();
   await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
-  await page.getByRole("button", { name: /Java Streams/ }).last().click();
+  // ReviewsPage automatically selects the first pending item and loads its immutable revision.
   await expect(page.getByRole("heading", { name: "Java Streams" })).toBeVisible();
   await expect(page.getByText("Stream fundamentals")).toBeVisible();
   await page.getByRole("button", { name: "Approve revision" }).click();
