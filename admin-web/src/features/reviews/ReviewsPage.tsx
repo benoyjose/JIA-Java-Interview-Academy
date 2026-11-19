@@ -67,12 +67,12 @@ export function ReviewsPage() {
     <div className="content-grid review-grid">
       <div className="panel lesson-list-panel">
         <div className="panel-heading"><div><h2>Pending reviews</h2><span className="muted small-copy">Oldest submissions first · {result.totalItems.toLocaleString()} total</span></div><span className="count-pill">{result.totalItems.toLocaleString()}</span></div>
-        <div className="list-controls"><input aria-label="Search reviews" placeholder="Search title, slug or submitter…" value={search} onChange={event => changeSearch(event.target.value)} /></div>
+        <div className="list-controls"><input aria-label="Search reviews" placeholder="Search title, slug or submitter…" maxLength={120} value={search} onChange={event => changeSearch(event.target.value)} /></div>
         {loading ? <div className="loading-line">Loading review queue…</div> : result.items.length === 0 ? <div className="empty-state"><span>✓</span><strong>Queue is clear</strong><p>No pending reviews match this search.</p></div> :
           <div className="lesson-list">{result.items.map(item => <button key={item.taskId} className={selectedId === item.taskId ? "lesson-row selected" : "lesson-row"} onClick={() => { setDetail(null); setSelectedId(item.taskId); }}>
             <span className="lesson-row-main"><strong>{item.title}</strong><small>{item.slug} · by {item.submittedBy}</small><small>{new Date(item.submittedAt).toLocaleString()}</small></span><span className="status-badge status-in_review">PENDING</span><span className="row-chevron">›</span>
           </button>)}</div>}
-        <PageControls page={page} totalPages={result.totalPages} loading={loading} onChange={setPage} />
+        <PageControls page={page} totalPages={result.totalPages} loading={loading} onChange={next => { setPage(next); setSelectedId(null); setDetail(null); }} />
       </div>
       <div className="panel editor-panel">{!detail ? <div className="empty-editor"><div className="empty-icon">✓</div><h2>Review a submission</h2><p>Select a pending item to inspect its immutable revision snapshot.</p></div> :
         <div className="editor-content"><div className="panel-heading"><div><p className="eyebrow">SUBMITTED REVISION · V{detail.revisionNumber}</p><h2>{detail.title}</h2><span className="muted small-copy">{detail.slug} · submitted by {detail.submittedBy}</span></div></div>
