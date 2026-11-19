@@ -17,6 +17,10 @@ class AuthRepository {
         post(baseUrl, "/auth/register", JSONObject().put("name", name).put("email", email).put("password", password))
 
 
+    suspend fun loginWithGoogle(baseUrl: String, idToken: String, nonce: String): JiaSession =
+        post(baseUrl, "/auth/federated/google",
+            JSONObject().put("idToken", idToken).put("nonce", nonce))
+
     suspend fun requestPhoneOtp(baseUrl: String, phoneNumber: String): Unit = withContext(Dispatchers.IO) {
         val connection = (URL(url(baseUrl, "/auth/phone/otp")).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
