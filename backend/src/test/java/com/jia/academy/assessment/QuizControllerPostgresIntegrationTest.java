@@ -121,6 +121,33 @@ class QuizControllerPostgresIntegrationTest {
     }
 
     @Test
+    void startsTimedMockWithServerDeadlineAndPersistsPartialAnswers() {
+        Map<String,Object> started = controller.start(learnerOne,
+                Map.of("difficulty", "BEGINNER", "questionCount", 2, "mode", "TIMED_MOCK", "durationSeconds", 900));
+        UUID attemptId = (UUID) started.get("attemptId");
+        assertThat(started.get("durationLimitSeconds")).isEqualTo(900);
+        assertThat(started.get("deadlineAt")).isNotNull();
+
+        controller.saveAnswers(learnerOne, attemptId, Map.of("answers", List.of(answer(1))));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempt_answers WHERE attempt_id=?", Integer.class, attemptId))
+                .isEqualTo(1);
+
+        jdbc.update("UPDATE quiz_attempts SET deadline_at=now() - INTERVAL '1 second' WHERE id=?", attemptId);
+        Map<String,Object> result = controller.submit(learnerOne, attemptId, Map.of("answers", List.of()));
+        assertThat(result.get("timedOut")).isEqualTo(true);
+        assertThat(result.get("correctCount")).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, attemptId))
+                .isEqualTo("SUBMITTED");
+    }
+
+    @Test
+    void rejectsTimedMockDurationOutsideSupportedRange() {
+        assertThatThrownBy(() -> controller.start(learnerOne,
+                Map.of("difficulty", "BEGINNER", "questionCount", 2, "mode", "TIMED_MOCK", "durationSeconds", 30)))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
     void preventsAnotherLearnerFromSubmittingAnAttempt() {
         UUID attemptId = startAttempt();
         assertThatThrownBy(() -> controller.submit(learnerTwo, attemptId, answers(1, 2)))
