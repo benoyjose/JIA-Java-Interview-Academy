@@ -162,6 +162,33 @@ class QuizControllerPostgresIntegrationTest {
     }
 
     @Test
+    void expiredPersistedBearerTokenIsNotAuthenticatedOrMarkedAsUsed() throws Exception {
+        String rawToken = "jia-expired-postgres-auth-integration-token";
+        String tokenHash = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        UUID tokenId = UUID.fromString("72000000-0000-0000-0000-000000000099");
+        jdbc.update("""
+                INSERT INTO api_tokens(id,user_id,token_hash,token_name,expires_at)
+                VALUES (?,?,?,?,?)
+                """, tokenId, USER_ONE, tokenHash, "expired-integration-test", Timestamp.from(Instant.now().minusSeconds(60)));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + rawToken);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        try {
+            new TokenAuthenticationFilter(jdbc).doFilter(request, response, chain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+            assertThat(jdbc.queryForObject("SELECT last_used_at IS NULL FROM api_tokens WHERE id=?",
+                    Boolean.class, tokenId)).isTrue();
+        } finally {
+            SecurityContextHolder.clearContext();
+            jdbc.update("DELETE FROM api_tokens WHERE id=?", tokenId);
+        }
+    }
+
+    @Test
     void preventsSubmittingAnAttemptMoreThanOnce() {
         UUID attemptId = startAttempt();
         controller.submit(learnerOne, attemptId, answers(1, 2));
