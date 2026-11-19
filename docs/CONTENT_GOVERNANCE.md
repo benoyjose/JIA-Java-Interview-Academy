@@ -57,11 +57,13 @@ The lesson document schema is versioned. Content is delivered independently of m
 
 The Spring Boot primary backend now has an initial content-authoring API increment:
 - Create and update unpublished lesson drafts, recording immutable revision snapshots and change notes.
+- Create a new draft revision for an already-published lesson without changing the learner-visible revision.
 - Submit a draft revision for review; the review task is bound to the exact revision.
 - List pending reviews; reviewers can approve, request changes or reject.
 - Prevent authors from reviewing their own submissions.
-- Admins can publish approved lessons; public catalogue routes continue to return only PUBLISHED records.
+- Promote an approved revision atomically; catalogue reads use the published revision pointer, not mutable draft data.
+- Existing published lessons are backfilled to their current immutable revision during migration.
 - Basic role/permission checks use the existing EDITOR, REVIEWER and ADMIN roles.
 - Essential lifecycle actions are recorded in the existing audit_events table.
 
-Current MVP boundary: edits are limited to lessons that have not yet been published. Editing an already-published lesson safely requires a separate draft/published revision pointer so the live learner view remains unchanged during review. That capability, rollback UI, media upload, React admin portal and Laravel implementation are not part of this increment. Do not describe the full CMS as complete.
+Current MVP boundary: published lessons can now receive a separate draft revision and promote it after approval. Changing a published lesson's slug or category is intentionally rejected in this workflow; taxonomy moves need their own reviewed operation. Rollback UI, media upload, React admin portal, release manifests and Laravel implementation remain future increments. Do not describe the full CMS as complete.
