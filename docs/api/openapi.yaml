@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: JIA API
-  version: 1.3.0
+  version: 1.4.0
   description: >-
     Normative contract for currently implemented Spring Boot and Laravel API routes.
     Planned CMS, progress, synchronization and release endpoints are added only when
@@ -408,7 +408,7 @@ paths:
             enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED]
         - name: q
           in: query
-          description: Case-insensitive search across title, slug and category slug
+          description: Case-insensitive prefix search across title, slug and category slug
           schema: { type: string, maxLength: 120 }
         - name: page
           in: query
@@ -515,7 +515,7 @@ paths:
       parameters:
         - name: q
           in: query
-          description: Case-insensitive search across lesson title, slug and submitter name
+          description: Case-insensitive prefix search across lesson title, slug and submitter name
           schema: { type: string, maxLength: 120 }
         - name: page
           in: query
