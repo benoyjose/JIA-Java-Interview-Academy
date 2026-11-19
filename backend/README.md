@@ -17,6 +17,8 @@ Flyway applies schema migrations automatically. Hibernate uses schema validation
 - `POST /api/v1/auth/login` — authenticates an active account and returns a token.
 - `POST /api/v1/auth/federated/google` — verifies a Google ID token and issues a JIA session.
 - `POST /api/v1/auth/federated/apple` — verifies an Apple identity token and issues a JIA session.
+- `POST /api/v1/auth/phone/otp` — requests a six-digit SMS code.
+- `POST /api/v1/auth/phone/verify` — verifies the code and issues a JIA session.
 - `GET /api/v1/auth/me` — returns the authenticated account; requires `Authorization: Bearer <token>`.
 - `POST /api/v1/auth/logout` — revokes the current token.
 
@@ -34,8 +36,8 @@ Only records in `PUBLISHED` status are returned. The initial migration seeds tax
 
 ## Configuration
 
-Override `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `SERVER_PORT` through environment variables. Federated sign-in also requires `GOOGLE_OAUTH_CLIENT_ID` and `APPLE_SERVICE_ID`; see [External Configuration Setup](../docs/EXTERNAL_CONFIGURATION_SETUP.md). Local Compose credentials are for development only; never reuse them in a deployed environment.
+Override `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `SERVER_PORT` through environment variables. Federated sign-in also requires `GOOGLE_OAUTH_CLIENT_ID` and `APPLE_SERVICE_ID`. Phone login requires `JIA_SMS_ENDPOINT`, `JIA_SMS_TOKEN` and `JIA_OTP_HMAC_SECRET`. See [External Configuration Setup](../docs/EXTERNAL_CONFIGURATION_SETUP.md). Local Compose credentials are for development only; never reuse them in a deployed environment.
 
 ## Current scope
 
-This is the catalogue and early authentication foundation. Google/Apple token verification is implemented in Spring Boot; phone OTP, account linking, token refresh, admin authoring, content review/publishing, assessments, learner progress and content synchronization remain subsequent implementation increments.
+This is the catalogue and early authentication foundation. Google/Apple token verification is implemented in Spring Boot; account linking, token refresh, native provider SDK integrations, SMS vendor selection/delivery validation, admin authoring, content review/publishing, assessments, learner progress and content synchronization remain subsequent implementation increments.
