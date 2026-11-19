@@ -46,7 +46,8 @@ All paths above are relative to `/api/v1`.
 7. **Nullable performance fields are valid.** Topic performance may contain a null technology slug for an unfiltered attempt; schemas must not incorrectly require a non-null value.
 8. **No refresh-token API exists yet.** The current token response is a 30-day opaque bearer token. Do not document refresh-token behavior until both implementations and clients support it.
 9. **Permission enforcement is not yet mapped to a shared production route.** Spring method security is enabled and tested with a protected test endpoint; Laravel has reusable `RequireJiaPermission` middleware. No current shared production route applies a matching named permission policy, and persisted-token permission loading still needs end-to-end parity coverage. Do not treat this as complete authorization parity.
-10. **No CMS/progress/sync routes exist yet.** Add those paths to this contract in the same change that implements both backend handlers, permission checks and tests.
+10. **Expired persisted bearer tokens are covered by integration tests.** Both implementations query the `api_tokens` table with `expires_at > now`; tests seed an already-expired token and verify `/auth/me` rejects it with the common 401 envelope without updating `last_used_at`.
+11. **No CMS/progress/sync routes exist yet.** Add those paths to this contract in the same change that implements both backend handlers, permission checks and tests.
 
 ## Required CI contract gates
 
