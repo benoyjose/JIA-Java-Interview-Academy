@@ -2,7 +2,7 @@
 
 ## Shared identity schema
 
-The canonical identity model is introduced by Spring Flyway migration V2 and mirrored by a Laravel migration for environments where Laravel is selected as the active backend. Do not run both migration systems against the same environment. Choose one migration owner per deployment.
+The canonical identity model is introduced by Spring Flyway migration V2 and mirrored by a Laravel migration for environments where Laravel is selected as the active backend. Provider-neutral identity records and OTP challenge storage are added by Spring migration V7 and the matching Laravel migration. Do not run both migration systems against the same environment. Do not run both migration systems against the same environment. Choose one migration owner per deployment.
 
 Tables:
 - `users`: UUID, unique email, password hash, account status and verification timestamp.
@@ -14,7 +14,7 @@ Tables:
 
 ### Provider-neutral identity model (required extension)
 
-A JIA user is a single canonical account. Authentication methods are linked identities, not separate user accounts. Add an `auth_identities` table with at least:
+A JIA user is a single canonical account. Authentication methods are linked identities, not separate user accounts. The `auth_identities` table contains:
 - UUID primary key and `user_id` foreign key.
 - Provider enum/code: `GOOGLE`, `APPLE`, `PHONE`, `EMAIL`.
 - Stable provider subject (Google/Apple `sub`; normalized E.164 phone; normalized email address).
@@ -80,4 +80,4 @@ Provider tokens are credentials for identity verification only; they are not JIA
 
 ## API behavior and implementation status
 
-Implemented in the initial backend foundation: email/password registration and login, current-user lookup and logout. Google, Apple and phone OTP flows are **specified but not yet implemented**. The identity schema extension and provider integrations must be delivered consistently in Spring Boot and Laravel before enabling these methods in production. Registration assigns LEARNER only. No public endpoint can assign privileged roles. The first administrator still requires a secure operator-controlled provisioning process. Admin authoring routes and their permission annotations are not yet implemented.
+Implemented: email/password registration and login, current-user lookup and logout in both backends; Google and Apple ID-token verification and session issuance in Spring Boot and Laravel; provider-neutral identity persistence in both backends. Phone OTP database storage exists, but SMS send/verify endpoints and vendor integration are pending. Native Android/iOS sign-in SDK integration, authenticated account linking/unlinking, refresh-token rotation, and complete cross-backend contract tests are pending. Do not enable federated login in production until provider configuration and end-to-end tests are complete. Registration assigns LEARNER only. No public endpoint can assign privileged roles. The first administrator still requires a secure operator-controlled provisioning process. Admin authoring routes and their permission annotations are not yet implemented.
