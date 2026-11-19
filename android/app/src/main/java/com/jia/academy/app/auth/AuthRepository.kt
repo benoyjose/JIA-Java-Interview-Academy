@@ -1,5 +1,6 @@
 package com.jia.academy.app.auth
 
+import com.jia.academy.app.api.ApiErrorMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -38,8 +39,7 @@ class AuthRepository {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                val message = runCatching { JSONObject(response).let { it.optString("message").ifBlank { it.optString("detail") } } }.getOrNull()
-                error(message?.takeIf(String::isNotBlank) ?: "OTP request failed (HTTP $status).")
+                error(ApiErrorMessage.from(response, "OTP request failed", status))
             }
         } finally { connection.disconnect() }
     }
@@ -59,7 +59,7 @@ class AuthRepository {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) error("Session validation failed (HTTP $status).")
+            if (status !in 200..299) error(ApiErrorMessage.from(response, "Session validation failed", status))
             val user = JSONObject(response)
             val rolesJson = user.optJSONArray("roles")
             val roles = (0 until (rolesJson?.length() ?: 0)).map { rolesJson!!.getString(it) }
@@ -76,7 +76,11 @@ class AuthRepository {
             setRequestProperty("Authorization", "Bearer $token")
         }
         try {
-            if (connection.responseCode !in 200..299) error("Sign out failed (HTTP ${connection.responseCode}).")
+            val status = connection.responseCode
+            if (status !in 200..299) {
+                val response = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                error(ApiErrorMessage.from(response, "Sign out failed", status))
+            }
         } finally { connection.disconnect() }
     }
 
@@ -95,11 +99,7 @@ class AuthRepository {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                val message = runCatching {
-                    val error = JSONObject(response)
-                    error.optString("message").ifBlank { error.optString("detail") }
-                }.getOrNull()
-                error(message?.takeIf(String::isNotBlank) ?: "Sign in failed (HTTP $status).")
+                error(ApiErrorMessage.from(response, "Sign in failed", status))
             }
             val json = JSONObject(response)
             val user = json.getJSONObject("user")
