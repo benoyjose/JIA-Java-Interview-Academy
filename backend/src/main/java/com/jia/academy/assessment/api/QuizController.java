@@ -148,9 +148,6 @@ public class QuizController {
             int p = position.intValue();
             if (p < 1 || position.doubleValue() != p || !positions.add(p)) throw badRequest("Answer positions must be unique positive integers");
             validateTimeSpentMs(map.get("timeSpentMs"));
-            Integer expected = jdbc.query("SELECT position FROM quiz_attempt_questions WHERE attempt_id=? AND position=?",
-                    rs -> rs.next() ? rs.getInt(1) : null, attemptId, p);
-            if (expected == null) throw badRequest("Answer position is not part of this attempt");
             Map<String,Object> normalized = new HashMap<>();
             response.forEach((k,v) -> normalized.put(String.valueOf(k),v));
             jdbc.update("""
@@ -163,6 +160,10 @@ public class QuizController {
                 """, attemptId, p, writeJson(normalized),
                 map.get("timeSpentMs") instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
         }
+        List<Integer> validPositions = jdbc.queryForList(
+                "SELECT position FROM quiz_attempt_questions WHERE attempt_id=? AND position = ANY(?)",
+                Integer.class, attemptId, positions.toArray(Integer[]::new));
+        if (validPositions.size() != positions.size()) throw badRequest("Answer position is not part of this attempt");
         return Map.of("attemptId", attemptId, "savedCount", positions.size());
     }
 
