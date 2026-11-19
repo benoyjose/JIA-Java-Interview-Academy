@@ -16,7 +16,7 @@ The central React + TypeScript portal manages content across academy apps. The f
 
 - Initial JavaScript bundle CI guard: 350 KiB raw total; Vite warns on individual chunks above 250 KiB. Revisit with gzip/Brotli measurements before launch.
 - Lazy-load lesson and review screens; avoid a heavyweight rich-text editor until the block schema is finalized.
-- Keep the lesson list bounded by the current API's 100-item maximum. Search and status filtering operate on that bounded set; server-side pagination/search is a follow-up before content volume grows materially.
+- Use server-side prefix search, status filtering and deterministic pagination for both lesson and review lists. Page sizes are bounded to 1–100 (25 by default); never fetch the full catalogue or review queue. PostgreSQL B-tree pattern indexes support prefix filtering and composite/partial indexes support stable list ordering.
 - Fetch full lesson/review revisions only on selection. Abort stale detail requests.
 - No background polling; refresh after user actions.
 - Validate JSON on save/submit, not on every keystroke.
