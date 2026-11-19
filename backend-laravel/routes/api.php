@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\FederatedAuthController;
 use App\Http\Controllers\Api\V1\PhoneOtpController;
 use App\Http\Controllers\Api\V1\CatalogueController;
 use App\Http\Controllers\Api\V1\QuizController;
+use App\Http\Controllers\Api\V1\LessonImportController;
 use App\Http\Middleware\AuthenticateJiaToken;
 use Illuminate\Support\Facades\Route;
 
