@@ -414,7 +414,7 @@ public class QuizController {
     }
 
     static void validateMode(String mode) {
-        if (!"PRACTICE".equals(mode)) {
+        if (!"PRACTICE".equals(mode) && !"DAILY_CHALLENGE".equals(mode)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Quiz mode is not available yet: " + mode);
         }
