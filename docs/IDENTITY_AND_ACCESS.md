@@ -23,7 +23,7 @@ Tables:
 
 ## Security requirements
 
-- Passwords must be hashed with Argon2id where supported; use bcrypt only when Argon2id is unavailable and with a current work factor.
+- Passwords use BCrypt with work factor 12 in both implementations so a user can authenticate after a controlled switch between Spring Boot and Laravel. Never store plaintext passwords.
 - Never store raw bearer tokens. Generate high-entropy random tokens, return the raw value once, and persist only SHA-256 hash.
 - Expire tokens, support revocation, update last-used timestamps and rate-limit authentication endpoints.
 - Never create a default administrator or commit credentials. The first administrator must be provisioned through a one-time, operator-controlled command or secure deployment process.
@@ -34,4 +34,4 @@ Tables:
 
 ## API behavior
 
-Authentication endpoints will be versioned under `/api/v1/auth`. The initial schema does not yet imply that login, registration, token issuance or protected admin APIs are implemented. Those are the next coding slice, and must be implemented with equivalent behavior in both backend applications.
+Implemented authentication endpoints: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me` and `POST /api/v1/auth/logout`. Tokens are opaque, 256-bit random bearer tokens with a 30-day expiry; only SHA-256 token hashes are stored. Registration assigns LEARNER only. No public endpoint can assign privileged roles. The first administrator still requires a secure operator-controlled provisioning process. Admin authoring routes and their permission annotations are not yet implemented.
