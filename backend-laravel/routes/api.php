@@ -22,5 +22,5 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/technologies/{slug}', [CatalogueController::class, 'technology']);
     Route::get('/technologies/{technologySlug}/categories', [CatalogueController::class, 'categories']);
     Route::get('/categories/{categorySlug}/lessons', [CatalogueController::class, 'lessons']);
-    Route::get('/lessons/{slug}', [CatalogueController::class, 'lesson']);
+    Route::get('/lessons/{slug}', [CatalogueController::class, 'lesson']);\n    Route::get('/quizzes/availability', [QuizController::class, 'availability']);\n    Route::middleware(AuthenticateJiaToken::class)->group(function (): void {\n        Route::post('/quiz-attempts', [QuizController::class, 'start']);\n        Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);\n        Route::get('/me/quiz-performance', [QuizController::class, 'performance']);\n        Route::get('/me/quiz-attempts', [QuizController::class, 'history']);\n    });
 });
