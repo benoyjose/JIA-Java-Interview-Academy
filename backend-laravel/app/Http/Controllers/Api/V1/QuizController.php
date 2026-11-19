@@ -114,7 +114,7 @@ final class QuizController
     {
         $validated = $request->validate([
             'answers' => ['required', 'array', 'min:1'],
-            'answers.*.position' => ['required', 'integer', 'min:1'],
+            'answers.*.position' => ['required', 'integer', 'min:1', 'distinct'],
             'answers.*.response' => ['required', 'array'],
             'answers.*.timeSpentMs' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -143,6 +143,16 @@ final class QuizController
                     'question_revisions.answer_json',
                     'question_revisions.explanation',
                 ]);
+
+            $expectedPositions = $questions->pluck('position')->map(fn ($position): int => (int) $position)->all();
+            $submittedPositions = $submitted->keys()->map(fn ($position): int => (int) $position)->all();
+            sort($expectedPositions);
+            sort($submittedPositions);
+            if ($expectedPositions === [] || $submittedPositions !== $expectedPositions) {
+                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
+                    'Submit exactly one answer for every question in this attempt'
+                );
+            }
 
             $correct = 0;
             $answerResults = [];
