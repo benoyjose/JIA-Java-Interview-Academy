@@ -12,12 +12,12 @@ Each academy will have distinct Android and iOS store listings, branding, app na
 ## Product surfaces
 - Android apps: Kotlin + Jetpack Compose, shared modules and academy-specific build flavors.
 - iOS apps: Swift + SwiftUI, shared modules and academy-specific app targets.
-- Backend A: Java 25 + Spring Boot.
-- Backend B: PHP 8.5 + Laravel 13; equivalent API and business functionality.
+- **Primary production backend:** Java 25 + Spring Boot.
+- **Secondary backend:** PHP 8.5 + Laravel 13, retained as a compatibility/reference implementation.
 - One React + TypeScript admin portal for all academies.
 
 ## Backend deployment principle
-Spring Boot and Laravel are interchangeable implementations of one versioned API contract. Initially deploy only one backend to production to control operating cost and avoid dual-write/data-consistency problems. Keep both implementations aligned and test them against the same OpenAPI contract.
+Spring Boot is the only planned production backend for the initial release. Laravel remains a secondary compatibility implementation and is not deployed alongside Spring Boot. Implement and validate product features in Spring Boot first. Update Laravel when a backend switch is planned or when maintaining a specific shared contract is valuable. Never run both as independent production writers.
 
 ## Core principles
 1. User-owned learning material is the primary source of truth.
@@ -48,4 +48,4 @@ infra/            Local development and deployment assets
 ```
 
 ## Project status
-Catalogue, identity and early academy/content-governance database foundations are committed. Full CMS APIs/UI, assessment engine and learner apps remain under implementation. No lesson bodies are invented or published; user-provided material remains the priority.
+Spring Boot is the primary production backend; Laravel is secondary. Catalogue, identity and early content-governance database foundations are committed. CMS APIs/UI, assessment experience, reviewed curriculum content and learner-app improvements remain under implementation. No lesson bodies are invented or published; user-provided material remains the priority.
