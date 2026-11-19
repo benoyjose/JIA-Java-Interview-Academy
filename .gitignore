@@ -1,0 +1,35 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# Java
+target/
+*.class
+
+# Node
+node_modules/
+dist/
+.next/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db
