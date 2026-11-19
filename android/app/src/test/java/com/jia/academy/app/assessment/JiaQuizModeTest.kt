@@ -7,8 +7,8 @@ import org.junit.Test
 
 class JiaQuizModeTest {
     @Test
-    fun practiceIsTheOnlyModeAvailableToLearners() {
-        assertEquals(listOf(JiaQuizMode.PRACTICE), JiaQuizMode.learnerOptions)
+    fun practiceAndTimedMockAreAvailableToLearners() {
+        assertEquals(listOf(JiaQuizMode.PRACTICE, JiaQuizMode.TIMED_MOCK), JiaQuizMode.learnerOptions)
     }
 
     @Test
@@ -19,9 +19,8 @@ class JiaQuizModeTest {
     }
 
     @Test
-    fun unfinishedModesRemainUnavailable() {
+    fun dailyChallengeAndWeakAreaRemainUnavailable() {
         listOf(
-            JiaQuizMode.TIMED_MOCK,
             JiaQuizMode.DAILY_CHALLENGE,
             JiaQuizMode.WEAK_AREA
         ).forEach { mode ->
