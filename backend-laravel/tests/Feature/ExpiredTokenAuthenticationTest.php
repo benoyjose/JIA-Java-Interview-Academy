@@ -8,10 +8,10 @@ use Tests\TestCase;
 
 final class ExpiredTokenAuthenticationTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_expired_persisted_bearer_token_returns_contract_401_without_updating_last_used(): void
     {
+        Artisan::call('migrate:fresh', ['--force' => true]);
+
         $userId = '60000000-0000-0000-0000-000000000099';
         $tokenId = '72000000-0000-0000-0000-000000000099';
         $rawToken = 'jia-expired-token-integration-test';
