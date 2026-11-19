@@ -203,7 +203,7 @@ final class QuizController
         $byDifficulty = DB::table('quiz_attempts')
             ->where('user_id', $user->id)->where('academy_id', self::ACADEMY_ID)
             ->where('status', 'SUBMITTED')
-            ->selectRaw('difficulty, COUNT(*) AS attempts, SUM(question_count) AS questions_attempted, SUM(correct_count) AS correct_answers, ROUND(AVG(score_percent), 2) AS accuracy_percent, MAX(score_percent) AS best_score_percent, MAX(submitted_at) AS latest_attempt_at')
+            ->selectRaw('difficulty, COUNT(*) AS attempts, SUM(question_count) AS questions_attempted, SUM(correct_count) AS correct_answers, ROUND((SUM(correct_count)::numeric / NULLIF(SUM(question_count), 0)) * 100, 2) AS accuracy_percent, MAX(score_percent) AS best_score_percent, MAX(submitted_at) AS latest_attempt_at')
             ->groupBy('difficulty')->get()->keyBy('difficulty');
 
         $difficultyRows = array_map(function (string $level) use ($byDifficulty): array {
@@ -225,7 +225,7 @@ final class QuizController
             ->where('quiz_attempts.user_id', $user->id)
             ->where('quiz_attempts.academy_id', self::ACADEMY_ID)
             ->where('quiz_attempts.status', 'SUBMITTED')
-            ->selectRaw('technologies.slug AS technology_slug, categories.slug AS category_slug, quiz_attempts.difficulty, COUNT(*) AS attempts, ROUND(AVG(quiz_attempts.score_percent), 2) AS accuracy_percent')
+            ->selectRaw('technologies.slug AS technology_slug, categories.slug AS category_slug, quiz_attempts.difficulty, COUNT(*) AS attempts, ROUND((SUM(quiz_attempts.correct_count)::numeric / NULLIF(SUM(quiz_attempts.question_count), 0)) * 100, 2) AS accuracy_percent')
             ->groupBy('technologies.slug', 'categories.slug', 'quiz_attempts.difficulty')
             ->get()
             ->map(fn (object $row): array => [
