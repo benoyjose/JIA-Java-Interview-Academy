@@ -19,6 +19,15 @@ Laravel 13.x / PHP 8.5 backend implementation of the JIA shared API contract.
 
 The initial Laravel slice reads the shared catalogue tables. It does not introduce a divergent schema or invent lesson content. Laravel migrations equivalent to the canonical schema and automated parity checks are required before production use.
 
+## Authentication routes
+
+- `POST /api/v1/auth/register` — creates a LEARNER account and issues an opaque bearer token.
+- `POST /api/v1/auth/login` — authenticates an active account.
+- `GET /api/v1/auth/me` — returns the authenticated account.
+- `POST /api/v1/auth/logout` — revokes the current token.
+
+Passwords use BCrypt work factor 12 for compatibility with Spring Boot. Configure Laravel's hashing driver to support bcrypt. Tokens are 256-bit random opaque bearer values, stored as SHA-256 hashes, and expire after 30 days. Registration cannot assign privileged roles.
+
 ## Catalogue routes
 
 - `GET /api/v1/technologies`
