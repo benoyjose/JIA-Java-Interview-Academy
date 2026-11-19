@@ -43,3 +43,8 @@ Only `PUBLISHED` records are returned. Response fields are defined in `docs/api/
 ## Current limitations
 
 Native Android/iOS provider SDK integrations, authenticated account linking/unlinking, rotating refresh tokens, admin authoring, assessments, progress, content synchronization, audit and release management remain unimplemented. Do not enable phone login in production until an SMS vendor is selected and end-to-end delivery tests pass. Do not run both backend implementations as simultaneous production writers.
+
+
+## Difficulty-based quizzes
+
+The API includes four question difficulty values: `BEGINNER`, `NOVICE`, `PROFESSIONAL` and `EXPERT`. Public clients can preview published question counts with `GET /api/v1/quizzes/availability?difficulty=BEGINNER`. Authenticated learners can start attempts with `POST /api/v1/quiz-attempts`, submit with `POST /api/v1/quiz-attempts/{attemptId}/submit`, view `GET /api/v1/me/quiz-performance` and inspect `GET /api/v1/me/quiz-attempts`. Only published question revisions are eligible; answer keys are withheld until submission. No question bodies are seeded by the schema migration; reviewed questions must be authored/imported before the availability counts become non-zero.
