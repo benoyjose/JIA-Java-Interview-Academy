@@ -22,7 +22,7 @@ public final class LessonImportDtos {
     public record Provenance(@NotBlank String sourceType,
                              @NotBlank @Size(max=500) String sourceDescription,
                              @Size(max=1000) String attribution) {}
-    public record Content(@NotNull Integer schemaVersion, @NotNull List<Object> blocks) {}
+    public record Content(@NotNull Integer schemaVersion, @NotNull List<?> blocks) {}
     public record ImportedLesson(String slug, String status, int revisionNumber) {}
     public record BatchResponse(int formatVersion, int importedCount, List<ImportedLesson> lessons) {}
 }
