@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, clearStoredToken, getStoredToken, storeToken, validateLessonContent } from "./client";
+import { ApiError, api, getStoredToken, storeToken, validateLessonContent } from "./client";
 
 const sessionValues = new Map<string, string>();
 beforeEach(() => {
