@@ -174,7 +174,7 @@ public class QuizController {
             var rows = jdbc.query("""
                 SELECT COUNT(*) AS attempts, COALESCE(SUM(question_count),0) AS questions_attempted,
                        COALESCE(SUM(correct_count),0) AS correct_answers,
-                       ROUND(AVG(score_percent),2) AS accuracy_percent, MAX(score_percent) AS best_score_percent,
+                       ROUND((SUM(correct_count)::numeric / NULLIF(SUM(question_count),0))*100,2) AS accuracy_percent, MAX(score_percent) AS best_score_percent,
                        MAX(submitted_at) AS latest_attempt_at
                 FROM quiz_attempts WHERE user_id=? AND academy_id=? AND difficulty=? AND status='SUBMITTED'
                 """, (rs,n) -> {
@@ -193,7 +193,7 @@ public class QuizController {
         }
         List<Map<String,Object>> topics = jdbc.query("""
             SELECT t.slug AS technology_slug, c.slug AS category_slug, a.difficulty,
-                   COUNT(*) AS attempts, ROUND(AVG(a.score_percent),2) AS accuracy_percent
+                   COUNT(*) AS attempts, ROUND((SUM(a.correct_count)::numeric / NULLIF(SUM(a.question_count),0))*100,2) AS accuracy_percent
             FROM quiz_attempts a
             LEFT JOIN technologies t ON t.id=a.technology_id
             LEFT JOIN categories c ON c.id=a.category_id
