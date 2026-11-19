@@ -4,7 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -16,14 +16,14 @@ final class LessonImportService
     public function import(array $batch, object $actor): array
     {
         if (array_diff(array_keys($batch), ['formatVersion', 'lessons']) !== []) {
-            throw ValidationException::withMessages(['batch' => 'Unknown batch fields are not allowed.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (($batch['formatVersion'] ?? null) !== 1) {
-            throw ValidationException::withMessages(['formatVersion' => 'Unsupported lesson import format version.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         $records = $batch['lessons'] ?? null;
         if (! is_array($records) || ! array_is_list($records) || count($records) < 1 || count($records) > 100) {
-            throw ValidationException::withMessages(['lessons' => 'Import batch must contain between 1 and 100 lessons.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
 
         // Validate the complete batch and all existing-key conflicts before the first write.
@@ -32,7 +32,7 @@ final class LessonImportService
             $this->validateRecord($item, $index);
             $key = trim($item['categorySlug']).'/'.trim($item['slug']);
             if (isset($keys[$key])) {
-                throw ValidationException::withMessages(["lessons.$index.slug" => "Duplicate categorySlug/slug in batch: $key"]);
+                throw new BadRequestHttpException('Invalid lesson import request.');
             }
             $keys[$key] = true;
             $categoryId = DB::table('categories')->where('slug', trim($item['categorySlug']))->value('id');
@@ -112,73 +112,73 @@ final class LessonImportService
     {
         $field = "lessons.$index";
         if (! is_array($item)) {
-            throw ValidationException::withMessages([$field => 'Lesson record must be an object.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         $allowed = ['categorySlug','slug','title','summary','difficulty','provenance','content','changeNote'];
         if (array_diff(array_keys($item), $allowed) !== []) {
-            throw ValidationException::withMessages([$field => 'Unknown lesson record fields are not allowed.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (isset($item['summary']) && (! is_string($item['summary']) || strlen($item['summary']) > 700)) {
-            throw ValidationException::withMessages(["$field.summary" => 'Summary must be text up to 700 characters.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (isset($item['changeNote']) && (! is_string($item['changeNote']) || strlen($item['changeNote']) > 500)) {
-            throw ValidationException::withMessages(["$field.changeNote" => 'Change note must be text up to 500 characters.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         foreach (['categorySlug', 'slug', 'title'] as $name) {
             if (! is_string($item[$name] ?? null) || trim($item[$name]) === '') {
-                throw ValidationException::withMessages(["$field.$name" => 'This field is required.']);
+                throw new BadRequestHttpException('Invalid lesson import request.');
             }
         }
         if (strlen($item['categorySlug']) > 100 || strlen($item['slug']) > 120 || strlen($item['title']) > 200
             || ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $item['slug'])) {
-            throw ValidationException::withMessages(["$field.slug" => 'Lesson identifiers or title exceed the import contract.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (! in_array($item['difficulty'] ?? null, self::DIFFICULTIES, true)) {
-            throw ValidationException::withMessages(["$field.difficulty" => 'Unsupported lesson difficulty.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         $provenance = $item['provenance'] ?? null;
         if (is_array($provenance) && array_diff(array_keys($provenance), ['sourceType','sourceDescription','attribution']) !== []) {
-            throw ValidationException::withMessages(["$field.provenance" => 'Unknown provenance fields are not allowed.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (! is_array($provenance)
             || ! in_array($provenance['sourceType'] ?? null, self::SOURCES, true)
             || ! is_string($provenance['sourceDescription'] ?? null)
             || trim($provenance['sourceDescription']) === ''
             || strlen($provenance['sourceDescription']) > 500) {
-            throw ValidationException::withMessages(["$field.provenance" => 'Valid provenance and sourceDescription are required.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (isset($provenance['attribution']) && (! is_string($provenance['attribution']) || strlen($provenance['attribution']) > 1000)) {
-            throw ValidationException::withMessages(["$field.provenance.attribution" => 'Attribution must be text up to 1000 characters.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if ($provenance['sourceType'] === 'EXTERNAL_REFERENCE'
             && (! is_string($provenance['attribution'] ?? null) || trim($provenance['attribution']) === ''
                 || strlen($provenance['attribution']) > 1000)) {
-            throw ValidationException::withMessages(["$field.provenance.attribution" => 'External references require attribution.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         $content = $item['content'] ?? null;
         if (is_array($content) && array_diff(array_keys($content), ['schemaVersion','blocks']) !== []) {
-            throw ValidationException::withMessages(["$field.content" => 'Unknown content fields are not allowed.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         if (! is_array($content) || ($content['schemaVersion'] ?? null) !== 1
             || ! is_array($content['blocks'] ?? null) || ! array_is_list($content['blocks']) || count($content['blocks']) > 250) {
-            throw ValidationException::withMessages(["$field.content" => 'Content must use schemaVersion 1 and contain at most 250 blocks.']);
+            throw new BadRequestHttpException('Invalid lesson import request.');
         }
         foreach ($content['blocks'] as $blockIndex => $block) {
             if (! is_array($block)) {
-                throw ValidationException::withMessages(["$field.content.blocks.$blockIndex" => 'Content block must be an object.']);
+                throw new BadRequestHttpException('Invalid lesson import request.');
             }
             $type = $block['type'] ?? '';
             if (in_array($type, ['markdown', 'callout'], true)
                 && (! is_string($block['body'] ?? null) || trim($block['body']) === '')) {
-                throw ValidationException::withMessages(["$field.content.blocks.$blockIndex.body" => 'Block body is required.']);
+                throw new BadRequestHttpException('Invalid lesson import request.');
             }
             if ($type === 'code' && ((! is_string($block['source'] ?? null) || trim($block['source']) === '')
                 || (! is_string($block['language'] ?? null) || trim($block['language']) === ''))) {
-                throw ValidationException::withMessages(["$field.content.blocks.$blockIndex" => 'Code blocks require source and language.']);
+                throw new BadRequestHttpException('Invalid lesson import request.');
             }
             if ($type === 'interviewAnswer' && (! is_array($block['body'] ?? null) || count($block['body']) < 1
                 || collect($block['body'])->contains(fn ($point): bool => ! is_string($point) || trim($point) === ''))) {
-                throw ValidationException::withMessages(["$field.content.blocks.$blockIndex.body" => 'Interview answers require non-empty points.']);
+                throw new BadRequestHttpException('Invalid lesson import request.');
             }
         }
     }
