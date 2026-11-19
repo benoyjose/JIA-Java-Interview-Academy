@@ -266,6 +266,129 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Lesson' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /quizzes/availability:
+    get:
+      summary: Preview published question availability by difficulty and topic
+      security: []
+      tags: [Assessments]
+      operationId: getQuizAvailability
+      parameters:
+        - name: technologySlug
+          in: query
+          schema: { type: string }
+        - name: categorySlug
+          in: query
+          schema: { type: string }
+        - name: difficulty
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/QuizDifficulty' }
+      responses:
+        '200':
+          description: Available published question count
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizAvailability' }
+  /quiz-attempts:
+    post:
+      summary: Start a difficulty-selected quiz attempt
+      tags: [Assessments]
+      operationId: startQuizAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [difficulty]
+              properties:
+                technologySlug: { type: string }
+                categorySlug: { type: string }
+                difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+                questionCount: { type: integer, minimum: 1, maximum: 100, default: 10 }
+                mode:
+                  type: string
+                  enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA]
+                  default: PRACTICE
+      responses:
+        '201':
+          description: Quiz attempt created; answer keys are withheld
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizAttemptStart' }
+        '401': { description: Login required to save quiz attempts }
+        '422': { description: Insufficient published questions for requested filters }
+  /quiz-attempts/{attemptId}/submit:
+    post:
+      summary: Submit and grade a quiz attempt
+      tags: [Assessments]
+      operationId: submitQuizAttempt
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required: [position, response]
+                    properties:
+                      position: { type: integer, minimum: 1 }
+                      response: { type: object, additionalProperties: true }
+                      timeSpentMs: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Attempt graded and saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizAttemptResult' }
+        '401': { description: Unauthenticated }
+        '404': { description: Attempt not found }
+        '409': { description: Attempt already submitted or not in progress }
+  /me/quiz-performance:
+    get:
+      summary: Get learner quiz performance by difficulty and topic
+      tags: [Assessments]
+      operationId: getMyQuizPerformance
+      responses:
+        '200':
+          description: Difficulty and topic performance summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizPerformance' }
+        '401': { description: Unauthenticated }
+  /me/quiz-attempts:
+    get:
+      summary: List the authenticated learner's quiz history
+      tags: [Assessments]
+      operationId: listMyQuizAttempts
+      parameters:
+        - name: difficulty
+          in: query
+          schema: { $ref: '#/components/schemas/QuizDifficulty' }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Recent quiz attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/QuizAttemptSummary' }
+        '401': { description: Unauthenticated }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -328,6 +451,99 @@ components:
         summary: { type: [string, 'null'] }
         difficulty: { type: string }
         contentRevision: { type: integer }
+
+    QuizDifficulty:
+      type: string
+      enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT]
+    QuizAvailability:
+      type: object
+      required: [difficulty, availableQuestionCount]
+      properties:
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        availableQuestionCount: { type: integer, minimum: 0 }
+    QuizQuestion:
+      type: object
+      required: [position, questionId, revisionId, questionType, prompt, difficulty]
+      properties:
+        position: { type: integer }
+        questionId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        questionType: { type: string }
+        prompt: { type: object, additionalProperties: true }
+        options: { type: [array, 'null'], items: { type: object, additionalProperties: true } }
+        hint: { type: [string, 'null'] }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+    QuizAttemptStart:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, questions]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string }
+        questionCount: { type: integer }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuizQuestion' }
+    QuizAttemptResult:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, submittedAt]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        questionCount: { type: integer }
+        correctCount: { type: integer }
+        scorePercent: { type: number, minimum: 0, maximum: 100 }
+        submittedAt: { type: string, format: date-time }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [position, isCorrect, explanation]
+            properties:
+              position: { type: integer }
+              isCorrect: { type: boolean }
+              explanation: { type: string }
+    QuizAttemptSummary:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, startedAt, status]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        technologySlug: { type: [string, 'null'] }
+        categorySlug: { type: [string, 'null'] }
+        questionCount: { type: integer }
+        correctCount: { type: [integer, 'null'] }
+        scorePercent: { type: [number, 'null'] }
+        startedAt: { type: string, format: date-time }
+        status: { type: string }
+    QuizPerformance:
+      type: object
+      required: [byDifficulty, byTopic]
+      properties:
+        byDifficulty:
+          type: array
+          items:
+            type: object
+            required: [difficulty, attempts, questionsAttempted, correctAnswers, accuracyPercent]
+            properties:
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              questionsAttempted: { type: integer }
+              correctAnswers: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+              bestScorePercent: { type: [number, 'null'] }
+              latestAttemptAt: { type: [string, 'null'], format: date-time }
+        byTopic:
+          type: array
+          items:
+            type: object
+            required: [technologySlug, difficulty, attempts, accuracyPercent]
+            properties:
+              technologySlug: { type: string }
+              categorySlug: { type: [string, 'null'] }
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
     Lesson:
       allOf:
         - $ref: '#/components/schemas/LessonSummary'
