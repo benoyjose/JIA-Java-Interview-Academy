@@ -72,6 +72,45 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void publishedLessonStaysLiveUntilApprovedRevisionIsPromoted() {
+        String slug = "published-revision-" + UUID.randomUUID();
+        var initial = service.createDraft(editor, request(slug, "Published title v1"));
+        UUID initialTask = (UUID) service.submitForReview(editor, initial.id()).get("taskId");
+        service.decideReview(reviewer, initialTask, new ReviewDecisionRequest("APPROVE", "Initial approval"));
+        service.publish(admin, initial.id());
+
+        UUID originalPublishedRevision = jdbc.queryForObject(
+                "SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, initial.id());
+        var revised = service.updateDraft(editor, initial.id(),
+                request(slug, "Published title v2"));
+        assertThat(revised.revisionNumber()).isEqualTo(2);
+        UUID draftRevision = jdbc.queryForObject(
+                "SELECT draft_revision_id FROM lessons WHERE id=?", UUID.class, initial.id());
+        assertThat(draftRevision).isNotEqualTo(originalPublishedRevision);
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM lesson_revisions WHERE id=(SELECT published_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Published title v1");
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, initial.id()))
+                .isEqualTo("PUBLISHED");
+
+        UUID revisionTask = (UUID) service.submitForReview(editor, initial.id()).get("taskId");
+        service.decideReview(reviewer, revisionTask, new ReviewDecisionRequest("APPROVE", "Revision approved"));
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, initial.id()))
+                .isEqualTo("PUBLISHED");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, initial.id())).isEqualTo(originalPublishedRevision);
+
+        service.publish(admin, initial.id());
+        assertThat(jdbc.queryForObject("SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, initial.id())).isEqualTo(draftRevision);
+        assertThat(jdbc.queryForObject("SELECT draft_revision_id FROM lessons WHERE id=?",
+                UUID.class, initial.id())).isNull();
+        assertThat(jdbc.queryForObject("SELECT title FROM lesson_revisions WHERE id=(SELECT published_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Published title v2");
+    }
+
+    @Test
     void lessonCannotBePublishedBeforeApproval() {
         var draft = service.createDraft(editor,
                 request("unapproved-" + UUID.randomUUID(), "Not approved"));

@@ -10,6 +10,7 @@ import com.jia.academy.catalogue.repository.TechnologyRepository;
 import com.jia.academy.catalogue.service.CatalogueService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 class JiaApiApplicationTest {
     @Test
@@ -17,12 +18,13 @@ class JiaApiApplicationTest {
         var technologyRepository = mock(TechnologyRepository.class);
         var categoryRepository = mock(CategoryRepository.class);
         var lessonRepository = mock(LessonRepository.class);
+        var jdbc = mock(JdbcTemplate.class);
         when(technologyRepository.findAllByStatusOrderBySortOrderAsc(PublicationStatus.PUBLISHED)).thenReturn(List.of());
 
-        var service = new CatalogueService(technologyRepository, categoryRepository, lessonRepository);
+        var service = new CatalogueService(technologyRepository, categoryRepository, lessonRepository, jdbc);
 
         assertThat(service.technologies()).isEmpty();
         verify(technologyRepository).findAllByStatusOrderBySortOrderAsc(PublicationStatus.PUBLISHED);
-        verifyNoInteractions(categoryRepository, lessonRepository);
+        verifyNoInteractions(categoryRepository, lessonRepository, jdbc);
     }
 }
