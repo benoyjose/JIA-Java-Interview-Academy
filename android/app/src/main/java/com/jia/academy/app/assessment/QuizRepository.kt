@@ -42,7 +42,7 @@ class QuizRepository {
             val response = (if (status in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                val message = runCatching { JSONObject(response).optString("detail") }.getOrNull()
+                val message = runCatching { JSONObject(response).let { it.optString("message").ifBlank { it.optString("detail") } } }.getOrNull()
                 error(message?.takeIf(String::isNotBlank) ?: "Quiz request failed (HTTP $status).")
             }
             return response
