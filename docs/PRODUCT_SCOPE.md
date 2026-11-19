@@ -8,6 +8,8 @@ Build a practical technical learning and interview-preparation product for Java/
 
 ## 2. Primary user experience
 
+**Browse-first access:** published catalogue, lessons, code examples and public interview answers are readable without creating an account. Ask users to sign in only when they save bookmarks, sync progress/history, use account-specific practice features or access paid entitlements. Do not put a login wall in front of quick reference.
+
 ### Learner app
 
 - Home dashboard: continue learning, daily goal, streak, progress and recommendations.
@@ -109,7 +111,7 @@ Rules:
 ## 7. Non-functional requirements
 
 - Offline-first lesson reading and quiz capability for downloaded content.
-- Secure authentication and role-based authorization.
+- Secure authentication and role-based authorization for account-specific and administrative operations; public published content remains readable without login.
 - Versioned content manifest and incremental synchronization.
 - Content release independent of APK release.
 - Audit trail for admin mutations and publishing.
