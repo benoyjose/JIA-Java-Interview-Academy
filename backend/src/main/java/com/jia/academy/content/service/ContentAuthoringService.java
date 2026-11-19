@@ -61,6 +61,13 @@ public class ContentAuthoringService {
 
     @Transactional
     public LessonDraftResponse updateDraft(CurrentUser actor, UUID lessonId, LessonDraftRequest request) {
+        String currentStatus = jdbc.query(
+                "SELECT status FROM lessons WHERE id=?",
+                (rs, row) -> rs.getString(1), lessonId).stream().findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+        if ("PUBLISHED".equals(currentStatus)) {
+            return updatePublishedDraft(actor, lessonId, request);
+        }
         validateContent(request.contentJson());
         validateTaxonomy(request.difficulty(), request.sourceType());
         Integer currentRevision = jdbc.query(
@@ -98,17 +105,38 @@ public class ContentAuthoringService {
 
     @Transactional
     public Map<String, Object> submitForReview(CurrentUser actor, UUID lessonId) {
-        var revisions = jdbc.query("""
-                SELECT content_revision FROM lessons WHERE id=? AND status='DRAFT'
-                """, (rs, row) -> rs.getInt(1), lessonId);
-        if (revisions.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only draft lessons can be submitted");
+        var lessons = jdbc.query("""
+                SELECT status, content_revision, draft_revision_id
+                FROM lessons WHERE id=? FOR UPDATE
+                """, (rs, row) -> new LessonReviewState(rs.getString("status"),
+                        rs.getInt("content_revision"), rs.getObject("draft_revision_id", UUID.class)), lessonId);
+        if (lessons.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
         }
-        int revision = revisions.getFirst();
-        UUID revisionId = jdbc.queryForObject(
-                "SELECT id FROM lesson_revisions WHERE lesson_id=? AND revision_number=?",
-                UUID.class, lessonId, revision);
-        jdbc.update("UPDATE lessons SET status='IN_REVIEW',updated_at=now() WHERE id=?", lessonId);
+        LessonReviewState lesson = lessons.getFirst();
+        UUID revisionId;
+        int revision;
+        if ("DRAFT".equals(lesson.status())) {
+            revision = lesson.contentRevision();
+            revisionId = jdbc.queryForObject(
+                    "SELECT id FROM lesson_revisions WHERE lesson_id=? AND revision_number=?",
+                    UUID.class, lessonId, revision);
+            jdbc.update("UPDATE lessons SET status='IN_REVIEW',updated_at=now() WHERE id=?", lessonId);
+        } else if ("PUBLISHED".equals(lesson.status()) && lesson.draftRevisionId() != null) {
+            revisionId = lesson.draftRevisionId();
+            revision = jdbc.queryForObject(
+                    "SELECT revision_number FROM lesson_revisions WHERE id=?",
+                    Integer.class, revisionId);
+        } else {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only a draft or a prepared published-lesson revision can be submitted");
+        }
+        Integer pending = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM content_review_tasks WHERE lesson_id=? AND status='PENDING'",
+                Integer.class, lessonId);
+        if (pending != null && pending > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A lesson revision is already under review");
+        }
         UUID taskId = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO content_review_tasks(id,lesson_id,revision_id,submitted_by,status)
@@ -144,9 +172,13 @@ public class ContentAuthoringService {
                     "Decision must be APPROVE, REQUEST_CHANGES or REJECT");
         }
         var tasks = jdbc.query("""
-                SELECT lesson_id,submitted_by FROM content_review_tasks WHERE id=? AND status='PENDING'
+                SELECT t.lesson_id,t.submitted_by,t.revision_id,l.status
+                FROM content_review_tasks t JOIN lessons l ON l.id=t.lesson_id
+                WHERE t.id=? AND t.status='PENDING'
+                FOR UPDATE OF t,l
                 """, (rs, row) -> new ReviewTaskOwner(
-                        rs.getObject("lesson_id", UUID.class), rs.getObject("submitted_by", UUID.class)), taskId);
+                        rs.getObject("lesson_id", UUID.class), rs.getObject("submitted_by", UUID.class),
+                        rs.getObject("revision_id", UUID.class), rs.getString("status")), taskId);
         if (tasks.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending review task not found");
         }
@@ -159,30 +191,111 @@ public class ContentAuthoringService {
             case "REQUEST_CHANGES" -> "CHANGES_REQUESTED";
             default -> "REJECTED";
         };
+        boolean publishedLesson = "PUBLISHED".equals(tasks.getFirst().lessonStatus());
         String lessonStatus = "APPROVE".equals(decision) ? "APPROVED" : "DRAFT";
         jdbc.update("""
                 UPDATE content_review_tasks SET status=?,review_comment=?,reviewed_by=?,reviewed_at=?
                 WHERE id=? AND status='PENDING'
                 """, taskStatus, request.comment(), actor.id(), Timestamp.from(Instant.now()), taskId);
-        jdbc.update("UPDATE lessons SET status=?,updated_at=now() WHERE id=?", lessonStatus, lessonId);
+        if (publishedLesson) {
+            if ("REJECT".equals(decision)) {
+                jdbc.update("UPDATE lessons SET draft_revision_id=NULL,updated_at=now() WHERE id=? AND draft_revision_id=?",
+                        lessonId, tasks.getFirst().revisionId());
+            }
+        } else {
+            jdbc.update("UPDATE lessons SET status=?,updated_at=now() WHERE id=?", lessonStatus, lessonId);
+        }
         audit(actor, "LESSON_REVIEW_" + decision, lessonId, Map.of("taskId", taskId.toString()));
         return Map.of("taskId", taskId, "lessonId", lessonId, "status", taskStatus);
     }
 
     @Transactional
     public Map<String, Object> publish(CurrentUser actor, UUID lessonId) {
-        int changed = jdbc.update("""
-                UPDATE lessons SET status='PUBLISHED',updated_at=now()
-                WHERE id=? AND status='APPROVED'
-                """, lessonId);
-        if (changed == 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only approved lessons can be published");
+        var states = jdbc.query("SELECT status,draft_revision_id FROM lessons WHERE id=? FOR UPDATE",
+                (rs, row) -> new PublishState(rs.getString("status"),
+                        rs.getObject("draft_revision_id", UUID.class)), lessonId);
+        if (states.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
         }
-        audit(actor, "LESSON_PUBLISHED", lessonId, Map.of());
-        return Map.of("lessonId", lessonId, "status", "PUBLISHED");
+        PublishState state = states.getFirst();
+        UUID revisionId;
+        if ("APPROVED".equals(state.status())) {
+            revisionId = jdbc.queryForObject("""
+                    SELECT revision_id FROM content_review_tasks
+                    WHERE lesson_id=? AND status='APPROVED'
+                    ORDER BY reviewed_at DESC LIMIT 1
+                    """, UUID.class, lessonId);
+        } else if ("PUBLISHED".equals(state.status()) && state.draftRevisionId() != null) {
+            revisionId = state.draftRevisionId();
+            Integer approved = jdbc.queryForObject("""
+                    SELECT COUNT(*) FROM content_review_tasks
+                    WHERE lesson_id=? AND revision_id=? AND status='APPROVED'
+                    """, Integer.class, lessonId, revisionId);
+            if (approved == null || approved == 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "The pending published revision has not been approved");
+            }
+        } else {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only an approved lesson or approved revision can be published");
+        }
+        int changed = jdbc.update("""
+                UPDATE lessons SET status='PUBLISHED',published_revision_id=?,draft_revision_id=NULL,
+                    content_revision=(SELECT revision_number FROM lesson_revisions WHERE id=?),updated_at=now()
+                WHERE id=?
+                """, revisionId, revisionId, lessonId);
+        if (changed == 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lesson publication did not complete");
+        }
+        audit(actor, "LESSON_PUBLISHED", lessonId, Map.of("revisionId", revisionId.toString()));
+        return Map.of("lessonId", lessonId, "revisionId", revisionId, "status", "PUBLISHED");
     }
 
-    private record ReviewTaskOwner(UUID lessonId, UUID submittedBy) {}
+    private LessonDraftResponse updatePublishedDraft(CurrentUser actor, UUID lessonId, LessonDraftRequest request) {
+        validateContent(request.contentJson());
+        validateTaxonomy(request.difficulty(), request.sourceType());
+        var current = jdbc.query("""
+                SELECT l.slug,l.content_revision,l.draft_revision_id,c.slug AS category_slug
+                FROM lessons l JOIN categories c ON c.id=l.category_id
+                WHERE l.id=? AND l.status='PUBLISHED' FOR UPDATE OF l
+                """, (rs, row) -> new PublishedLessonState(rs.getString("slug"), rs.getInt("content_revision"),
+                rs.getObject("draft_revision_id", UUID.class), rs.getString("category_slug")), lessonId);
+        if (current.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Published lesson not found");
+        PublishedLessonState state = current.getFirst();
+        if (!state.slug().equals(request.slug().trim())
+                || !state.categorySlug().equals(request.categorySlug().trim())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Slug and category cannot be changed in a published-lesson revision");
+        }
+        Integer pending = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM content_review_tasks WHERE lesson_id=? AND status='PENDING'",
+                Integer.class, lessonId);
+        if (pending != null && pending > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A lesson revision is already under review");
+        }
+        int nextRevision = jdbc.queryForObject(
+                "SELECT COALESCE(MAX(revision_number),0)+1 FROM lesson_revisions WHERE lesson_id=?",
+                Integer.class, lessonId);
+        UUID revisionId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO lesson_revisions(id,lesson_id,revision_number,title,summary,difficulty,
+                    content_json,source_type,changed_by,change_note)
+                VALUES (?,?,?,?,?,?,?::jsonb,?,?,?)
+                """, revisionId, lessonId, nextRevision, request.title().trim(), request.summary(),
+                request.difficulty().toUpperCase(), request.contentJson(), request.sourceType().toUpperCase(),
+                actor.id(), request.changeNote());
+        jdbc.update("""
+                UPDATE lessons SET draft_revision_id=?,updated_at=now()
+                WHERE id=? AND status='PUBLISHED'
+                """, revisionId, lessonId);
+        audit(actor, "LESSON_PUBLISHED_DRAFT_UPDATED", lessonId, Map.of("revision", nextRevision));
+        return new LessonDraftResponse(lessonId, state.slug(), request.title().trim(), "DRAFT", nextRevision);
+    }
+
+    private record LessonReviewState(String status, int contentRevision, UUID draftRevisionId) {}
+    private record ReviewTaskOwner(UUID lessonId, UUID submittedBy, UUID revisionId, String lessonStatus) {}
+    private record PublishState(String status, UUID draftRevisionId) {}
+    private record PublishedLessonState(String slug, int contentRevision, UUID draftRevisionId, String categorySlug) {}
 
     private void validateContent(String contentJson) {
         try {
