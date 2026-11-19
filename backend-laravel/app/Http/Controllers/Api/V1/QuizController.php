@@ -191,8 +191,24 @@ final class QuizController
             if ($attempt->status !== 'IN_PROGRESS') {
                 throw new ConflictHttpException('Quiz attempt is already submitted or closed');
             }
+            $timedMock = $attempt->mode === 'TIMED_MOCK';
+            $timedOut = $timedMock && ($attempt->deadline_at === null || now()->greaterThanOrEqualTo($attempt->deadline_at));
 
-            $submitted = collect($validated['answers'])->keyBy('position');
+            $submitted = collect($validated['answers'] ?? [])->keyBy('position');
+            $savedAnswers = collect();
+            if ($timedMock) {
+                $savedAnswers = DB::table('quiz_attempt_answers')->where('attempt_id', $attemptId)->get()
+                    ->keyBy('position');
+                foreach ($savedAnswers as $position => $saved) {
+                    if ($timedOut || ! $submitted->has($position)) {
+                        $submitted->put($position, [
+                            'position' => (int) $position,
+                            'response' => $this->decodeJson($saved->response_json) ?? [],
+                            'timeSpentMs' => $saved->time_spent_ms,
+                        ]);
+                    }
+                }
+            }
             $questions = DB::table('quiz_attempt_questions')
                 ->join('question_revisions', 'question_revisions.id', '=', 'quiz_attempt_questions.question_revision_id')
                 ->join('questions', 'questions.id', '=', 'quiz_attempt_questions.question_id')
@@ -209,7 +225,11 @@ final class QuizController
             $submittedPositions = $submitted->keys()->map(fn ($position): int => (int) $position)->all();
             sort($expectedPositions);
             sort($submittedPositions);
-            self::assertCompleteAnswerPositions($expectedPositions, $submittedPositions);
+            if (! $timedMock) {
+                self::assertCompleteAnswerPositions($expectedPositions, $submittedPositions);
+            } elseif (array_diff($submittedPositions, $expectedPositions) !== []) {
+                throw new BadRequestHttpException('Answer position is not part of this attempt');
+            }
 
             $correct = 0;
             $answerResults = [];
@@ -258,6 +278,7 @@ final class QuizController
                 'scorePercent' => $score,
                 'submittedAt' => $submittedAt->toISOString(),
                 'answers' => $answerResults,
+                'timedOut' => $timedOut,
             ]);
         });
     }
