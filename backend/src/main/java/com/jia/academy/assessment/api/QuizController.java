@@ -254,6 +254,12 @@ public class QuizController {
             jdbc.update("""
                 INSERT INTO quiz_attempt_answers(attempt_id,position,response_json,is_correct,marks_awarded,time_spent_ms,answered_at)
                 VALUES (?,?,?::jsonb,?,?,?,?)
+                ON CONFLICT (attempt_id,position) DO UPDATE SET
+                  response_json=EXCLUDED.response_json,
+                  is_correct=EXCLUDED.is_correct,
+                  marks_awarded=EXCLUDED.marks_awarded,
+                  time_spent_ms=EXCLUDED.time_spent_ms,
+                  answered_at=EXCLUDED.answered_at
                 """, attemptId, row.position(), writeJson(response), isCorrect, isCorrect ? 1 : 0,
                     time instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
             Map<String, Object> result = new LinkedHashMap<>();
