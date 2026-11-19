@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Http\\Controllers\\Api\\V1;
+namespace App\Http\Controllers\Api\V1;
 
-use App\\Services\\QuestionImportService;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
+use App\Services\QuestionImportService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 final class QuestionImportController
 {
