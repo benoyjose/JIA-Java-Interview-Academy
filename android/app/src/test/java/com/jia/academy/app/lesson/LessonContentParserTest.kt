@@ -38,4 +38,18 @@ class LessonContentParserTest {
     fun rejectsUnsupportedSchemaVersion() {
         LessonContentParser.parse("""{"schemaVersion":2,"blocks":[]}""")
     }
+
+    @Test fun rendersBoldItalicAndInlineCodeWithoutMarkdownMarkers() {
+        val rendered = markdownToAnnotatedString("Use **immutable** values, *avoid* mutation and call `copy()`.")
+        assertEquals("Use immutable values, avoid mutation and call copy().", rendered.text)
+        assertTrue(rendered.spanStyles.any { it.item.fontWeight == androidx.compose.ui.text.font.FontWeight.Bold })
+        assertTrue(rendered.spanStyles.any { it.item.fontStyle == androidx.compose.ui.text.font.FontStyle.Italic })
+        assertTrue(rendered.spanStyles.any { it.item.fontFamily == androidx.compose.ui.text.font.FontFamily.Monospace })
+    }
+
+    @Test fun leavesUnmatchedMarkdownDelimitersAsPlainText() {
+        val rendered = markdownToAnnotatedString("Keep **unfinished and `unclosed")
+        assertEquals("Keep **unfinished and `unclosed", rendered.text)
+        assertTrue(rendered.spanStyles.isEmpty())
+    }
 }
