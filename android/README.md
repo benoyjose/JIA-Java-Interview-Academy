@@ -36,7 +36,7 @@ See the version catalogue in `gradle/libs.versions.toml`. The versions are align
 
 ## Architecture and next slices
 
-Keep the app feature-oriented and MVVM-friendly. The first browse flow is implemented. Email sign-in and learner registration are now connected to the API. Access tokens are encrypted with AES-GCM using a non-exportable Android Keystore key. Public lesson browsing remains available without an account. Next implement session restoration and revocation, Google/phone sign-in, quiz taking, bookmarks and learner progress. The current detail screen displays the API's `contentJson` payload as returned; it does not yet interpret a canonical lesson-block schema. Authentication must never be required to read published content.
+Keep the app feature-oriented and MVVM-friendly. The first browse flow is implemented. Email registration/login, phone OTP request/verification, session restoration and server-side logout are connected to the API. Access tokens are encrypted with AES-GCM using a non-exportable Android Keystore key. Public lesson browsing remains available without an account. Google sign-in remains pending; do not put provider secrets in the app binary. Quiz taking, submission, results, recent history and performance-by-difficulty are implemented against the authenticated API. The current detail screen displays the API's `contentJson` payload as returned; it does not yet interpret a canonical lesson-block schema. Authentication must never be required to read published content.
 
 The target architecture remains Kotlin + Jetpack Compose, Room, DataStore, WorkManager, and Keystore-backed credential storage. Do not put provider secrets in the app binary.
 
@@ -47,4 +47,4 @@ Use `docs/api/openapi.yaml`. Do not hardcode backend-specific behavior or duplic
 
 ## Quiz difficulty selection
 
-The app includes a public quiz-selection screen with Beginner, Novice, Professional and Expert levels. It queries published question availability without requiring sign-in. Email registration and login are wired to the backend, with the issued access token stored encrypted on-device. Quiz start, answering, submission and performance history still need to be connected to the Android client.
+The app includes a public quiz-selection screen with Beginner, Novice, Professional and Expert levels. It queries published question availability without requiring sign-in. Starting attempts, submitting answers (including unanswered questions), reviewing scores/explanations, viewing recent attempts and viewing performance by difficulty require sign-in and use the backend APIs. The current question UI renders text prompts and options; structured code prompts still need a dedicated code renderer.
