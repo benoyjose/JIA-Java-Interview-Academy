@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.security.CurrentUser;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import org.springframework.http.HttpStatus;
@@ -73,7 +74,7 @@ public class QuizController {
             INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,question_count,started_at)
             VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?)
             """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
-                difficulty, mode, count, startedAt);
+                difficulty, mode, count, Timestamp.from(startedAt));
 
         List<Map<String, Object>> questions = new ArrayList<>();
         for (int i = 0; i < selected.size(); i++) {
@@ -158,7 +159,7 @@ public class QuizController {
                 INSERT INTO quiz_attempt_answers(attempt_id,position,response_json,is_correct,marks_awarded,time_spent_ms,answered_at)
                 VALUES (?,?,?::jsonb,?,?,?,?)
                 """, attemptId, row.position(), writeJson(response), isCorrect, isCorrect ? 1 : 0,
-                    time instanceof Number n ? n.intValue() : null, Instant.now());
+                    time instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("position", row.position());
             result.put("isCorrect", isCorrect);
@@ -171,7 +172,7 @@ public class QuizController {
         jdbc.update("""
             UPDATE quiz_attempts SET status='SUBMITTED', correct_count=?, score_percent=?,
               submitted_at=?, duration_seconds=? WHERE id=?
-            """, correct, score, submittedAt, Math.max(0, submittedAt.getEpochSecond() - attempt.startedAt().getEpochSecond()), attemptId);
+            """, correct, score, Timestamp.from(submittedAt), Math.max(0, submittedAt.getEpochSecond() - attempt.startedAt().getEpochSecond()), attemptId);
         return Map.of("attemptId", attemptId, "difficulty", attempt.difficulty(),
                 "questionCount", total, "correctCount", correct, "scorePercent", score,
                 "submittedAt", submittedAt.toString(), "answers", results);
