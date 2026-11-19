@@ -149,8 +149,14 @@ paths:
               properties:
                 phoneNumber:
                   type: string
-                  pattern: '^\+[1-9][0-9]{7,14}$'
-                code: { type: string, pattern: '^[0-9]{6}
+                  pattern: '^\\+[1-9][0-9]{7,14}$'
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                deviceName:
+                  type: string
+                  maxLength: 100
+      responses:
         '200':
           description: Phone verified and session issued
           content:
