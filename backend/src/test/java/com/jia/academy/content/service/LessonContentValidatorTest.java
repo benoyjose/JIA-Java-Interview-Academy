@@ -25,25 +25,25 @@ class LessonContentValidatorTest {
     @Test
     void acceptsUnknownBlocksForForwardCompatibility() {
         assertDoesNotThrow(() -> validator.validate(
-            """{"schemaVersion":1,"blocks":[{"type":"futureBlock","payload":true}]}"""));
+            "{\"schemaVersion\":1,\"blocks\":[{\"type\":\"futureBlock\",\"payload\":true}]}"));
     }
 
     @Test
     void rejectsUnsupportedSchemaVersion() {
         assertThrows(ResponseStatusException.class, () -> validator.validate(
-            """{"schemaVersion":2,"blocks":[]}"""));
+            "{\"schemaVersion\":2,\"blocks\":[]}"));
     }
 
     @Test
     void rejectsMissingRequiredBlockFields() {
         assertThrows(ResponseStatusException.class, () -> validator.validate(
-            """{"schemaVersion":1,"blocks":[{"type":"code","language":"java"}]}"""));
+            "{\"schemaVersion\":1,\"blocks\":[{\"type\":\"code\",\"language\":\"java\"}]}"));
     }
 
     @Test
     void rejectsNonObjectBlocks() {
         assertThrows(ResponseStatusException.class, () -> validator.validate(
-            """{"schemaVersion":1,"blocks":["not-an-object"]}"""));
+            "{\"schemaVersion\":1,\"blocks\":[\"not-an-object\"]}"));
     }
 
     @Test
