@@ -1,5 +1,7 @@
 package com.jia.academy.app.auth
 
+import android.app.Activity
+import android.util.Base64
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +24,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.CustomCredential
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import java.security.SecureRandom
 
 @Composable
 fun AuthScreen(
@@ -50,6 +58,51 @@ fun AuthScreen(
         Text(if (phoneMode) "Sign in with phone" else if (registering) "Create your JIA account" else "Sign in to JIA",
             style = MaterialTheme.typography.headlineSmall)
         Text("You can continue browsing public lessons without signing in.")
+        Button(
+            enabled = !loading && com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                val activity = context as? Activity
+                if (activity == null) { error = "Google sign-in requires an active Android screen."; return@Button }
+                if (com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isBlank()) {
+                    error = "Configure JIA_GOOGLE_WEB_CLIENT_ID in your local Gradle properties."
+                    return@Button
+                }
+                loading = true
+                error = null
+                scope.launch {
+                    runCatching {
+                        val random = ByteArray(32).also { SecureRandom().nextBytes(it) }
+                        val nonce = Base64.encodeToString(random, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+                        val option = GetGoogleIdOption.Builder()
+                            .setFilterByAuthorizedAccounts(false)
+                            .setServerClientId(com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID)
+                            .setNonce(nonce)
+                            .build()
+                        val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                        val credential = CredentialManager.create(context).getCredential(activity, request).credential
+                        if (credential !is CustomCredential ||
+                            credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                            error("Google did not return a supported ID token.")
+                        }
+                        val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                        repository.loginWithGoogle(baseUrl, googleCredential.idToken, nonce)
+                    }.onSuccess { session ->
+                        runCatching {
+                            val userJson = org.json.JSONObject().put("id", session.account.id)
+                                .put("name", session.account.name).put("email", session.account.email)
+                                .put("roles", org.json.JSONArray(session.account.roles)).toString()
+                            SecureSessionStore(context).save(session.accessToken, session.expiresAt, userJson)
+                        }.onSuccess { onAuthenticated(session) }
+                            .onFailure { error = "Could not securely save this session." }
+                    }.onFailure { error = it.message ?: "Google sign-in failed." }
+                    loading = false
+                }
+            }
+        ) { Text("Continue with Google") }
+        if (com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isBlank()) {
+            Text("Google sign-in needs a configured OAuth Web Client ID.", style = MaterialTheme.typography.bodySmall)
+        }
         if (phoneMode) {
             OutlinedTextField(value = phoneNumber, onValueChange = { phoneNumber = it },
                 label = { Text("Phone number (E.164, e.g. +919876543210)") },
