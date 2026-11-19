@@ -26,13 +26,32 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(12);
+        assertThat(result.migrationsExecuted).isEqualTo(13);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
                     "SELECT code FROM academies WHERE id = '50000000-0000-0000-0000-000000000001'")) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getString("code")).isEqualTo("JIA");
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS column_count
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'questions'
+                      AND column_name = 'slug'
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("column_count")).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS index_count
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND indexname = 'uq_questions_category_slug'
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("index_count")).isEqualTo(1);
             }
             try (var rows = statement.executeQuery("""
                     SELECT COUNT(*) AS table_count
