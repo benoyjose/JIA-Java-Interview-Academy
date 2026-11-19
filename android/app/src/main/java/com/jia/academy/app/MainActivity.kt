@@ -24,6 +24,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import com.jia.academy.app.auth.AuthRepository
+import com.jia.academy.app.auth.AuthScreen
+import com.jia.academy.app.auth.JiaSession
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -128,6 +131,7 @@ class CatalogueRepository {
 private sealed interface BrowseRoute {
     data object Home : BrowseRoute
     data object QuizSelection : BrowseRoute
+    data object Authentication : BrowseRoute
     data class Categories(val technology: Technology) : BrowseRoute
     data class Lessons(val category: Category, val technology: Technology) : BrowseRoute
     data class Lesson(val slug: String, val title: String) : BrowseRoute
@@ -146,6 +150,7 @@ fun JiaApp() {
     val repository = remember { CatalogueRepository() }
     var route by remember { mutableStateOf<BrowseRoute>(BrowseRoute.Home) }
     var backStack by remember { mutableStateOf(listOf<BrowseRoute>()) }
+    var signedInAccount by remember { mutableStateOf<String?>(null) }
     fun navigate(next: BrowseRoute) {
         backStack = backStack + route
         route = next
@@ -169,6 +174,10 @@ fun JiaApp() {
         when (val current = route) {
             BrowseRoute.Home -> TechnologyScreen(repository, Modifier.padding(padding), ::navigate)
             BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, Modifier.padding(padding))
+            BrowseRoute.Authentication -> AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
+                signedInAccount = session.account.name
+                goBack()
+            }, modifier = Modifier.padding(padding))
             is BrowseRoute.Categories -> CategoryScreen(repository, current.technology, Modifier.padding(padding), ::navigate)
             is BrowseRoute.Lessons -> LessonListScreen(repository, current.category, current.technology, Modifier.padding(padding), ::navigate)
             is BrowseRoute.Lesson -> LessonScreen(repository, current.slug, current.title, Modifier.padding(padding))
@@ -192,6 +201,11 @@ private fun TechnologyScreen(
     }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Java Interview Academy", style = MaterialTheme.typography.headlineMedium)
+        if (signedInAccount == null) {
+            Button(onClick = { navigate(BrowseRoute.Authentication) }) { Text("Sign in / Create account") }
+        } else {
+            Text("Signed in as $signedInAccount", style = MaterialTheme.typography.labelLarge)
+        }
         Text("Quick explanations. Practical code. Interview-ready answers.")
         Button(onClick = { navigate(BrowseRoute.QuizSelection) }) { Text("Choose a quiz difficulty") }
         Text("Explore Java topics", style = MaterialTheme.typography.titleLarge)
