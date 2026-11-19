@@ -40,7 +40,7 @@ The central React + TypeScript portal manages content across academy apps. The f
 
 ## Follow-ups
 
-1. Add server-side pagination and search to lesson and review APIs before content volume grows beyond current bounds.
+1. Measure query plans and consider keyset pagination if offset pagination becomes expensive at very large catalogue sizes.
 2. Add a schema-aware block editor after content block schema is finalized.
 3. Add browser E2E tests against disposable Spring Boot/PostgreSQL.
 4. Add deployment CSP/security headers and production gzip/Brotli reporting.
