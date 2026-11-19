@@ -1,0 +1,183 @@
+openapi: 3.1.0
+info:
+  title: JIA API
+  version: 1.0.0
+  description: Shared API contract for Spring Boot and Laravel implementations and Android, iOS and admin clients.
+servers:
+  - url: /api/v1
+tags:
+  - name: Catalogue
+paths:
+  /technologies:
+    get:
+      tags: [Catalogue]
+      operationId: listTechnologies
+      summary: List published learning technologies
+      responses:
+        '200':
+          description: Published technologies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Technology'
+  /technologies/{slug}:
+    get:
+      tags: [Catalogue]
+      operationId: getTechnology
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Published technology
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Technology'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /technologies/{technologySlug}/categories:
+    get:
+      tags: [Catalogue]
+      operationId: listCategories
+      parameters:
+        - name: technologySlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Published categories for a technology
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+  /categories/{categorySlug}/lessons:
+    get:
+      tags: [Catalogue]
+      operationId: listLessons
+      parameters:
+        - name: categorySlug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: perPage
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Published lesson summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLessons'
+  /lessons/{slug}:
+    get:
+      tags: [Catalogue]
+      operationId: getLesson
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Published lesson detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Lesson'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    NotFound:
+      description: Resource not found or not published
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Technology:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+    Category:
+      type: object
+      required: [id, name, slug, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        sortOrder: { type: integer }
+    LessonSummary:
+      type: object
+      required: [id, title, slug, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        slug: { type: string }
+        summary: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          properties:
+            content: { type: object, additionalProperties: true }
+            revision: { type: integer, minimum: 1 }
+    Pagination:
+      type: object
+      required: [currentPage, perPage, total]
+      properties:
+        currentPage: { type: integer }
+        perPage: { type: integer }
+        total: { type: integer }
+    PaginatedLessons:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LessonSummary' }
+        meta: { $ref: '#/components/schemas/Pagination' }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: [object, 'null'], additionalProperties: true }
