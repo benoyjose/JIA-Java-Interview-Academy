@@ -6,6 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.content.api.ContentAuthoringDtos.LessonDraftRequest;
 import com.jia.academy.content.api.ContentAuthoringDtos.ReviewDecisionRequest;
+import com.jia.academy.content.api.LessonImportDtos.BatchRequest;
+import com.jia.academy.content.api.LessonImportDtos.Content;
+import com.jia.academy.content.api.LessonImportDtos.LessonRecord;
+import com.jia.academy.content.api.LessonImportDtos.Provenance;
+import com.jia.academy.content.service.LessonImportService;
 import com.jia.academy.content.service.ContentAuthoringService;
 import com.jia.academy.content.service.LessonContentValidator;
 import com.jia.academy.security.CurrentUser;
@@ -33,6 +38,7 @@ class ContentAuthoringPostgresIntegrationTest {
 
     private static JdbcTemplate jdbc;
     private static ContentAuthoringService service;
+    private static LessonImportService imports;
     private static CurrentUser editor;
     private static CurrentUser reviewer;
     private static CurrentUser admin;
@@ -44,7 +50,9 @@ class ContentAuthoringPostgresIntegrationTest {
         jdbc = new JdbcTemplate(new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
         ObjectMapper mapper = new ObjectMapper();
-        service = new ContentAuthoringService(jdbc, mapper, new LessonContentValidator(mapper));
+        var validator = new LessonContentValidator(mapper);
+        service = new ContentAuthoringService(jdbc, mapper, validator);
+        imports = new LessonImportService(jdbc, mapper, validator, service);
         editor = user("Editor", "editor@example.test", "EDITOR");
         reviewer = user("Reviewer", "reviewer@example.test", "REVIEWER");
         admin = user("Admin", "admin@example.test", "ADMIN");
@@ -225,6 +233,47 @@ class ContentAuthoringPostgresIntegrationTest {
                         .isEqualTo(403));
         assertThat(jdbc.queryForObject("SELECT status FROM content_review_tasks WHERE id=?",
                 String.class, taskId)).isEqualTo("PENDING");
+    }
+
+
+    @Test
+    void importsLessonBatchAsDraftsWithProvenanceAndNoPublication() {
+        String slug = "bulk-import-" + UUID.randomUUID();
+        var item = new LessonRecord("java-language-fundamentals", slug, "Imported lesson", "Imported summary",
+                "BEGINNER", new Provenance("EXTERNAL_REFERENCE", "Official Java documentation", "Oracle"),
+                new Content(1, List.of(Map.of("type", "markdown", "key", "overview", "body", "Imported body"))),
+                "Initial import");
+        var result = imports.importLessons(editor, new BatchRequest(1, List.of(item)));
+        assertThat(result.importedCount()).isEqualTo(1);
+        assertThat(result.lessons().getFirst().status()).isEqualTo("DRAFT");
+        UUID lessonId = jdbc.queryForObject("SELECT id FROM lessons WHERE slug=?", UUID.class, slug);
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, lessonId)).isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id IS NULL FROM lessons WHERE id=?", Boolean.class, lessonId)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT source_description FROM lesson_revisions WHERE lesson_id=?", String.class, lessonId))
+                .isEqualTo("Official Java documentation");
+        assertThat(jdbc.queryForObject("SELECT attribution FROM lesson_revisions WHERE lesson_id=?", String.class, lessonId))
+                .isEqualTo("Oracle");
+    }
+
+    @Test
+    void rejectsDuplicateKeysInBatchBeforeWritingAnyLesson() {
+        String slug = "duplicate-import-" + UUID.randomUUID();
+        var item = new LessonRecord("java-language-fundamentals", slug, "Imported lesson", null,
+                "BEGINNER", new Provenance("ADMIN_AUTHORED", "JIA editorial team", null),
+                new Content(1, List.of(Map.of("type", "markdown", "body", "Body"))), null);
+        assertThatThrownBy(() -> imports.importLessons(editor, new BatchRequest(1, List.of(item, item))))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM lessons WHERE slug=?", Integer.class, slug)).isZero();
+    }
+
+    @Test
+    void rejectsExternalImportWithoutAttribution() {
+        var item = new LessonRecord("java-language-fundamentals", "missing-attribution-" + UUID.randomUUID(),
+                "Imported lesson", null, "BEGINNER",
+                new Provenance("EXTERNAL_REFERENCE", "External source", " "),
+                new Content(1, List.of(Map.of("type", "markdown", "body", "Body"))), null);
+        assertThatThrownBy(() -> imports.importLessons(editor, new BatchRequest(1, List.of(item))))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     private static CurrentUser user(String name, String email, String role) {
