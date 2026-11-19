@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jia.example/schemas/lesson-import-v1.json",
+  "title": "JIA Lesson Import Batch v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "lessons"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "lessons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "categorySlug",
+          "slug",
+          "title",
+          "difficulty",
+          "provenance",
+          "content"
+        ],
+        "properties": {
+          "categorySlug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 700
+          },
+          "difficulty": {
+            "enum": [
+              "BEGINNER",
+              "NOVICE",
+              "PROFESSIONAL",
+              "EXPERT"
+            ]
+          },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sourceType",
+              "sourceDescription"
+            ],
+            "properties": {
+              "sourceType": {
+                "enum": [
+                  "USER_ORIGINAL",
+                  "ADMIN_AUTHORED",
+                  "EXTERNAL_REFERENCE"
+                ]
+              },
+              "sourceDescription": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "attribution": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 1000
+              }
+            }
+          },
+          "content": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "blocks"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "const": 1
+              },
+              "blocks": {
+                "type": "array",
+                "maxItems": 250
+              }
+            }
+          },
+          "changeNote": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "provenance": {
+                  "properties": {
+                    "sourceType": {
+                      "const": "EXTERNAL_REFERENCE"
+                    }
+                  },
+                  "required": [
+                    "sourceType"
+                  ]
+                }
+              },
+              "required": [
+                "provenance"
+              ]
+            },
+            "then": {
+              "properties": {
+                "provenance": {
+                  "required": [
+                    "attribution"
+                  ],
+                  "properties": {
+                    "attribution": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
