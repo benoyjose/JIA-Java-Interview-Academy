@@ -13,6 +13,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +26,7 @@ import org.mockito.Mockito;
 @Import({
         SecurityConfiguration.class,
         TokenAuthenticationFilter.class,
+        SecurityConfigurationHttpIntegrationTest.ProtectedTestController.class,
         SecurityConfigurationHttpIntegrationTest.MockJdbcConfiguration.class
 })
 class SecurityConfigurationHttpIntegrationTest {
@@ -46,12 +50,34 @@ class SecurityConfigurationHttpIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Authentication is required."));
     }
 
+    @Test
+    void authenticatedUserWithoutRequiredPermissionGetsContract403() throws Exception {
+        mvc.perform(get("/api/v1/__test/permission-protected")
+                        .with(user("learner").authorities(new SimpleGrantedAuthority("catalogue.read"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("You do not have permission to perform this action."));
+    }
+
+    @Test
+    void authenticatedUserWithRequiredPermissionCanAccessResource() throws Exception {
+        mvc.perform(get("/api/v1/__test/permission-protected")
+                        .with(user("publisher").authorities(new SimpleGrantedAuthority("content.publish"))))
+                .andExpect(status().isOk());
+    }
+
     @RestController
     @RequestMapping("/api/v1/__test")
-    static class ProtectedTestController {
+    public static class ProtectedTestController {
         @GetMapping("/protected")
         String protectedResource() {
             return "protected";
+        }
+
+        @PreAuthorize("hasAuthority('content.publish')")
+        @GetMapping("/permission-protected")
+        String permissionProtectedResource() {
+            return "permission-protected";
         }
     }
 
