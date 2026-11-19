@@ -75,7 +75,7 @@ export function LessonsPage() {
       <div className="panel lesson-list-panel">
         <div className="panel-heading"><div><h2>All lessons</h2><span className="muted small-copy">Server-filtered · newest updates first</span></div><span className="count-pill">{result.totalItems.toLocaleString()}</span></div>
         <div className="list-controls">
-          <input aria-label="Search lessons" placeholder="Search title, slug or category…" maxLength={120} value={search} onChange={event => changeSearch(event.target.value)} />
+          <input aria-label="Search lessons" placeholder="Start of title, slug or category…" maxLength={120} value={search} onChange={event => changeSearch(event.target.value)} />
           <select aria-label="Filter by status" value={status} onChange={event => changeStatus(event.target.value)}>{statuses.map(item => <option key={item} value={item}>{item === "ALL" ? "All statuses" : item.replace("_", " ")}</option>)}</select>
         </div>
         {loading ? <div className="loading-line">Loading lessons…</div> : result.items.length === 0 ? <div className="empty-state"><span>▤</span><strong>No lessons found</strong><p>Try another search or create a lesson draft.</p></div> :
