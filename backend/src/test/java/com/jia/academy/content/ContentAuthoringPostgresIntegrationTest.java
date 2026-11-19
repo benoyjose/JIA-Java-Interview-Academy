@@ -249,6 +249,7 @@ class ContentAuthoringPostgresIntegrationTest {
         UUID lessonId = jdbc.queryForObject("SELECT id FROM lessons WHERE slug=?", UUID.class, slug);
         assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, lessonId)).isEqualTo("DRAFT");
         assertThat(jdbc.queryForObject("SELECT published_revision_id IS NULL FROM lessons WHERE id=?", Boolean.class, lessonId)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM content_review_tasks WHERE lesson_id=?", Integer.class, lessonId)).isZero();
         assertThat(jdbc.queryForObject("SELECT source_description FROM lesson_revisions WHERE lesson_id=?", String.class, lessonId))
                 .isEqualTo("Official Java documentation");
         assertThat(jdbc.queryForObject("SELECT attribution FROM lesson_revisions WHERE lesson_id=?", String.class, lessonId))
