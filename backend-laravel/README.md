@@ -23,10 +23,12 @@ The initial Laravel slice reads the shared catalogue tables. It does not introdu
 
 - `POST /api/v1/auth/register` — creates a LEARNER account and issues an opaque bearer token.
 - `POST /api/v1/auth/login` — authenticates an active account.
+- `POST /api/v1/auth/federated/google` and `/api/v1/auth/federated/apple` — verify provider ID tokens and issue a JIA session.
+- `POST /api/v1/auth/phone/otp` and `/api/v1/auth/phone/verify` — request and verify a six-digit SMS code.
 - `GET /api/v1/auth/me` — returns the authenticated account.
 - `POST /api/v1/auth/logout` — revokes the current token.
 
-Passwords use BCrypt work factor 12 for compatibility with Spring Boot. Configure Laravel's hashing driver to support bcrypt. Tokens are 256-bit random opaque bearer values, stored as SHA-256 hashes, and expire after 30 days. Registration cannot assign privileged roles.
+Passwords use BCrypt work factor 12 for compatibility with Spring Boot. Tokens are 256-bit random opaque bearer values, stored as SHA-256 hashes, and expire after 30 days. Registration cannot assign privileged roles. Google and Apple sign-in require `GOOGLE_OAUTH_CLIENT_ID` and `APPLE_SERVICE_ID`. Phone login requires `JIA_SMS_ENDPOINT`, `JIA_SMS_TOKEN` and `JIA_OTP_HMAC_SECRET`; the gateway contract is documented in [External Configuration Setup](../docs/EXTERNAL_CONFIGURATION_SETUP.md).
 
 ## Catalogue routes
 
@@ -40,4 +42,4 @@ Only `PUBLISHED` records are returned. Response fields are defined in `docs/api/
 
 ## Current limitations
 
-Authentication, authorization, admin authoring, assessments, progress, content synchronization, audit and release management remain unimplemented. Do not run both backend implementations as simultaneous production writers.
+Native Android/iOS provider SDK integrations, authenticated account linking/unlinking, rotating refresh tokens, admin authoring, assessments, progress, content synchronization, audit and release management remain unimplemented. Do not enable phone login in production until an SMS vendor is selected and end-to-end delivery tests pass. Do not run both backend implementations as simultaneous production writers.
