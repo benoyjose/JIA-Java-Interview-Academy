@@ -1,6 +1,6 @@
-# JIA API
+# JIA Primary API
 
-Spring Boot 4.1.2 / Java 25 LTS backend for JIA.
+Spring Boot 4.1.2 / Java 25 LTS is the primary production backend for JIA. New product capabilities are implemented here first. Laravel is maintained as a secondary compatibility implementation and is not deployed alongside this service.
 
 ## Local setup
 

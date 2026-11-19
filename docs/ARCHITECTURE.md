@@ -25,17 +25,17 @@ Current baseline checked 19 November 2026:
 
 Patch versions should be refreshed from official release channels when a build is created; avoid floating  dependency versions. The version constraints in Composer should allow compatible patch updates, with a committed lockfile once dependency resolution is performed.
 
-## Interchangeable backend deployment
+## Backend strategy: Spring Boot primary, Laravel secondary
 
-Spring Boot and Laravel are two implementations of the same backend contract, not two independent products.
+Spring Boot is the sole planned production API for the initial JIA release. Laravel is retained as a secondary implementation for compatibility, reference and a possible future backend switch; it is not deployed alongside Spring Boot.
 
-- Maintain feature parity through `docs/api/openapi.yaml`.
-- Keep domain rules, validation, response envelopes, pagination, authorization semantics and error codes equivalent.
-- Run one backend as the active production API in the initial phase. Select Laravel or Spring Boot after cost and operational evaluation.
-- Do not route requests randomly between implementations.
-- Do not allow both backends to independently write to production data at the same time in the initial phase.
-- Use one canonical PostgreSQL schema and equivalent migration semantics.
-- Before switching implementations, run the same contract and integration tests against both and take a verified database backup.
+- Implement new product capabilities in Spring Boot first.
+- Keep `docs/api/openapi.yaml` accurate for the production Spring API and clients.
+- Do not block product delivery on implementing every feature twice.
+- Update Laravel when a backend migration is planned or when a specific shared contract needs to remain compatible.
+- Keep one canonical PostgreSQL database and one production writer.
+- Never split production traffic or allow both backends to write independently.
+- Before switching to Laravel, complete the missing feature set, run contract/integration tests against the candidate backend, verify migration compatibility and take a tested database backup.
 
 ## Logical architecture
 
@@ -44,15 +44,14 @@ Android (Kotlin / Compose)       iOS (Swift / SwiftUI)
           | HTTPS / JSON / OpenAPI
           +-----------------------------+
                                         |
-                         Active API deployment (one)
-                         +--------------+--------------+
-                         |                             |
-                   Laravel API                  Spring Boot API
-                   PHP 8.5                      Java 25 / Boot 4.1
-                         |                             |
-                         +-------------+---------------+
-                                       |
-                           PostgreSQL 18 (canonical schema)
+                         Spring Boot API (production)
+                         Java 25 / Spring Boot
+                                  |
+                         PostgreSQL 18
+                         (canonical database)
+
+              Laravel API (secondary; not deployed in parallel)
+                    PHP 8.5 / Laravel 13
                                        |
                               Object storage (S3)
 
@@ -66,7 +65,7 @@ Both backends implement the same modular-monolith boundaries: identity, catalogu
 
 ## API conventions
 
-Base path: `/api/v1`. The OpenAPI document is the normative HTTP contract for both backends and all clients. Use stable error envelopes, validation, pagination and server-side authorization.
+Base path: `/api/v1`. The OpenAPI document is the normative HTTP contract for the production Spring API and all clients. Use stable error envelopes, validation, pagination and server-side authorization. Laravel is not a release gate for ordinary Spring-first product increments.
 
 ## Identity and client support
 
@@ -90,4 +89,4 @@ Android APK updates use the package installer; silent installation requires mana
 
 ## Security and quality
 
-TLS, adaptive password hashing, rate limits, upload validation, secret management and audit trails are mandatory. Run the same API contract suite against both backend implementations and test the full author → review → publish → mobile sync → offline read flow.
+Keep the launch baseline practical: TLS, adaptive password hashing, basic login/OTP rate limits, input validation, secret management, server-side role checks and ownership checks. Defer enterprise IAM, complex permission matrices, extensive audit infrastructure and duplicate cross-backend security suites until a concrete requirement exists. Run focused CI and integration tests for the active Spring Boot backend. Maintain Laravel's compatibility tests when that implementation is changed or prepared for a backend switch.
