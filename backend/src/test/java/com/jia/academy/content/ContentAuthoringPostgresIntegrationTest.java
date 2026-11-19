@@ -98,6 +98,20 @@ class ContentAuthoringPostgresIntegrationTest {
                 Integer.class, draft.id())).isEqualTo(2);
     }
 
+    @Test
+    void authorCannotReviewTheirOwnSubmission() {
+        var draft = service.createDraft(editor,
+                request("self-review-" + UUID.randomUUID(), "Self review"));
+        UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+        assertThatThrownBy(() -> service.decideReview(editor, taskId,
+                new ReviewDecisionRequest("APPROVE", "Not allowed")))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(403));
+        assertThat(jdbc.queryForObject("SELECT status FROM content_review_tasks WHERE id=?",
+                String.class, taskId)).isEqualTo("PENDING");
+    }
+
     private static CurrentUser user(String name, String email, String role) {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,'test-hash','ACTIVE')",
