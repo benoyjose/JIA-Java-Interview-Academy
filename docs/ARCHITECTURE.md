@@ -70,6 +70,12 @@ Base path: `/api/v1`. The OpenAPI document is the normative HTTP contract for bo
 
 ## Identity and client support
 
+- Public published learning content is anonymous/read-only; authentication is required only for personal data, saved progress, subscriptions and admin functions.
+- Keep the learner authentication flow lightweight. Do not introduce an external identity microservice or enterprise IAM suite for launch.
+- Retain basic login/OTP throttling and server-side ownership checks. Defer advanced fraud/risk infrastructure until justified by usage.
+
+## Identity and client support
+
 - Support email/password and configurable identity providers.
 - Use short-lived access tokens and rotating/revocable refresh tokens for native clients.
 - Store tokens using Android Keystore-backed storage and iOS Keychain.
