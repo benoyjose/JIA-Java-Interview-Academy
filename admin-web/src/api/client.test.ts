@@ -8,7 +8,7 @@ beforeEach(() => {
     getItem: (key: string) => sessionValues.get(key) ?? null,
     setItem: (key: string, value: string) => { sessionValues.set(key, value); },
     removeItem: (key: string) => { sessionValues.delete(key); },
-  } });
+  }, dispatchEvent: vi.fn() });
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -35,6 +35,16 @@ describe("admin API client", () => {
     await expect(api.me()).rejects.toMatchObject<ApiError>({
       status: 403, code: "FORBIDDEN", message: "Permission denied.",
     });
+  });
+
+  it("clears an expired tab session on HTTP 401", async () => {
+    storeToken("expired-token");
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(
+      JSON.stringify({ code: "UNAUTHENTICATED", message: "Authentication is required." }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    )));
+    await expect(api.me()).rejects.toMatchObject({ status: 401, code: "UNAUTHENTICATED" });
+    expect(getStoredToken()).toBeNull();
   });
 
   it("validates the lesson document contract without accepting non-object JSON", () => {
