@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,6 +42,7 @@ public class ContentAuthoringController {
     }
 
     @PostMapping("/lessons/import")
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('content.create')")
     public BatchResponse importLessons(@AuthenticationPrincipal CurrentUser actor,
                                        @Valid @RequestBody BatchRequest request) {
