@@ -1,0 +1,44 @@
+name: Android App CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "docs/api/openapi.yaml"
+      - ".github/workflows/android-ci.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "docs/api/openapi.yaml"
+      - ".github/workflows/android-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+
+      - name: Assemble debug APK
+        run: gradle -p android :app:assembleDebug --no-daemon
