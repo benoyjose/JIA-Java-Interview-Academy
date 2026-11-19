@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
@@ -377,6 +380,25 @@ private fun LessonScreen(
 
 
 @Composable
+private fun CodeSnippet(language: String?, source: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(language?.uppercase() ?: "CODE", style = MaterialTheme.typography.labelSmall)
+            Text(
+                source,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            )
+        }
+    }
+}
+
+@Composable
 private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modifier: Modifier) {
     val levels = listOf(
         "BEGINNER" to "Beginner", "NOVICE" to "Novice",
@@ -418,6 +440,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Q${question.position}. ${question.prompt}")
+                            if (!question.codeSource.isNullOrBlank()) CodeSnippet(question.codeLanguage, question.codeSource)
                             Text(if (review?.first == true) "Correct" else "Incorrect",
                                 color = if (review?.first == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                             if (!review?.second.isNullOrBlank()) Text(review!!.second)
@@ -433,7 +456,12 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("Question ${question.position}", style = MaterialTheme.typography.labelLarge)
-                                Text(question.prompt, style = MaterialTheme.typography.titleMedium)
+                                if (question.prompt.isNotBlank()) {
+                                    Text(question.prompt, style = MaterialTheme.typography.titleMedium)
+                                }
+                                if (!question.codeSource.isNullOrBlank()) {
+                                    CodeSnippet(question.codeLanguage, question.codeSource)
+                                }
                                 val multi = question.questionType == "MULTI_SELECT"
                                 Text(if (multi) "Select all that apply" else "Select one answer",
                                     style = MaterialTheme.typography.bodySmall)
