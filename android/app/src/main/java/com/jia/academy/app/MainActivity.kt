@@ -473,6 +473,8 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
         when {
             completed != null && activeAttempt != null -> {
                 Text("Quiz result", style = MaterialTheme.typography.titleLarge)
+                if (completed.timedOut) Text("Time expired — your saved answers were submitted automatically.",
+                    color = MaterialTheme.colorScheme.error)
                 Text("${completed.correctCount} / ${completed.questionCount} correct",
                     style = MaterialTheme.typography.headlineMedium)
                 Text("Score: ${completed.scorePercent}%")
