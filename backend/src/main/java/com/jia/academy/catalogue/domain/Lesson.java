@@ -1,5 +1,7 @@
 package com.jia.academy.catalogue.domain;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.util.UUID;
 @Entity @Table(name = "lessons")
 public class Lesson {
@@ -9,7 +11,7 @@ public class Lesson {
  @Column(nullable=false, length=200) private String title;
  @Column(length=700) private String summary;
  @Column(nullable=false, length=20) private String difficulty;
- @Column(name="content_json", columnDefinition="jsonb") private String contentJson;
+ @JdbcTypeCode(SqlTypes.JSON) @Column(name="content_json", columnDefinition="jsonb") private String contentJson;
  @Column(name="content_revision", nullable=false) private int contentRevision;
  @Column(name="source_type", nullable=false, length=30) private String sourceType;
  @Enumerated(EnumType.STRING) @Column(nullable=false, length=20) private PublicationStatus status;
