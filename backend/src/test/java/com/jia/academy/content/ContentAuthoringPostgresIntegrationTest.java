@@ -116,7 +116,7 @@ class ContentAuthoringPostgresIntegrationTest {
         var draft = service.createDraft(editor, request(slug, "Read API draft"));
         var detail = service.authoringDetail(draft.id());
         assertThat(detail.title()).isEqualTo("Read API draft");
-        assertThat(detail.contentJson()).contains("\"schemaVersion\":1");
+        assertThat(new ObjectMapper().readTree(detail.contentJson()).path("schemaVersion").asInt()).isEqualTo(1);
         assertThat(detail.editingDraft()).isTrue();
 
         var list = service.adminLessons("DRAFT");
@@ -130,7 +130,7 @@ class ContentAuthoringPostgresIntegrationTest {
         assertThat(review.lessonId()).isEqualTo(draft.id());
         assertThat(review.revisionId()).isNotNull();
         assertThat(review.title()).isEqualTo("Read API draft");
-        assertThat(review.contentJson()).contains("\"blocks\"");
+        assertThat(new ObjectMapper().readTree(review.contentJson()).path("blocks").isArray()).isTrue();
         assertThat(review.revisionNumber()).isEqualTo(1);
     }
 
