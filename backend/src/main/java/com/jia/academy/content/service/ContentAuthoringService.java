@@ -147,6 +147,78 @@ public class ContentAuthoringService {
     }
 
     @Transactional(readOnly = true)
+    public List<LessonAdminListItem> adminLessons(String status) {
+        if (status != null && !List.of("DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED").contains(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported lesson status filter");
+        }
+        return jdbc.query("""
+                SELECT l.id,l.slug,l.title,c.slug AS category_slug,l.status,l.content_revision,
+                       (SELECT revision_number FROM lesson_revisions WHERE id=l.published_revision_id) AS published_revision,
+                       (SELECT revision_number FROM lesson_revisions WHERE id=l.draft_revision_id) AS draft_revision,
+                       l.updated_at
+                FROM lessons l JOIN categories c ON c.id=l.category_id
+                WHERE (? IS NULL OR l.status=?)
+                ORDER BY l.updated_at DESC
+                LIMIT 100
+                """, (rs, row) -> new LessonAdminListItem(
+                rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
+                rs.getString("category_slug"), rs.getString("status"), rs.getInt("content_revision"),
+                (Integer) rs.getObject("published_revision"), (Integer) rs.getObject("draft_revision"),
+                rs.getTimestamp("updated_at").toInstant()), status, status);
+    }
+
+    @Transactional(readOnly = true)
+    public LessonAuthoringDetail authoringDetail(UUID lessonId) {
+        return jdbc.query("""
+                SELECT l.id,l.slug,l.status,l.updated_at,c.slug AS category_slug,
+                       r.title,r.summary,r.difficulty,r.source_type,r.content_json::text,
+                       r.revision_number,r.change_note,
+                       (SELECT revision_number FROM lesson_revisions WHERE id=l.published_revision_id) AS published_revision,
+                       (l.status <> 'PUBLISHED' OR l.draft_revision_id IS NOT NULL) AS editing_draft
+                FROM lessons l
+                JOIN categories c ON c.id=l.category_id
+                JOIN lesson_revisions r ON r.id=CASE
+                    WHEN l.status='PUBLISHED' AND l.draft_revision_id IS NOT NULL THEN l.draft_revision_id
+                    WHEN l.status='PUBLISHED' THEN l.published_revision_id
+                    ELSE (SELECT id FROM lesson_revisions
+                          WHERE lesson_id=l.id AND revision_number=l.content_revision)
+                END
+                WHERE l.id=?
+                """, (rs, row) -> new LessonAuthoringDetail(
+                rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
+                rs.getString("summary"), rs.getString("category_slug"), rs.getString("difficulty"),
+                rs.getString("source_type"), rs.getString("content_json"), rs.getString("status"),
+                rs.getInt("revision_number"), (Integer) rs.getObject("published_revision"),
+                rs.getBoolean("editing_draft"), rs.getString("change_note"),
+                rs.getTimestamp("updated_at").toInstant()), lessonId)
+                .stream().findFirst().orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewDetail reviewDetail(UUID taskId) {
+        return jdbc.query("""
+                SELECT t.id AS task_id,l.id AS lesson_id,r.id AS revision_id,l.slug,
+                       r.title,r.summary,r.difficulty,r.source_type,r.content_json::text,
+                       r.revision_number,r.change_note,u.name AS submitted_by,
+                       t.submitted_at,l.status AS lesson_status
+                FROM content_review_tasks t
+                JOIN lessons l ON l.id=t.lesson_id
+                JOIN lesson_revisions r ON r.id=t.revision_id
+                JOIN users u ON u.id=t.submitted_by
+                WHERE t.id=? AND t.status='PENDING'
+                """, (rs, row) -> new ReviewDetail(
+                rs.getObject("task_id", UUID.class), rs.getObject("lesson_id", UUID.class),
+                rs.getObject("revision_id", UUID.class), rs.getString("slug"), rs.getString("title"),
+                rs.getString("summary"), rs.getString("difficulty"), rs.getString("source_type"),
+                rs.getString("content_json"), rs.getInt("revision_number"), rs.getString("change_note"),
+                rs.getString("submitted_by"), rs.getTimestamp("submitted_at").toInstant(),
+                rs.getString("lesson_status")), taskId)
+                .stream().findFirst().orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending review task not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<ReviewQueueItem> reviewQueue() {
         return jdbc.query("""
                 SELECT t.id AS task_id,l.id AS lesson_id,r.id AS revision_id,l.slug,r.title,
