@@ -69,6 +69,21 @@ Provider tokens are credentials for identity verification only; they are not JIA
 
 ## Security requirements
 
+### JIA launch security baseline (keep it proportional)
+
+JIA is a browse-first learning and quick-reference product, not a regulated financial system. Apply strong controls to credentials, personal progress, subscriptions and administration, while keeping published learning content public and friction-free.
+
+- Public endpoints: published catalogue, lessons and public interview-reference content; no learner login required.
+- Learner authentication: required only for personal data, synced progress/bookmarks/history, paid entitlements and account settings.
+- Learner authorization: each user can access only their own personal records; enforce ownership on the server for every request.
+- Admin authorization: keep the small role set (LEARNER, EDITOR, REVIEWER, ADMIN) and enforce it server-side. Require stronger operator account protection for admin access.
+- Keep password hashing, provider token verification, secure session storage, OTP expiry/attempt limits, HTTPS, secrets management and payment verification.
+- Defer learner MFA, complex account-risk scoring, distributed rate-limiting infrastructure, advanced fraud analytics and elaborate audit dashboards until usage or abuse justifies them.
+- Keep basic request throttling on login and OTP endpoints; add infrastructure-level distributed limits only when horizontal scale requires them. Retain SMS spend controls to prevent abuse.
+- Record essential admin publishing/role-change audit events; do not build a broad analytics/audit platform for launch.
+- Use short-lived access tokens plus revocable refresh sessions for mobile production. Do not add token introspection services or a separate identity microservice.
+
+
 - Passwords use BCrypt with work factor 12 in both implementations so a user can authenticate after a controlled switch between Spring Boot and Laravel. Never store plaintext passwords.
 - Never store raw bearer tokens. Generate high-entropy random tokens, return the raw value once, and persist only SHA-256 hash.
 - Expire tokens, support revocation, update last-used timestamps and rate-limit authentication endpoints.
