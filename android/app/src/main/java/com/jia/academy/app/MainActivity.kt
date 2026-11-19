@@ -172,7 +172,7 @@ fun JiaApp() {
         )
     }) { padding ->
         when (val current = route) {
-            BrowseRoute.Home -> TechnologyScreen(repository, Modifier.padding(padding), ::navigate)
+            BrowseRoute.Home -> TechnologyScreen(repository, signedInAccount, Modifier.padding(padding), ::navigate)
             BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, Modifier.padding(padding))
             BrowseRoute.Authentication -> AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
                 signedInAccount = session.account.name
@@ -188,6 +188,7 @@ fun JiaApp() {
 @Composable
 private fun TechnologyScreen(
     repository: CatalogueRepository,
+    signedInAccount: String?,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit
 ) {
