@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jia}
+      POSTGRES_USER: ${POSTGRES_USER:-jia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jia_local_only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - jia-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jia -d jia"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  jia-postgres-data:
