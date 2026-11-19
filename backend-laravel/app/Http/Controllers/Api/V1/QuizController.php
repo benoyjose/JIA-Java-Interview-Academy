@@ -126,6 +126,51 @@ final class QuizController
         });
     }
 
+    public function saveAnswers(Request $request, string $attemptId): JsonResponse
+    {
+        $validated = $request->validate([
+            'answers' => ['required', 'array', 'min:1', 'max:100'],
+            'answers.*.position' => ['required', 'integer', 'min:1', 'distinct'],
+            'answers.*.response' => ['required', 'array'],
+            'answers.*.timeSpentMs' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $user = $request->attributes->get('jia_user');
+        abort_if($user === null, 401, 'Unauthenticated');
+
+        return DB::transaction(function () use ($attemptId, $validated, $user): JsonResponse {
+            $attempt = DB::table('quiz_attempts')->where('id', $attemptId)
+                ->where('user_id', $user->id)->lockForUpdate()->first();
+            if ($attempt === null) throw new NotFoundHttpException('Quiz attempt not found');
+            if ($attempt->mode !== 'TIMED_MOCK') throw new BadRequestHttpException('Answer autosave is only available for timed mock attempts');
+            if ($attempt->status !== 'IN_PROGRESS') throw new ConflictHttpException('Quiz attempt is already closed');
+            if ($attempt->deadline_at === null || now()->greaterThanOrEqualTo($attempt->deadline_at)) {
+                throw new ConflictHttpException('Timed mock deadline has passed');
+            }
+
+            $positions = collect($validated['answers'])->pluck('position')->map(fn ($p): int => (int) $p)->all();
+            $validPositions = DB::table('quiz_attempt_questions')->where('attempt_id', $attemptId)
+                ->whereIn('position', $positions)->pluck('position')->map(fn ($p): int => (int) $p)->all();
+            if (count($validPositions) !== count($positions)) {
+                throw new BadRequestHttpException('Answer position is not part of this attempt');
+            }
+            $now = now();
+            $rows = [];
+            foreach ($validated['answers'] as $answer) {
+                $rows[] = [
+                    'attempt_id' => $attemptId,
+                    'position' => (int) $answer['position'],
+                    'response_json' => json_encode($answer['response'], JSON_THROW_ON_ERROR),
+                    'time_spent_ms' => $answer['timeSpentMs'] ?? null,
+                    'answered_at' => $now,
+                ];
+            }
+            DB::table('quiz_attempt_answers')->upsert(
+                $rows, ['attempt_id', 'position'], ['response_json', 'time_spent_ms', 'answered_at']
+            );
+            return response()->json(['attemptId' => $attemptId, 'savedCount' => count($rows)]);
+        });
+    }
+
     public function submit(Request $request, string $attemptId): JsonResponse
     {
         $validated = $request->validate([
