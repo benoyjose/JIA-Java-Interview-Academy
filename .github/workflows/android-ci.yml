@@ -19,6 +19,9 @@ permissions:
 jobs:
   android-build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -34,11 +37,11 @@ jobs:
         with:
           gradle-version: "9.9.1"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Install Android platform and build tools
-        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+        run: "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "build-tools;37.0.0"
 
       - name: Assemble debug APK
         run: gradle -p android :app:assembleDebug --no-daemon
