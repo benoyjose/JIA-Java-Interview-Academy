@@ -46,7 +46,7 @@ jobs:
       - name: Install compile SDK
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
-          "$SDKMANAGER" "platforms;android-37" "build-tools;37.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Assemble debug APK
         run: gradle -p android :app:assembleDebug --no-daemon
