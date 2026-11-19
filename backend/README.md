@@ -40,7 +40,7 @@ Override `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `SERVER_PORT` through enviro
 
 ## Current scope
 
-This is the catalogue and early authentication foundation. Google/Apple token verification is implemented in Spring Boot; account linking, token refresh, native provider SDK integrations, SMS vendor selection/delivery validation, admin authoring, content review/publishing, assessments, learner progress and content synchronization remain subsequent implementation increments.
+This is the catalogue and early authentication foundation. Google/Apple token verification is implemented in Spring Boot; account linking, token refresh, native provider SDK integrations, SMS vendor selection/delivery validation, the Spring Boot API now supports initial lesson draft authoring, revision snapshots, review decisions and publishing. Editing published lessons through a separate draft/published revision pointer, the React admin UI, media uploads, full assessment expansion, learner progress and content synchronization remain subsequent increments.
 
 
 ## Difficulty-based quizzes
