@@ -269,6 +269,7 @@ paths:
 
   /quizzes/availability:
     get:
+      security: []
       summary: Preview published question availability by difficulty and topic
       security: []
       tags: [Assessments]
