@@ -2,27 +2,40 @@
 
 ## Product surfaces
 
-- Android app: Kotlin + Jetpack Compose.
-- iOS app: Swift + SwiftUI.
-- Backend A: Java 21 + Spring Boot.
-- Backend B: PHP 8.3+ + Laravel 13.
-- Admin portal: React + TypeScript.
-- Shared data platform: PostgreSQL and S3-compatible object storage.
+- Android: Kotlin + Jetpack Compose.
+- iOS: Swift + SwiftUI.
+- Backend A: Java 25 LTS + Spring Boot 4.1.x.
+- Backend B: PHP 8.5 + Laravel 13.x.
+- Admin portal: React 19 + TypeScript.
+- Shared data platform: PostgreSQL 18 and S3-compatible object storage.
 
-## Deployment strategy: interchangeable backends
+## Latest stable toolchain policy
+
+Use the latest stable, non-preview release at implementation time, and pin exact tool versions in build files and CI. Prefer an LTS runtime where one exists for production; do not adopt beta, release-candidate or canary dependencies in production without an explicit decision.
+
+Current baseline checked 19 November 2026:
+- Java 25 LTS; Spring Boot 4.1.x.
+- PHP 8.5; Laravel 13.x.
+- Gradle 9.9.1.
+- Kotlin 2.4.x; Android Gradle Plugin 9.5.x; Jetpack Compose BOM 2026.11.01.
+- Xcode 27.1 stable; Swift 6.4; iOS 27 SDK.
+- React 19.3.x; Node.js 26.x LTS/current line.
+- PostgreSQL 18.x.
+- Docker Engine 29.x.
+
+Patch versions should be refreshed from official release channels when a build is created; avoid floating  dependency versions. The version constraints in Composer should allow compatible patch updates, with a committed lockfile once dependency resolution is performed.
+
+## Interchangeable backend deployment
 
 Spring Boot and Laravel are two implementations of the same backend contract, not two independent products.
 
-- Maintain feature parity through the versioned OpenAPI contract in `docs/api/openapi.yaml`.
+- Maintain feature parity through `docs/api/openapi.yaml`.
 - Keep domain rules, validation, response envelopes, pagination, authorization semantics and error codes equivalent.
-- Run one backend as the active production API in the initial phase. Laravel may be selected for the first low-cost deployment; Spring Boot remains buildable and testable as the alternate implementation.
+- Run one backend as the active production API in the initial phase. Select Laravel or Spring Boot after cost and operational evaluation.
 - Do not route requests randomly between implementations.
 - Do not allow both backends to independently write to production data at the same time in the initial phase.
-- Use one canonical PostgreSQL schema and identical migration semantics. Backend-specific migration files must be reviewed against the shared schema contract.
-- Before switching implementations, run the same contract and integration test suite against both backends and take a verified database backup.
-- A later controlled comparison can use isolated staging databases and synthetic traffic.
-
-This avoids double hosting and conflicting writes while preserving the option to choose the lower-cost or operationally better implementation.
+- Use one canonical PostgreSQL schema and equivalent migration semantics.
+- Before switching implementations, run the same contract and integration tests against both and take a verified database backup.
 
 ## Logical architecture
 
@@ -35,11 +48,11 @@ Android (Kotlin / Compose)       iOS (Swift / SwiftUI)
                          +--------------+--------------+
                          |                             |
                    Laravel API                  Spring Boot API
-                   PHP 8.3+                     Java 21
+                   PHP 8.5                      Java 25 / Boot 4.1
                          |                             |
                          +-------------+---------------+
                                        |
-                           PostgreSQL (canonical schema)
+                           PostgreSQL 18 (canonical schema)
                                        |
                               Object storage (S3)
 
@@ -47,84 +60,28 @@ Admin portal (React / TypeScript)
   └── secured admin APIs on the active backend
 ```
 
-## Technology choices
-
-- Android: Kotlin, Jetpack Compose, MVVM, modular Clean Architecture, Room, DataStore and WorkManager.
-- iOS: Swift, SwiftUI, MVVM, SwiftData (or Core Data where deployment requirements demand it), URLSession and background refresh/download capabilities.
-- Spring Boot: Java 21, Spring Boot 3.x, Spring Security, validation, Spring Data JPA and Flyway.
-- Laravel: PHP 8.3+, Laravel 13, Laravel Sanctum for API token/session strategy as appropriate, Eloquent and Laravel migrations.
-- Database: PostgreSQL.
-- Admin: React + TypeScript; generated API client from OpenAPI.
-- Build and delivery: Gradle, Composer, Docker and GitHub Actions.
-- Artifact storage: S3-compatible object storage; store object metadata and checksums in PostgreSQL.
-
 ## Backend module boundaries
 
-Both backends implement the same modular-monolith boundaries:
-
-- identity and access
-- catalogue
-- learning
-- assessment
-- progress
-- content publishing
-- content synchronization
-- app release
-- audit
-
-Keep domain logic separate from HTTP controllers and persistence details. Avoid premature microservices.
+Both backends implement the same modular-monolith boundaries: identity, catalogue, learning, assessment, progress, content publishing, synchronization, app release and audit. Keep domain logic separate from HTTP and persistence layers; avoid premature microservices.
 
 ## API conventions
 
-Base path: `/api/v1`
-
-Initial resource groups:
-- `/auth`
-- `/technologies`, `/categories`
-- `/lessons`
-- `/questions`, `/quizzes`, `/attempts`
-- `/progress`, `/bookmarks`
-- `/content/manifest`, `/content/sync`
-- `/admin/content`, `/admin/releases`
-- `/app/releases/latest`, `/app/releases/{version}/download`
-
-The OpenAPI document is the cross-backend and cross-client contract. Use pagination for collection endpoints, stable error envelopes, request validation and server-side role enforcement.
+Base path: `/api/v1`. The OpenAPI document is the normative HTTP contract for both backends and all clients. Use stable error envelopes, validation, pagination and server-side authorization.
 
 ## Identity and client support
 
-- Support email/password and configurable social sign-in providers without coupling user identity to a single mobile platform.
-- Use short-lived access tokens and rotating/revocable refresh tokens for native mobile clients.
-- Store tokens using Android Keystore-backed encrypted storage and iOS Keychain.
-- Admin roles are enforced by the backend, not by hiding UI controls.
-- Keep platform-specific purchase/subscription handling outside core learning domain rules; validate entitlements server-side.
+- Support email/password and configurable identity providers.
+- Use short-lived access tokens and rotating/revocable refresh tokens for native clients.
+- Store tokens using Android Keystore-backed storage and iOS Keychain.
+- Enforce admin roles server-side.
+- Validate subscription entitlements server-side.
 
 ## Offline and content updates
 
-**Learning content:** clients fetch a manifest, download versioned content, verify checksums and atomically update local caches. Content updates must not require an app-store release.
+Clients fetch a manifest, download versioned content, verify checksums and atomically update local caches. Content updates do not require app releases.
 
-**Android application:** publish version name, version code, minimum supported version, release notes, artifact URI and SHA-256 checksum. APK installation uses the Android package installer. Silent installation is not assumed; it requires managed-device/device-owner provisioning.
+Android APK updates use the package installer; silent installation requires managed-device provisioning. iOS binaries are distributed through App Store/TestFlight; app binaries are not silently installed by the app.
 
-**iOS application:** distribute through Apple App Store/TestFlight. App binaries are not silently downloaded and installed by the app. Learning content can still update independently through the content API.
+## Security and quality
 
-## Security baseline
-
-- TLS for all network traffic.
-- Short-lived access tokens and secure refresh-token handling.
-- Adaptive password hashing.
-- Role-based authorization for admin operations.
-- Rate limits on authentication and sensitive endpoints.
-- Validate uploads by size, content type and checksum; do not trust filenames.
-- Keep secrets outside source control.
-- Audit publishing, role changes and app release actions.
-- Apply platform secure storage for mobile credentials.
-
-## Testing strategy
-
-- Shared OpenAPI contract tests run against both backends.
-- Unit tests for domain rules and content validation.
-- Repository/database integration tests against PostgreSQL.
-- API tests for authorization, publishing and synchronization.
-- Android ViewModel, repository and UI tests.
-- iOS model, repository, networking and UI tests.
-- Admin component and API contract tests.
-- End-to-end smoke test: author lesson → approve → publish → Android/iOS sync → offline read.
+TLS, adaptive password hashing, rate limits, upload validation, secret management and audit trails are mandatory. Run the same API contract suite against both backend implementations and test the full author → review → publish → mobile sync → offline read flow.
