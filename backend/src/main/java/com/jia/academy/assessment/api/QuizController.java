@@ -123,9 +123,13 @@ public class QuizController {
                     || !(map.get("response") instanceof Map<?, ?> response)) {
                 throw badRequest("Each answer requires position and response");
             }
+            int answerPosition = position.intValue();
+            if (position.doubleValue() != answerPosition || answerPosition < 1) {
+                throw badRequest("Answer position must be a positive integer");
+            }
             Map<String, Object> normalized = new HashMap<>();
             response.forEach((k, v) -> normalized.put(String.valueOf(k), v));
-            if (submitted.put(position.intValue(), normalized) != null) throw badRequest("Duplicate answer position");
+            if (submitted.put(answerPosition, normalized) != null) throw badRequest("Duplicate answer position");
         }
 
         List<GradingRow> rows = jdbc.query("""
@@ -136,6 +140,11 @@ public class QuizController {
             WHERE aq.attempt_id = ? ORDER BY aq.position
             """, (rs, n) -> new GradingRow(rs.getInt("position"), rs.getString("question_type"),
                 rs.getString("answer_json"), rs.getString("explanation")), attemptId);
+        Set<Integer> expectedPositions = new HashSet<>();
+        for (GradingRow row : rows) expectedPositions.add(row.position());
+        if (rows.isEmpty() || !submitted.keySet().equals(expectedPositions)) {
+            throw badRequest("Submit exactly one answer for every question in this attempt");
+        }
 
         int correct = 0;
         List<Map<String, Object>> results = new ArrayList<>();
@@ -152,7 +161,11 @@ public class QuizController {
                 VALUES (?,?,?::jsonb,?,?,?,?)
                 """, attemptId, row.position(), writeJson(response), isCorrect, isCorrect ? 1 : 0,
                     time instanceof Number n ? n.intValue() : null, Instant.now());
-            results.add(Map.of("position", row.position(), "isCorrect", isCorrect, "explanation", row.explanation()));
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("position", row.position());
+            result.put("isCorrect", isCorrect);
+            result.put("explanation", row.explanation());
+            results.add(result);
         }
         int total = rows.size();
         double score = total == 0 ? 0 : Math.round((correct * 10000.0) / total) / 100.0;
