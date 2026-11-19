@@ -142,12 +142,15 @@ public class QuizController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
         }
         Set<Integer> positions = new HashSet<>();
+        Set<Integer> expectedPositions = new HashSet<>(jdbc.queryForList(
+                "SELECT position FROM quiz_attempt_questions WHERE attempt_id=?", Integer.class, attemptId));
         for (Object item : answers) {
             if (!(item instanceof Map<?,?> map) || !(map.get("position") instanceof Number position)
                     || !(map.get("response") instanceof Map<?,?> response)) throw badRequest("Each answer requires position and response");
             int p = position.intValue();
             if (p < 1 || position.doubleValue() != p || !positions.add(p)) throw badRequest("Answer positions must be unique positive integers");
             validateTimeSpentMs(map.get("timeSpentMs"));
+            if (!expectedPositions.contains(p)) throw badRequest("Answer position is not part of this attempt");
             Map<String,Object> normalized = new HashMap<>();
             response.forEach((k,v) -> normalized.put(String.valueOf(k),v));
             jdbc.update("""
@@ -160,11 +163,7 @@ public class QuizController {
                 """, attemptId, p, writeJson(normalized),
                 map.get("timeSpentMs") instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
         }
-        List<Integer> validPositions = jdbc.queryForList(
-                "SELECT position FROM quiz_attempt_questions WHERE attempt_id=? AND position = ANY(?)",
-                Integer.class, attemptId, positions.toArray(Integer[]::new));
-        if (validPositions.size() != positions.size()) throw badRequest("Answer position is not part of this attempt");
-        return Map.of("attemptId", attemptId, "savedCount", positions.size());
+         return Map.of("attemptId", attemptId, "savedCount", positions.size());
     }
 
     @PostMapping("/quiz-attempts/{attemptId}/submit")
