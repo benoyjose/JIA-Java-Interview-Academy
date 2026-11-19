@@ -58,10 +58,19 @@ public class QuizController {
                 throw badRequest("durationSeconds must be between 60 and 21600");
             }
             durationLimitSeconds = number.intValue();
-        } else {
+        } else if (!"DAILY_CHALLENGE".equals(mode)) {
             validateMode(mode);
         }
         Filters filters = filters(difficulty, technologySlug, categorySlug);
+        if ("DAILY_CHALLENGE".equals(mode)) {
+            jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?::text, 0))",
+                    Object.class, user.id() + ":" + Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDate());
+            List<UUID> existing = jdbc.query("""
+                SELECT id FROM quiz_attempts
+                WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=CURRENT_DATE
+                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), JIA_ACADEMY);
+            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst());
+        }
 
         String sql = """
             SELECT q.id AS question_id, q.question_type, q.difficulty,
@@ -83,11 +92,11 @@ public class QuizController {
         deadlineAt = durationLimitSeconds == null ? null : startedAt.plusSeconds(durationLimitSeconds);
         jdbc.update("""
             INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,
-                question_count,started_at,duration_limit_seconds,deadline_at)
-            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?)
+                question_count,started_at,duration_limit_seconds,deadline_at,challenge_date)
+            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,CASE WHEN ?='DAILY_CHALLENGE' THEN CURRENT_DATE ELSE NULL END)
             """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
                 difficulty, mode, count, Timestamp.from(startedAt), durationLimitSeconds,
-                deadlineAt == null ? null : Timestamp.from(deadlineAt));
+                deadlineAt == null ? null : Timestamp.from(deadlineAt), mode);
 
         List<Map<String, Object>> questions = new ArrayList<>();
         for (int i = 0; i < selected.size(); i++) {
@@ -115,6 +124,8 @@ public class QuizController {
         response.put("questionCount", count);
         response.put("durationLimitSeconds", durationLimitSeconds);
         response.put("deadlineAt", deadlineAt == null ? null : deadlineAt.toString());
+        response.put("challengeDate", "DAILY_CHALLENGE".equals(mode)
+                ? jdbc.queryForObject("SELECT challenge_date::text FROM quiz_attempts WHERE id=?", String.class, attemptId) : null);
         response.put("questions", questions);
         return response;
     }
@@ -360,6 +371,46 @@ public class QuizController {
             item.put("status", rs.getString("status"));
             return item;
         }, user.id(), JIA_ACADEMY, difficulty, difficulty, limit);
+    }
+
+    private Map<String,Object> dailyChallengeResponse(UUID attemptId) {
+        var attempts = jdbc.query("""
+            SELECT difficulty, question_count, started_at, challenge_date
+            FROM quiz_attempts WHERE id=? AND user_id IN (SELECT id FROM users WHERE id=quiz_attempts.user_id)
+            """, (rs,n) -> new Object[]{rs.getString("difficulty"), rs.getInt("question_count"),
+                rs.getTimestamp("started_at"), rs.getString("challenge_date")}, attemptId);
+        if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily challenge not found");
+        Object[] a = attempts.getFirst();
+        List<Map<String,Object>> questions = jdbc.query("""
+            SELECT aq.position, q.id AS question_id, aq.question_revision_id AS revision_id,
+                   q.question_type, qr.prompt_json::text AS prompt_json, qr.options_json::text AS options_json,
+                   qr.hint, q.difficulty
+            FROM quiz_attempt_questions aq
+            JOIN questions q ON q.id=aq.question_id
+            JOIN question_revisions qr ON qr.id=aq.question_revision_id
+            WHERE aq.attempt_id=? ORDER BY aq.position
+            """, (rs,n) -> {
+                Map<String,Object> item = new LinkedHashMap<>();
+                item.put("position", rs.getInt("position"));
+                item.put("questionId", rs.getObject("question_id", UUID.class));
+                item.put("revisionId", rs.getObject("revision_id", UUID.class));
+                item.put("questionType", rs.getString("question_type"));
+                item.put("prompt", json(rs.getString("prompt_json")));
+                item.put("options", json(rs.getString("options_json")));
+                item.put("hint", rs.getString("hint"));
+                item.put("difficulty", rs.getString("difficulty"));
+                return item;
+            }, attemptId);
+        Map<String,Object> response = new LinkedHashMap<>();
+        response.put("attemptId", attemptId);
+        response.put("difficulty", a[0]);
+        response.put("mode", "DAILY_CHALLENGE");
+        response.put("questionCount", a[1]);
+        response.put("durationLimitSeconds", null);
+        response.put("deadlineAt", null);
+        response.put("challengeDate", a[3]);
+        response.put("questions", questions);
+        return response;
     }
 
     static void validateMode(String mode) {
