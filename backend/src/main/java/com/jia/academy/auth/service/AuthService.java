@@ -4,6 +4,7 @@ import com.jia.academy.auth.api.AuthDtos.*;
 import com.jia.academy.security.CurrentUser;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -86,7 +87,7 @@ public class AuthService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
             }
             jdbc.update("UPDATE auth_identities SET last_authenticated_at=? WHERE provider=? AND provider_subject=?",
-                    Instant.now(), provider, subject);
+                    Timestamp.from(Instant.now()), provider, subject);
         } else {
             String normalizedEmail = providerEmail == null || providerEmail.isBlank()
                     ? null : providerEmail.trim().toLowerCase(java.util.Locale.ROOT);
@@ -113,7 +114,7 @@ public class AuthService {
             jdbc.update("""
                 INSERT INTO auth_identities(id,user_id,provider,provider_subject,provider_email,email_verified,created_at,last_authenticated_at)
                 VALUES (?,?,?,?,?,?,?,?)
-                """, UUID.randomUUID(), userId, provider, subject, normalizedEmail, emailVerified, Instant.now(), Instant.now());
+                """, UUID.randomUUID(), userId, provider, subject, normalizedEmail, emailVerified, Timestamp.from(Instant.now()), Timestamp.from(Instant.now()));
             user = new FederatedUser(userId, safeName, normalizedEmail, "ACTIVE");
         }
         List<String> roles = jdbc.queryForList("""
@@ -140,7 +141,7 @@ public class AuthService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
             }
             jdbc.update("UPDATE auth_identities SET last_authenticated_at=? WHERE provider='PHONE' AND provider_subject=?",
-                    Instant.now(), phoneE164);
+                    Timestamp.from(Instant.now()), phoneE164);
         } else {
             UUID userId = UUID.randomUUID();
             String name = "JIA Learner";
@@ -150,7 +151,7 @@ public class AuthService {
             jdbc.update("""
                 INSERT INTO auth_identities(id,user_id,provider,provider_subject,provider_email,email_verified,created_at,last_authenticated_at)
                 VALUES (?,?,'PHONE',?,NULL,FALSE,?,?)
-                """, UUID.randomUUID(), userId, phoneE164, Instant.now(), Instant.now());
+                """, UUID.randomUUID(), userId, phoneE164, Timestamp.from(Instant.now()), Timestamp.from(Instant.now()));
             user = new FederatedUser(userId, name, null, "ACTIVE");
         }
         List<String> roles = jdbc.queryForList("""
@@ -164,7 +165,7 @@ public class AuthService {
     @Transactional
     public void logout(String rawToken) {
         jdbc.update("UPDATE api_tokens SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
-                Instant.now(), sha256(rawToken));
+                Timestamp.from(Instant.now()), sha256(rawToken));
     }
 
     public UserResponse currentUser(CurrentUser user) {
@@ -180,7 +181,7 @@ public class AuthService {
         jdbc.update("""
             INSERT INTO api_tokens(id,user_id,token_hash,token_name,created_at,expires_at)
             VALUES (?,?,?,?,?,?)
-            """, UUID.randomUUID(), userId, sha256(rawToken), device.substring(0, Math.min(100, device.length())), now, expires);
+            """, UUID.randomUUID(), userId, sha256(rawToken), device.substring(0, Math.min(100, device.length())), Timestamp.from(now), Timestamp.from(expires));
         return new TokenResponse(rawToken, "Bearer", expires, new UserResponse(userId, name, email, roles));
     }
 
