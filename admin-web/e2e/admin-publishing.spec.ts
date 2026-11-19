@@ -143,7 +143,7 @@ test("admin can create, submit, review, approve and publish a lesson", async ({ 
   await page.getByRole("button", { name: "Approve revision" }).click();
   await expect(page.getByRole("status")).toContainText("Revision approved");
 
-  await page.getByRole("button", { name: /^Lessons$/ }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: /Lessons/ }).click();
   await page.getByRole("button", { name: /Java Streams/ }).click();
   await expect(page.getByRole("button", { name: "Publish approved" })).toBeVisible();
   await page.getByRole("button", { name: "Publish approved" }).click();
