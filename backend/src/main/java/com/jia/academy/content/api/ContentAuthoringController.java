@@ -2,6 +2,9 @@ package com.jia.academy.content.api;
 
 import com.jia.academy.content.api.ContentAuthoringDtos.*;
 import com.jia.academy.content.service.ContentAuthoringService;
+import com.jia.academy.content.service.LessonImportService;
+import com.jia.academy.content.api.LessonImportDtos.BatchRequest;
+import com.jia.academy.content.api.LessonImportDtos.BatchResponse;
 import com.jia.academy.security.CurrentUser;
 import jakarta.validation.Valid;
 import java.util.Map;
@@ -14,9 +17,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/admin")
 public class ContentAuthoringController {
     private final ContentAuthoringService content;
+    private final LessonImportService imports;
 
-    public ContentAuthoringController(ContentAuthoringService content) {
+    public ContentAuthoringController(ContentAuthoringService content, LessonImportService imports) {
         this.content = content;
+        this.imports = imports;
     }
 
     @GetMapping("/lessons")
@@ -33,6 +38,13 @@ public class ContentAuthoringController {
     @PreAuthorize("hasAuthority('content.create')")
     public LessonAuthoringDetail lesson(@PathVariable UUID lessonId) {
         return content.authoringDetail(lessonId);
+    }
+
+    @PostMapping("/lessons/import")
+    @PreAuthorize("hasAuthority('content.create')")
+    public BatchResponse importLessons(@AuthenticationPrincipal CurrentUser actor,
+                                       @Valid @RequestBody BatchRequest request) {
+        return imports.importLessons(actor, request);
     }
 
     @PostMapping("/lessons")
