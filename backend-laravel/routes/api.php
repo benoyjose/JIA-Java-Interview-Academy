@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/quiz-attempts', [QuizController::class, 'start']);
         Route::post('/admin/lessons/import', [LessonImportController::class, 'import'])->middleware('jia.permission:content.create');
         Route::post('/admin/questions/import', [QuestionImportController::class, 'import'])->middleware('jia.permission:content.create');
+        Route::post('/quiz-attempts/{attemptId}/answers', [QuizController::class, 'saveAnswers']);
         Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);
         Route::get('/me/quiz-performance', [QuizController::class, 'performance']);
         Route::get('/me/quiz-attempts', [QuizController::class, 'history']);

@@ -49,7 +49,18 @@ public class QuizController {
         int count = body.get("questionCount") instanceof Number n ? n.intValue() : 10;
         String mode = body.get("mode") instanceof String s ? s : "PRACTICE";
         if (count < 1 || count > 100) throw badRequest("questionCount must be between 1 and 100");
-        validateMode(mode);
+        Integer durationLimitSeconds = null;
+        Instant deadlineAt = null;
+        if ("TIMED_MOCK".equals(mode)) {
+            Object rawDuration = body.get("durationSeconds");
+            if (!(rawDuration instanceof Number number) || number.doubleValue() != number.intValue()
+                    || number.intValue() < 60 || number.intValue() > 21600) {
+                throw badRequest("durationSeconds must be between 60 and 21600");
+            }
+            durationLimitSeconds = number.intValue();
+        } else {
+            validateMode(mode);
+        }
         Filters filters = filters(difficulty, technologySlug, categorySlug);
 
         String sql = """
@@ -69,11 +80,14 @@ public class QuizController {
 
         UUID attemptId = UUID.randomUUID();
         Instant startedAt = Instant.now();
+        deadlineAt = durationLimitSeconds == null ? null : startedAt.plusSeconds(durationLimitSeconds);
         jdbc.update("""
-            INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,question_count,started_at)
-            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?)
+            INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,
+                question_count,started_at,duration_limit_seconds,deadline_at)
+            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?)
             """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
-                difficulty, mode, count, Timestamp.from(startedAt));
+                difficulty, mode, count, Timestamp.from(startedAt), durationLimitSeconds,
+                deadlineAt == null ? null : Timestamp.from(deadlineAt));
 
         List<Map<String, Object>> questions = new ArrayList<>();
         for (int i = 0; i < selected.size(); i++) {
@@ -94,8 +108,62 @@ public class QuizController {
             item.put("difficulty", q.difficulty());
             questions.add(item);
         }
-        return Map.of("attemptId", attemptId, "difficulty", difficulty, "mode", mode,
-                "questionCount", count, "questions", questions);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("attemptId", attemptId);
+        response.put("difficulty", difficulty);
+        response.put("mode", mode);
+        response.put("questionCount", count);
+        response.put("durationLimitSeconds", durationLimitSeconds);
+        response.put("deadlineAt", deadlineAt == null ? null : deadlineAt.toString());
+        response.put("questions", questions);
+        return response;
+    }
+
+    @PostMapping("/quiz-attempts/{attemptId}/answers")
+    @Transactional
+    public Map<String, Object> saveAnswers(@AuthenticationPrincipal CurrentUser user,
+            @PathVariable UUID attemptId, @RequestBody Map<String, Object> body) {
+        requireUser(user);
+        Object raw = body.get("answers");
+        if (!(raw instanceof List<?> answers) || answers.isEmpty() || answers.size() > 100) {
+            throw badRequest("answers must contain between 1 and 100 items");
+        }
+        var attempts = jdbc.query("""
+            SELECT mode, status, deadline_at FROM quiz_attempts
+            WHERE id=? AND user_id=? FOR UPDATE
+            """, (rs,n) -> new Object[]{rs.getString("mode"), rs.getString("status"), rs.getTimestamp("deadline_at")},
+                attemptId, user.id());
+        if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
+        Object[] attempt = attempts.getFirst();
+        if (!"TIMED_MOCK".equals(attempt[0])) throw badRequest("Answer autosave is only available for timed mock attempts");
+        if (!"IN_PROGRESS".equals(attempt[1])) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
+        Timestamp deadline = (Timestamp) attempt[2];
+        if (deadline == null || !Instant.now().isBefore(deadline.toInstant())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
+        }
+        Set<Integer> positions = new HashSet<>();
+        Set<Integer> expectedPositions = new HashSet<>(jdbc.queryForList(
+                "SELECT position FROM quiz_attempt_questions WHERE attempt_id=?", Integer.class, attemptId));
+        for (Object item : answers) {
+            if (!(item instanceof Map<?,?> map) || !(map.get("position") instanceof Number position)
+                    || !(map.get("response") instanceof Map<?,?> response)) throw badRequest("Each answer requires position and response");
+            int p = position.intValue();
+            if (p < 1 || position.doubleValue() != p || !positions.add(p)) throw badRequest("Answer positions must be unique positive integers");
+            validateTimeSpentMs(map.get("timeSpentMs"));
+            if (!expectedPositions.contains(p)) throw badRequest("Answer position is not part of this attempt");
+            Map<String,Object> normalized = new HashMap<>();
+            response.forEach((k,v) -> normalized.put(String.valueOf(k),v));
+            jdbc.update("""
+                INSERT INTO quiz_attempt_answers(attempt_id,position,response_json,time_spent_ms,answered_at)
+                VALUES (?,?,?::jsonb,?,?)
+                ON CONFLICT (attempt_id,position) DO UPDATE SET
+                  response_json=EXCLUDED.response_json,
+                  time_spent_ms=EXCLUDED.time_spent_ms,
+                  answered_at=EXCLUDED.answered_at
+                """, attemptId, p, writeJson(normalized),
+                map.get("timeSpentMs") instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
+        }
+         return Map.of("attemptId", attemptId, "savedCount", positions.size());
     }
 
     @PostMapping("/quiz-attempts/{attemptId}/submit")
@@ -104,18 +172,21 @@ public class QuizController {
             @PathVariable UUID attemptId, @RequestBody Map<String, Object> body) {
         requireUser(user);
         Object rawAnswers = body.get("answers");
-        if (!(rawAnswers instanceof List<?> answers) || answers.isEmpty()) {
-            throw badRequest("answers must be a non-empty array");
+        if (!(rawAnswers instanceof List<?> answers) || answers.size() > 100) {
+            throw badRequest("answers must be an array");
         }
         var attempts = jdbc.query("""
-            SELECT id, difficulty, started_at FROM quiz_attempts
+            SELECT id, difficulty, started_at, mode, deadline_at FROM quiz_attempts
             WHERE id = ? AND user_id = ? FOR UPDATE
             """, (rs, n) -> new AttemptRow(rs.getObject("id", UUID.class),
-                rs.getString("difficulty"), rs.getTimestamp("started_at").toInstant()), attemptId, user.id());
+                rs.getString("difficulty"), rs.getTimestamp("started_at").toInstant(),
+                rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id());
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         AttemptRow attempt = attempts.getFirst();
         String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ?", String.class, attemptId);
         if (!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
+        boolean timedMock = "TIMED_MOCK".equals(attempt.mode());
+        boolean timedOut = timedMock && (attempt.deadlineAt() == null || !Instant.now().isBefore(attempt.deadlineAt()));
 
         Map<Integer, Map<String, Object>> submitted = new HashMap<>();
         for (Object item : answers) {
@@ -133,6 +204,24 @@ public class QuizController {
             if (submitted.put(answerPosition, normalized) != null) throw badRequest("Duplicate answer position");
         }
 
+        if (timedMock) {
+            if (timedOut) submitted.clear();
+            List<Map<String,Object>> saved = jdbc.query("""
+                SELECT position, response_json::text AS response_json, time_spent_ms
+                FROM quiz_attempt_answers WHERE attempt_id=?
+                """, (rs,n) -> {
+                    Map<String,Object> item = new HashMap<>();
+                    item.put("position", rs.getInt("position"));
+                    item.put("response", readMap(rs.getString("response_json")));
+                    item.put("timeSpentMs", rs.getObject("time_spent_ms"));
+                    return item;
+                }, attemptId);
+            for (Map<String,Object> item : saved) {
+                int p = (Integer) item.get("position");
+                if (timedOut || !submitted.containsKey(p)) submitted.put(p, (Map<String,Object>) item.get("response"));
+            }
+        }
+
         List<GradingRow> rows = jdbc.query("""
             SELECT aq.position, q.question_type, qr.answer_json::text AS answer_json, qr.explanation
             FROM quiz_attempt_questions aq
@@ -143,7 +232,8 @@ public class QuizController {
                 rs.getString("answer_json"), rs.getString("explanation")), attemptId);
         Set<Integer> expectedPositions = new HashSet<>();
         for (GradingRow row : rows) expectedPositions.add(row.position());
-        validateCompleteAnswers(expectedPositions, submitted.keySet());
+        if (!timedMock) validateCompleteAnswers(expectedPositions, submitted.keySet());
+        else if (submitted.keySet().stream().anyMatch(p -> !expectedPositions.contains(p))) throw badRequest("Answer position is not part of this attempt");
 
         int correct = 0;
         List<Map<String, Object>> results = new ArrayList<>();
@@ -152,12 +242,24 @@ public class QuizController {
             Map<String, Object> answer = readMap(row.answerJson());
             boolean isCorrect = submitted.containsKey(row.position()) && isCorrect(row.questionType(), response, answer);
             if (isCorrect) correct++;
-            Object time = answers.stream().filter(a -> a instanceof Map<?, ?> m
-                    && m.get("position") instanceof Number p && p.intValue() == row.position())
-                    .map(a -> ((Map<?, ?>) a).get("timeSpentMs")).findFirst().orElse(null);
+            Object time = null;
+            if (timedMock) {
+                time = jdbc.query("SELECT time_spent_ms FROM quiz_attempt_answers WHERE attempt_id=? AND position=?",
+                        rs -> rs.next() ? rs.getObject(1) : null, attemptId, row.position());
+            } else {
+                time = answers.stream().filter(a -> a instanceof Map<?, ?> m
+                        && m.get("position") instanceof Number p && p.intValue() == row.position())
+                        .map(a -> ((Map<?, ?>) a).get("timeSpentMs")).findFirst().orElse(null);
+            }
             jdbc.update("""
                 INSERT INTO quiz_attempt_answers(attempt_id,position,response_json,is_correct,marks_awarded,time_spent_ms,answered_at)
                 VALUES (?,?,?::jsonb,?,?,?,?)
+                ON CONFLICT (attempt_id,position) DO UPDATE SET
+                  response_json=EXCLUDED.response_json,
+                  is_correct=EXCLUDED.is_correct,
+                  marks_awarded=EXCLUDED.marks_awarded,
+                  time_spent_ms=EXCLUDED.time_spent_ms,
+                  answered_at=EXCLUDED.answered_at
                 """, attemptId, row.position(), writeJson(response), isCorrect, isCorrect ? 1 : 0,
                     time instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
             Map<String, Object> result = new LinkedHashMap<>();
@@ -173,9 +275,16 @@ public class QuizController {
             UPDATE quiz_attempts SET status='SUBMITTED', correct_count=?, score_percent=?,
               submitted_at=?, duration_seconds=? WHERE id=?
             """, correct, score, Timestamp.from(submittedAt), Math.max(0, submittedAt.getEpochSecond() - attempt.startedAt().getEpochSecond()), attemptId);
-        return Map.of("attemptId", attemptId, "difficulty", attempt.difficulty(),
-                "questionCount", total, "correctCount", correct, "scorePercent", score,
-                "submittedAt", submittedAt.toString(), "answers", results);
+        Map<String,Object> result = new LinkedHashMap<>();
+        result.put("attemptId", attemptId);
+        result.put("difficulty", attempt.difficulty());
+        result.put("questionCount", total);
+        result.put("correctCount", correct);
+        result.put("scorePercent", score);
+        result.put("submittedAt", submittedAt.toString());
+        result.put("timedOut", timedOut);
+        result.put("answers", results);
+        return result;
     }
 
     @GetMapping("/me/quiz-performance")
@@ -370,6 +479,6 @@ public class QuizController {
     private record Filters(String difficulty, UUID technologyId, UUID categoryId) {}
     private record QuestionRow(UUID questionId, String questionType, String difficulty, UUID revisionId,
                                String promptJson, String optionsJson, String hint) {}
-    private record AttemptRow(UUID id, String difficulty, Instant startedAt) {}
+    private record AttemptRow(UUID id, String difficulty, Instant startedAt, String mode, Instant deadlineAt) {}
     private record GradingRow(int position, String questionType, String answerJson, String explanation) {}
 }

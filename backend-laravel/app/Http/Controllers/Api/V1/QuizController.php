@@ -36,14 +36,24 @@ final class QuizController
             'categorySlug' => ['nullable', 'string', 'max:100'],
             'questionCount' => ['nullable', 'integer', 'min:1', 'max:100'],
             'mode' => ['nullable', 'string', 'max:40'],
+            'durationSeconds' => ['nullable', 'integer', 'min:60', 'max:21600'],
         ]);
-        self::assertAvailableMode($validated['mode'] ?? 'PRACTICE');
+        $mode = $validated['mode'] ?? 'PRACTICE';
+        $durationLimitSeconds = null;
+        if ($mode === 'TIMED_MOCK') {
+            $durationLimitSeconds = (int) ($validated['durationSeconds'] ?? 0);
+            if ($durationLimitSeconds < 60 || $durationLimitSeconds > 21600) {
+                throw new BadRequestHttpException('durationSeconds must be between 60 and 21600');
+            }
+        } else {
+            self::assertAvailableMode($mode);
+        }
         $filters = $this->filters($request);
         $count = (int) ($validated['questionCount'] ?? 10);
         $user = $request->attributes->get('jia_user');
         abort_if($user === null, 401, 'Unauthenticated');
 
-        return DB::transaction(function () use ($filters, $count, $validated, $user): JsonResponse {
+        return DB::transaction(function () use ($filters, $count, $validated, $user, $mode, $durationLimitSeconds): JsonResponse {
             $selected = $this->questionQuery($filters)
                 ->inRandomOrder()
                 ->limit($count)
@@ -66,6 +76,7 @@ final class QuizController
 
             $attemptId = (string) Str::uuid();
             $startedAt = now();
+            $deadlineAt = $durationLimitSeconds === null ? null : $startedAt->copy()->addSeconds($durationLimitSeconds);
             DB::table('quiz_attempts')->insert([
                 'id' => $attemptId,
                 'user_id' => $user->id,
@@ -73,10 +84,12 @@ final class QuizController
                 'technology_id' => $filters['technologyId'],
                 'category_id' => $filters['categoryId'],
                 'difficulty' => $filters['difficulty'],
-                'mode' => $validated['mode'] ?? 'PRACTICE',
+                'mode' => $mode,
                 'status' => 'IN_PROGRESS',
                 'question_count' => $count,
                 'started_at' => $startedAt,
+                'duration_limit_seconds' => $durationLimitSeconds,
+                'deadline_at' => $deadlineAt,
             ]);
 
             $questions = [];
@@ -104,17 +117,64 @@ final class QuizController
             return response()->json([
                 'attemptId' => $attemptId,
                 'difficulty' => $filters['difficulty'],
-                'mode' => $validated['mode'] ?? 'PRACTICE',
+                'mode' => $mode,
                 'questionCount' => $count,
+                'durationLimitSeconds' => $durationLimitSeconds,
+                'deadlineAt' => $deadlineAt?->toISOString(),
                 'questions' => $questions,
             ], 201);
+        });
+    }
+
+    public function saveAnswers(Request $request, string $attemptId): JsonResponse
+    {
+        $validated = $request->validate([
+            'answers' => ['required', 'array', 'min:1', 'max:100'],
+            'answers.*.position' => ['required', 'integer', 'min:1', 'distinct'],
+            'answers.*.response' => ['required', 'array'],
+            'answers.*.timeSpentMs' => ['nullable', 'integer', 'min:0'],
+        ]);
+        $user = $request->attributes->get('jia_user');
+        abort_if($user === null, 401, 'Unauthenticated');
+
+        return DB::transaction(function () use ($attemptId, $validated, $user): JsonResponse {
+            $attempt = DB::table('quiz_attempts')->where('id', $attemptId)
+                ->where('user_id', $user->id)->lockForUpdate()->first();
+            if ($attempt === null) throw new NotFoundHttpException('Quiz attempt not found');
+            if ($attempt->mode !== 'TIMED_MOCK') throw new BadRequestHttpException('Answer autosave is only available for timed mock attempts');
+            if ($attempt->status !== 'IN_PROGRESS') throw new ConflictHttpException('Quiz attempt is already closed');
+            if ($attempt->deadline_at === null || now()->greaterThanOrEqualTo($attempt->deadline_at)) {
+                throw new ConflictHttpException('Timed mock deadline has passed');
+            }
+
+            $positions = collect($validated['answers'])->pluck('position')->map(fn ($p): int => (int) $p)->all();
+            $validPositions = DB::table('quiz_attempt_questions')->where('attempt_id', $attemptId)
+                ->whereIn('position', $positions)->pluck('position')->map(fn ($p): int => (int) $p)->all();
+            if (count($validPositions) !== count($positions)) {
+                throw new BadRequestHttpException('Answer position is not part of this attempt');
+            }
+            $now = now();
+            $rows = [];
+            foreach ($validated['answers'] as $answer) {
+                $rows[] = [
+                    'attempt_id' => $attemptId,
+                    'position' => (int) $answer['position'],
+                    'response_json' => json_encode($answer['response'], JSON_THROW_ON_ERROR),
+                    'time_spent_ms' => $answer['timeSpentMs'] ?? null,
+                    'answered_at' => $now,
+                ];
+            }
+            DB::table('quiz_attempt_answers')->upsert(
+                $rows, ['attempt_id', 'position'], ['response_json', 'time_spent_ms', 'answered_at']
+            );
+            return response()->json(['attemptId' => $attemptId, 'savedCount' => count($rows)]);
         });
     }
 
     public function submit(Request $request, string $attemptId): JsonResponse
     {
         $validated = $request->validate([
-            'answers' => ['required', 'array', 'min:1'],
+            'answers' => ['sometimes', 'array', 'max:100'],
             'answers.*.position' => ['required', 'integer', 'min:1', 'distinct'],
             'answers.*.response' => ['required', 'array'],
             'answers.*.timeSpentMs' => ['nullable', 'integer', 'min:0'],
@@ -131,8 +191,25 @@ final class QuizController
             if ($attempt->status !== 'IN_PROGRESS') {
                 throw new ConflictHttpException('Quiz attempt is already submitted or closed');
             }
+            $timedMock = $attempt->mode === 'TIMED_MOCK';
+            $timedOut = $timedMock && ($attempt->deadline_at === null || now()->greaterThanOrEqualTo($attempt->deadline_at));
 
-            $submitted = collect($validated['answers'])->keyBy('position');
+            $submitted = collect($validated['answers'] ?? [])->keyBy('position');
+            $savedAnswers = collect();
+            if ($timedMock) {
+                if ($timedOut) $submitted = collect();
+                $savedAnswers = DB::table('quiz_attempt_answers')->where('attempt_id', $attemptId)->get()
+                    ->keyBy('position');
+                foreach ($savedAnswers as $position => $saved) {
+                    if ($timedOut || ! $submitted->has($position)) {
+                        $submitted->put($position, [
+                            'position' => (int) $position,
+                            'response' => $this->decodeJson($saved->response_json) ?? [],
+                            'timeSpentMs' => $saved->time_spent_ms,
+                        ]);
+                    }
+                }
+            }
             $questions = DB::table('quiz_attempt_questions')
                 ->join('question_revisions', 'question_revisions.id', '=', 'quiz_attempt_questions.question_revision_id')
                 ->join('questions', 'questions.id', '=', 'quiz_attempt_questions.question_id')
@@ -149,7 +226,11 @@ final class QuizController
             $submittedPositions = $submitted->keys()->map(fn ($position): int => (int) $position)->all();
             sort($expectedPositions);
             sort($submittedPositions);
-            self::assertCompleteAnswerPositions($expectedPositions, $submittedPositions);
+            if (! $timedMock) {
+                self::assertCompleteAnswerPositions($expectedPositions, $submittedPositions);
+            } elseif (array_diff($submittedPositions, $expectedPositions) !== []) {
+                throw new BadRequestHttpException('Answer position is not part of this attempt');
+            }
 
             $correct = 0;
             $answerResults = [];
@@ -198,6 +279,7 @@ final class QuizController
                 'scorePercent' => $score,
                 'submittedAt' => $submittedAt->toISOString(),
                 'answers' => $answerResults,
+                'timedOut' => $timedOut,
             ]);
         });
     }

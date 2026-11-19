@@ -10,7 +10,7 @@ import java.net.URL
 
 enum class JiaQuizMode(val apiValue: String, val displayName: String, val availableToLearners: Boolean) {
     PRACTICE("PRACTICE", "Practice", true),
-    TIMED_MOCK("TIMED_MOCK", "Timed mock interview", false),
+    TIMED_MOCK("TIMED_MOCK", "Timed mock interview", true),
     DAILY_CHALLENGE("DAILY_CHALLENGE", "Daily challenge", false),
     WEAK_AREA("WEAK_AREA", "Weak-area practice", false);
 
@@ -28,8 +28,12 @@ data class JiaQuizQuestion(
     val options: List<Pair<String, String>>,
     val hint: String?
 )
-data class JiaQuizAttempt(val id: String, val difficulty: String, val questions: List<JiaQuizQuestion>)
-data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double, val explanations: Map<Int, Pair<Boolean, String>>)
+data class JiaQuizAttempt(
+    val id: String, val difficulty: String, val questions: List<JiaQuizQuestion>,
+    val mode: JiaQuizMode, val deadlineAt: String?, val durationLimitSeconds: Int?
+)
+data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double,
+    val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
 data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String)
 data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
 data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>)
@@ -60,9 +64,11 @@ class QuizRepository {
         } finally { connection.disconnect() }
     }
 
-    suspend fun start(baseUrl: String, token: String, difficulty: String, count: Int = 10, mode: JiaQuizMode = JiaQuizMode.PRACTICE): JiaQuizAttempt =
+    suspend fun start(baseUrl: String, token: String, difficulty: String, count: Int = 10,
+        mode: JiaQuizMode = JiaQuizMode.PRACTICE, durationSeconds: Int = 1800): JiaQuizAttempt =
         withContext(Dispatchers.IO) {
             val body = JSONObject().put("difficulty", difficulty).put("questionCount", count).put("mode", mode.apiValue)
+            if (mode == JiaQuizMode.TIMED_MOCK) body.put("durationSeconds", durationSeconds)
             val json = JSONObject(request(baseUrl, "/quiz-attempts", token, "POST", body))
             val questionsJson = json.getJSONArray("questions")
             val questions = (0 until questionsJson.length()).map { index ->
@@ -80,7 +86,28 @@ class QuizRepository {
                     code?.optString("source")?.takeIf(String::isNotBlank),
                     options, q.optString("hint").takeIf(String::isNotBlank))
             }
-            JiaQuizAttempt(json.getString("attemptId"), json.getString("difficulty"), questions)
+            JiaQuizAttempt(json.getString("attemptId"), json.getString("difficulty"), questions, mode,
+                json.optString("deadlineAt").takeIf { it.isNotBlank() && it != "null" },
+                if (json.isNull("durationLimitSeconds")) null else json.optInt("durationLimitSeconds"))
+        }
+
+    suspend fun saveAnswers(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>) =
+        withContext(Dispatchers.IO) {
+            val rows = JSONArray()
+            attempt.questions.forEach { question ->
+                val selected = answers[question.position].orEmpty()
+                if (selected.isNotEmpty()) {
+                    val response = JSONObject()
+                    if (question.questionType == "MULTI_SELECT") {
+                        val values = JSONArray()
+                        selected.sorted().forEach(values::put)
+                        response.put("values", values)
+                    } else selected.firstOrNull()?.let { response.put("value", it) }
+                    rows.put(JSONObject().put("position", question.position).put("response", response))
+                }
+            }
+            if (rows.length() > 0) request(baseUrl, "/quiz-attempts/${attempt.id}/answers", token, "POST",
+                JSONObject().put("answers", rows))
         }
 
     suspend fun submit(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>): JiaQuizResult =
@@ -88,6 +115,7 @@ class QuizRepository {
             val rows = JSONArray()
             attempt.questions.forEach { question ->
                 val selected = answers[question.position].orEmpty()
+                if (selected.isNotEmpty()) {
                 val response = JSONObject()
                 if (question.questionType == "MULTI_SELECT") {
                     val values = JSONArray()
@@ -97,6 +125,7 @@ class QuizRepository {
                     selected.firstOrNull()?.let { response.put("value", it) }
                 }
                 rows.put(JSONObject().put("position", question.position).put("response", response))
+                }
             }
             val result = JSONObject(request(baseUrl, "/quiz-attempts/${attempt.id}/submit", token, "POST",
                 JSONObject().put("answers", rows)))
@@ -106,7 +135,7 @@ class QuizRepository {
                 item.getInt("position") to (item.optBoolean("isCorrect") to item.optString("explanation"))
             }
             JiaQuizResult(result.getInt("questionCount"), result.getInt("correctCount"),
-                result.getDouble("scorePercent"), explanations)
+                result.getDouble("scorePercent"), explanations, result.optBoolean("timedOut", false))
         }
 
     suspend fun performance(baseUrl: String, token: String): JiaQuizPerformance = withContext(Dispatchers.IO) {
