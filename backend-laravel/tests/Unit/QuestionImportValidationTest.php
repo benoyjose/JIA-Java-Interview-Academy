@@ -1,10 +1,10 @@
 <?php
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use App\\Services\\QuestionImportService;
-use PHPUnit\\Framework\\TestCase;
-use Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException;
+use App\Services\QuestionImportService;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class QuestionImportValidationTest extends TestCase
 {
