@@ -72,6 +72,6 @@ fun LessonContentRenderer(raw: String) {
 private fun LessonTextBlock(title: String?, body: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         title?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-        Text(body, style = MaterialTheme.typography.bodyLarge)
+        Text(markdownToAnnotatedString(body), style = MaterialTheme.typography.bodyLarge)
     }
 }
