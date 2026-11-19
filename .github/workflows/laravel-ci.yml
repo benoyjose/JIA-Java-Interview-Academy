@@ -57,7 +57,8 @@ jobs:
         run: composer install --working-dir backend-laravel --no-interaction --prefer-dist --no-progress
       - name: Prepare Laravel writable runtime directories
         run: mkdir -p backend-laravel/bootstrap/cache backend-laravel/storage/framework/cache backend-laravel/storage/framework/sessions backend-laravel/storage/framework/views backend-laravel/storage/logs
-      # PHP syntax lint temporarily deferred; Composer validation and PHPUnit remain enabled.
+      - name: PHP syntax check
+        run: find backend-laravel -type f -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l
       - name: Laravel unit and HTTP parity tests
         working-directory: backend-laravel
         run: vendor/bin/phpunit --bootstrap vendor/autoload.php tests
