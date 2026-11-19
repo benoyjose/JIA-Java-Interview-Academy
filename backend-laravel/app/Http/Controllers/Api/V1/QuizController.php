@@ -45,7 +45,7 @@ final class QuizController
             if ($durationLimitSeconds < 60 || $durationLimitSeconds > 21600) {
                 throw new BadRequestHttpException('durationSeconds must be between 60 and 21600');
             }
-        } else {
+        } elseif ($mode !== 'DAILY_CHALLENGE') {
             self::assertAvailableMode($mode);
         }
         $filters = $this->filters($request);
@@ -54,6 +54,15 @@ final class QuizController
         abort_if($user === null, 401, 'Unauthenticated');
 
         return DB::transaction(function () use ($filters, $count, $validated, $user, $mode, $durationLimitSeconds): JsonResponse {
+            if ($mode === 'DAILY_CHALLENGE') {
+                DB::selectOne("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || CURRENT_DATE::text, 0))", [$user->id]);
+                $existing = DB::table('quiz_attempts')->where('user_id', $user->id)
+                    ->where('academy_id', self::ACADEMY_ID)->where('mode', 'DAILY_CHALLENGE')
+                    ->whereDate('challenge_date', DB::raw('CURRENT_DATE'))->first(['id']);
+                if ($existing !== null) {
+                    return $this->dailyChallengeResponse((string) $existing->id);
+                }
+            }
             $selected = $this->questionQuery($filters)
                 ->inRandomOrder()
                 ->limit($count)
@@ -90,6 +99,7 @@ final class QuizController
                 'started_at' => $startedAt,
                 'duration_limit_seconds' => $durationLimitSeconds,
                 'deadline_at' => $deadlineAt,
+                'challenge_date' => $mode === 'DAILY_CHALLENGE' ? DB::raw('CURRENT_DATE') : null,
             ]);
 
             $questions = [];
@@ -121,6 +131,8 @@ final class QuizController
                 'questionCount' => $count,
                 'durationLimitSeconds' => $durationLimitSeconds,
                 'deadlineAt' => $deadlineAt?->toISOString(),
+                'challengeDate' => $mode === 'DAILY_CHALLENGE'
+                    ? DB::table('quiz_attempts')->where('id', $attemptId)->value('challenge_date') : null,
                 'questions' => $questions,
             ], 201);
         });
@@ -364,6 +376,46 @@ final class QuizController
             'startedAt' => $row->started_at,
             'status' => $row->status,
         ])->values());
+    }
+
+    private function dailyChallengeResponse(string $attemptId): JsonResponse
+    {
+        $attempt = DB::table('quiz_attempts')->where('id', $attemptId)
+            ->first(['difficulty', 'question_count', 'challenge_date']);
+        if ($attempt === null) {
+            throw new NotFoundHttpException('Daily challenge not found');
+        }
+        $questions = DB::table('quiz_attempt_questions')
+            ->join('questions', 'questions.id', '=', 'quiz_attempt_questions.question_id')
+            ->join('question_revisions', 'question_revisions.id', '=', 'quiz_attempt_questions.question_revision_id')
+            ->where('quiz_attempt_questions.attempt_id', $attemptId)
+            ->orderBy('quiz_attempt_questions.position')
+            ->get([
+                'quiz_attempt_questions.position', 'questions.id as question_id',
+                'quiz_attempt_questions.question_revision_id as revision_id', 'questions.question_type',
+                'question_revisions.prompt_json', 'question_revisions.options_json',
+                'question_revisions.hint', 'questions.difficulty',
+            ])->map(fn (object $row): array => [
+                'position' => (int) $row->position,
+                'questionId' => $row->question_id,
+                'revisionId' => $row->revision_id,
+                'questionType' => $row->question_type,
+                'prompt' => $this->decodeJson($row->prompt_json),
+                'options' => $this->decodeJson($row->options_json),
+                'hint' => $row->hint,
+                'difficulty' => $row->difficulty,
+            ])->values()->all();
+
+        return response()->json([
+            'attemptId' => $attemptId,
+            'difficulty' => $attempt->difficulty,
+            'mode' => 'DAILY_CHALLENGE',
+            'questionCount' => (int) $attempt->question_count,
+            'durationLimitSeconds' => null,
+            'deadlineAt' => null,
+            'challengeDate' => (string) $attempt->challenge_date,
+            'questions' => $questions,
+        ], 201);
     }
 
     public static function assertAvailableMode(string $mode): void
