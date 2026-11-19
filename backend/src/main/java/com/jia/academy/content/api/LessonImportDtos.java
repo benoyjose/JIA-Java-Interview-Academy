@@ -3,6 +3,7 @@ package com.jia.academy.content.api;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
@@ -12,7 +13,7 @@ public final class LessonImportDtos {
                                @NotNull @Size(min=1,max=100) List<@Valid LessonRecord> lessons) {}
     public record LessonRecord(
             @NotBlank @Size(max=100) String categorySlug,
-            @NotBlank @Size(max=120) String slug,
+            @NotBlank @Size(max=120) @Pattern(regexp="^[a-z0-9]+(?:-[a-z0-9]+)*$") String slug,
             @NotBlank @Size(max=200) String title,
             @Size(max=700) String summary,
             @NotBlank String difficulty,
