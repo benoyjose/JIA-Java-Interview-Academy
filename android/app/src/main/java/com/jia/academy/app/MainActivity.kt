@@ -427,6 +427,8 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
 
     val activeAttempt = attempt
     val completed = result
+    val answeredCount = activeAttempt?.questions?.count { !answers[it.position].isNullOrEmpty() } ?: 0
+    val totalQuestions = activeAttempt?.questions?.size ?: 0
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Java practice", style = MaterialTheme.typography.headlineSmall)
         when {
@@ -484,8 +486,14 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                         }
                     }
                 }
+                Text(
+                    "$answeredCount of $totalQuestions questions answered",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (answeredCount == totalQuestions) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Button(
-                    enabled = !loading,
+                    enabled = !loading && answeredCount == totalQuestions,
                     onClick = {
                         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                         if (token.isNullOrBlank()) { error = "Please sign in again to submit this quiz."; return@Button }
@@ -498,7 +506,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(if (loading) "Submitting…" else "Submit answers") }
+                ) { Text(if (loading) "Submitting…" else "Submit all answers") }
             }
             else -> {
                 Text("Choose your difficulty", style = MaterialTheme.typography.titleMedium)
