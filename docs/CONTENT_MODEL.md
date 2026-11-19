@@ -136,3 +136,16 @@ Question revisions use the same provenance contract as lesson revisions: USER_OR
 ### Attempt grading
 
 Grade deterministic formats on the server. Store the submitted response, correctness, marks and time spent. Keep the question revision snapshot on each attempt. The initial release should support single-select, multi-select and true/false objective grading; output prediction, debugging, SQL and coding formats can be added with their own explicit evaluators. Do not pretend free-form coding or architecture answers are objectively graded until an evaluation rubric or test harness exists.
+
+
+### Canonical objective question revision payload
+
+Use one stable payload convention across Spring Boot, Laravel and mobile clients:
+
+- `prompt_json`: `{"text":"...","code":{"language":"java","source":"..."}}` (code is optional).
+- `options_json`: array of `{"value":"A","label":"..."}` objects for choice questions; null for formats without options.
+- `answer_json`: `{"correctValues":["A"]}` for single-select/true-false, or the complete sorted set for multi-select.
+- `explanation`: non-empty rationale returned after submission.
+- `hint`: optional learner-visible clue returned before answering.
+
+Learner responses use `{"value":"A"}` for single-select/true-false and `{"values":["A","C"]}` for multi-select. The server compares the complete multi-select set; partial credit is not enabled in the first release. Never include `answer_json` in the quiz-start response. The current deterministic evaluator supports SINGLE_SELECT, MULTI_SELECT and TRUE_FALSE only; other question types must remain unpublished until their evaluator is implemented.
