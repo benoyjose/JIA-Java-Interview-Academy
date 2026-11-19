@@ -41,3 +41,8 @@ Override `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` and `SERVER_PORT` through enviro
 ## Current scope
 
 This is the catalogue and early authentication foundation. Google/Apple token verification is implemented in Spring Boot; account linking, token refresh, native provider SDK integrations, SMS vendor selection/delivery validation, admin authoring, content review/publishing, assessments, learner progress and content synchronization remain subsequent implementation increments.
+
+
+## Difficulty-based quizzes
+
+The API includes four question difficulty values: `BEGINNER`, `NOVICE`, `PROFESSIONAL` and `EXPERT`. Public clients can preview published question counts with `GET /api/v1/quizzes/availability?difficulty=BEGINNER`. Authenticated learners can start attempts with `POST /api/v1/quiz-attempts`, submit with `POST /api/v1/quiz-attempts/{attemptId}/submit`, view `GET /api/v1/me/quiz-performance` and inspect `GET /api/v1/me/quiz-attempts`. Only published question revisions are eligible; answer keys are withheld until submission. No question bodies are seeded by the schema migration; reviewed questions must be authored/imported before the availability counts become non-zero.
