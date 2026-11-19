@@ -1,28 +1,42 @@
 # JIA Android Application
 
-## Current stable toolchain baseline
+## First implementation slice
 
-- Android Studio Rabbit 2 stable.
-- Android Gradle Plugin 9.5.0.
-- Gradle 9.9.1 or the latest compatible stable patch.
-- Kotlin 2.4.x (use the stable 2.4.21 line; do not use 2.5 release candidates).
-- Jetpack Compose BOM 2026.11.01 (Compose 1.13 stable line).
-- Compile SDK 37.1 where supported by the selected stable Android SDK installation.
-- Kotlin Compose compiler Gradle plugin aligned to the Kotlin compiler version.
+A native Kotlin/Jetpack Compose application is now scaffolded under this directory.
 
-Recheck official compatibility matrices before creating the Android build; AGP, Gradle, Kotlin and JDK versions must be a compatible set.
+- Public Java technology catalogue screen.
+- Loads published technology tracks from `GET /api/v1/technologies`.
+- No login wall for catalogue browsing.
+- Clear loading, empty and API-configuration/error states.
+- HTTPS-only network policy; no hardcoded production API host or credentials.
 
-## Architecture
+## Local setup
 
-Kotlin and Jetpack Compose; MVVM with feature-oriented Clean Architecture; Room for offline catalogue and learner data; DataStore for preferences; WorkManager for deferred synchronization; Retrofit/OkHttp or Ktor Client generated/configured from the shared OpenAPI contract; Android Keystore-backed secure token storage.
+1. Open the `android/` directory in Android Studio.
+2. Use the stable Android Studio / Android SDK combination compatible with the pinned Gradle and Android Gradle Plugin versions.
+3. Configure the API base URL in your user-level Gradle properties file (not in Git):
 
-## Initial modules
+```properties
+JIA_API_BASE_URL=https://your-jia-api-host
+```
 
-App shell/navigation, authentication, home dashboard, technology catalogue, lesson reader, interview-answer cards, quizzes, bookmarks/search, progress, offline library and settings.
+The configured value is the host root, without the `/api/v1` suffix. For a local emulator, use a reachable HTTPS development endpoint or configure a dedicated debug-only network policy; do not enable cleartext traffic in release builds.
 
-## Offline and release behavior
+4. Sync Gradle and run the `app` configuration on an Android 8.0+ device/emulator.
 
-Cache published lesson content and metadata locally. Verify manifest revisions and checksums before activating downloaded content. Queue eligible quiz/progress writes while offline and retry safely with idempotency keys. Keep content updates independent of APK updates. APK updates use the Android package installer; silent install is only available in appropriately managed/device-owner deployments.
+## Application identity
+
+The current application ID `com.jia.academy.app` is a development placeholder. Confirm the final Play Store application ID before configuring Google OAuth, Firebase, signing keys or production release automation.
+
+## Toolchain
+
+See the version catalogue in `gradle/libs.versions.toml`. The versions are aligned to the repository's current documented baseline but must be verified against the official Android Gradle Plugin / Gradle / Kotlin compatibility matrix before a release build.
+
+## Architecture and next slices
+
+Keep the app feature-oriented and MVVM-friendly. The first screen is intentionally small; next implement category and lesson navigation, lesson rendering, offline caching, optional sign-in, bookmarks and learner progress. Authentication must never be required to read published content.
+
+The target architecture remains Kotlin + Jetpack Compose, Room, DataStore, WorkManager, and Keystore-backed credential storage. Do not put provider secrets in the app binary.
 
 ## API contract
 
