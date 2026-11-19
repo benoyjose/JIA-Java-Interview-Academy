@@ -26,6 +26,7 @@ import org.mockito.Mockito;
 @Import({
         SecurityConfiguration.class,
         TokenAuthenticationFilter.class,
+        SecurityConfigurationHttpIntegrationTest.ProtectedTestController.class,
         SecurityConfigurationHttpIntegrationTest.MockJdbcConfiguration.class
 })
 class SecurityConfigurationHttpIntegrationTest {
@@ -67,7 +68,7 @@ class SecurityConfigurationHttpIntegrationTest {
 
     @RestController
     @RequestMapping("/api/v1/__test")
-    static class ProtectedTestController {
+    public static class ProtectedTestController {
         @GetMapping("/protected")
         String protectedResource() {
             return "protected";
