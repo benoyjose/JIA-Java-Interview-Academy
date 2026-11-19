@@ -114,6 +114,7 @@ class QuizRepository {
             val rows = JSONArray()
             attempt.questions.forEach { question ->
                 val selected = answers[question.position].orEmpty()
+                if (selected.isNotEmpty()) {
                 val response = JSONObject()
                 if (question.questionType == "MULTI_SELECT") {
                     val values = JSONArray()
@@ -123,6 +124,7 @@ class QuizRepository {
                     selected.firstOrNull()?.let { response.put("value", it) }
                 }
                 rows.put(JSONObject().put("position", question.position).put("response", response))
+                }
             }
             val result = JSONObject(request(baseUrl, "/quiz-attempts/${attempt.id}/submit", token, "POST",
                 JSONObject().put("answers", rows)))
