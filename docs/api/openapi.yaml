@@ -37,7 +37,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '409': { description: Email already registered }
+        '409': { $ref: '#/components/responses/Conflict' }
   /auth/login:
     post:
       summary: Sign in with email and password
@@ -61,7 +61,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '401': { description: Invalid credentials }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /auth/federated/google:
     post:
       summary: Sign in with Google
@@ -85,8 +85,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '401': { description: 'Invalid, expired or untrusted provider token' }
-        '409': { description: Identity requires explicit account linking }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '503': { description: Provider sign-in is not configured }
   /auth/federated/apple:
     post:
@@ -111,8 +111,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '401': { description: 'Invalid, expired or untrusted provider token' }
-        '409': { description: Identity requires explicit account linking }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '503': { description: Provider sign-in is not configured }
   /auth/phone/otp:
     post:
@@ -135,7 +135,7 @@ paths:
       responses:
         '202': { description: SMS challenge created and delivery accepted }
         '503': { description: SMS gateway is not configured or is unavailable }
-        '429': { description: Rate limit exceeded }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /auth/phone/verify:
     post:
       summary: Verify a phone verification code
@@ -165,8 +165,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '401': { description: Invalid or expired code }
-        '429': { description: Verification attempt limit exceeded }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /auth/me:
     get:
       summary: Get the current authenticated account
@@ -179,7 +179,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
-        '401': { description: Unauthenticated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /auth/logout:
     post:
       summary: Revoke the current session token
@@ -188,7 +188,7 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         '204': { description: Token revoked }
-        '401': { description: Unauthenticated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /technologies:
     get:
       summary: List published technology tracks
@@ -320,8 +320,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/QuizAttemptStart' }
-        '401': { description: Login required to save quiz attempts }
-        '422': { description: Insufficient published questions for requested filters }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /quiz-attempts/{attemptId}/submit:
     post:
       summary: Submit and grade a quiz attempt
@@ -355,9 +355,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/QuizAttemptResult' }
-        '401': { description: Unauthenticated }
-        '404': { description: Attempt not found }
-        '409': { description: Attempt already submitted or not in progress }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /me/quiz-performance:
     get:
       summary: Get learner quiz performance by difficulty and topic
@@ -369,7 +369,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/QuizPerformance' }
-        '401': { description: Unauthenticated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me/quiz-attempts:
     get:
       summary: List the authenticated learner's quiz history
@@ -390,7 +390,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/QuizAttemptSummary' }
-        '401': { description: Unauthenticated }
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
 components:
   securitySchemes:
@@ -454,6 +454,7 @@ components:
           type: string
           enum: [BAD_REQUEST, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR, HTTP_ERROR]
         message: { type: string }
+        traceId: { type: string, description: Optional request correlation identifier }
         errors:
           type: object
           additionalProperties:
