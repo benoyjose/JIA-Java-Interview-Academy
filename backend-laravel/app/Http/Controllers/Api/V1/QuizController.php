@@ -55,10 +55,10 @@ final class QuizController
 
         return DB::transaction(function () use ($filters, $count, $validated, $user, $mode, $durationLimitSeconds): JsonResponse {
             if ($mode === 'DAILY_CHALLENGE') {
-                DB::selectOne("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || CURRENT_DATE::text, 0))", [$user->id]);
+                DB::selectOne("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))", [$user->id]);
                 $existing = DB::table('quiz_attempts')->where('user_id', $user->id)
                     ->where('academy_id', self::ACADEMY_ID)->where('mode', 'DAILY_CHALLENGE')
-                    ->whereDate('challenge_date', DB::raw('CURRENT_DATE'))->first(['id']);
+                    ->whereRaw("challenge_date = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date")->first(['id']);
                 if ($existing !== null) {
                     return $this->dailyChallengeResponse((string) $existing->id);
                 }
@@ -99,7 +99,7 @@ final class QuizController
                 'started_at' => $startedAt,
                 'duration_limit_seconds' => $durationLimitSeconds,
                 'deadline_at' => $deadlineAt,
-                'challenge_date' => $mode === 'DAILY_CHALLENGE' ? DB::raw('CURRENT_DATE') : null,
+                'challenge_date' => $mode === 'DAILY_CHALLENGE' ? DB::raw("(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date") : null,
             ]);
 
             $questions = [];
