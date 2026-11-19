@@ -23,5 +23,4 @@ class JiaQuizModeTest {
         assertFalse(JiaQuizMode.WEAK_AREA.availableToLearners)
         assertFalse(JiaQuizMode.WEAK_AREA in JiaQuizMode.learnerOptions)
     }
-    }
 }
