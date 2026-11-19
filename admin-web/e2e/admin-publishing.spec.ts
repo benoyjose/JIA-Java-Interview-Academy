@@ -126,7 +126,7 @@ test("admin can create, submit, review, approve and publish a lesson", async ({ 
   await page.getByLabel("Password").fill("test-password");
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page.getByRole("heading", { name: "Lessons" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lessons", exact: true })).toBeVisible();
   await page.getByRole("button", { name: /New lesson/ }).click();
   await page.getByLabel("Lesson title").fill("Java Streams");
   await page.getByLabel("Category slug").fill("java");
