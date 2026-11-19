@@ -67,7 +67,7 @@ public class PhoneOtpService {
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public TokenResponse verify(String phone, String code, String deviceName) {
         requireConfigured();
         var rows = jdbc.query("""
