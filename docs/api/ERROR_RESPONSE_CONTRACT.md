@@ -96,7 +96,7 @@ Assertions should verify required envelope fields, optional field behavior, no s
 
 - Every documented error response references the common schema.
 - Both backend implementations return the same status and envelope semantics for the parity matrix.
-- Security-generated errors are covered, including Spring method-security denial and persisted-token authentication paths.
+- Security-generated errors are covered, including Spring method-security denial and missing/invalid bearer-token authentication paths. Persisted-token permission loading remains to be verified.
 - Android and web clients handle the common envelope.
 - CI fails when the two implementations diverge on the parity fixtures.
 
