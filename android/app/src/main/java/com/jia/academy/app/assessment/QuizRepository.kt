@@ -88,7 +88,8 @@ class QuizRepository {
             }
             JiaQuizAttempt(json.getString("attemptId"), json.getString("difficulty"), questions, mode,
                 json.optString("deadlineAt").takeIf { it.isNotBlank() && it != "null" },
-                if (json.isNull("durationLimitSeconds")) null else json.optInt("durationLimitSeconds"),\n                json.optString("challengeDate").takeIf { it.isNotBlank() && it != "null" })
+                if (json.isNull("durationLimitSeconds")) null else json.optInt("durationLimitSeconds"),
+                json.optString("challengeDate").takeIf { it.isNotBlank() && it != "null" })
         }
 
     suspend fun saveAnswers(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>) =
