@@ -67,7 +67,7 @@ export function ReviewsPage() {
     <div className="content-grid review-grid">
       <div className="panel lesson-list-panel">
         <div className="panel-heading"><div><h2>Pending reviews</h2><span className="muted small-copy">Oldest submissions first · {result.totalItems.toLocaleString()} total</span></div><span className="count-pill">{result.totalItems.toLocaleString()}</span></div>
-        <div className="list-controls"><input aria-label="Search reviews" placeholder="Search title, slug or submitter…" maxLength={120} value={search} onChange={event => changeSearch(event.target.value)} /></div>
+        <div className="list-controls"><input aria-label="Search reviews" placeholder="Start of title, slug or submitter…" maxLength={120} value={search} onChange={event => changeSearch(event.target.value)} /></div>
         {loading ? <div className="loading-line">Loading review queue…</div> : result.items.length === 0 ? <div className="empty-state"><span>✓</span><strong>Queue is clear</strong><p>No pending reviews match this search.</p></div> :
           <div className="lesson-list">{result.items.map(item => <button key={item.taskId} className={selectedId === item.taskId ? "lesson-row selected" : "lesson-row"} onClick={() => { setDetail(null); setSelectedId(item.taskId); }}>
             <span className="lesson-row-main"><strong>{item.title}</strong><small>{item.slug} · by {item.submittedBy}</small><small>{new Date(item.submittedAt).toLocaleString()}</small></span><span className="status-badge status-in_review">PENDING</span><span className="row-chevron">›</span>
