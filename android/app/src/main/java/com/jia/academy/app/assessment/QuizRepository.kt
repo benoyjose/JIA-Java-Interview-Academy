@@ -11,6 +11,8 @@ data class JiaQuizQuestion(
     val position: Int,
     val questionType: String,
     val prompt: String,
+    val codeLanguage: String?,
+    val codeSource: String?,
     val options: List<Pair<String, String>>,
     val hint: String?
 )
@@ -60,8 +62,12 @@ class QuizRepository {
                     val option = optionsJson.getJSONObject(n)
                     option.optString("value") to option.optString("label", option.optString("value"))
                 }
+                val code = prompt?.optJSONObject("code")
                 JiaQuizQuestion(q.getInt("position"), q.getString("questionType"),
-                    prompt?.optString("text").orEmpty(), options, q.optString("hint").takeIf(String::isNotBlank))
+                    prompt?.optString("text").orEmpty(),
+                    code?.optString("language")?.takeIf(String::isNotBlank),
+                    code?.optString("source")?.takeIf(String::isNotBlank),
+                    options, q.optString("hint").takeIf(String::isNotBlank))
             }
             JiaQuizAttempt(json.getString("attemptId"), json.getString("difficulty"), questions)
         }
