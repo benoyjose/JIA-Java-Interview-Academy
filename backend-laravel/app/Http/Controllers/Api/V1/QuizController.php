@@ -148,11 +148,7 @@ final class QuizController
             $submittedPositions = $submitted->keys()->map(fn ($position): int => (int) $position)->all();
             sort($expectedPositions);
             sort($submittedPositions);
-            if ($expectedPositions === [] || $submittedPositions !== $expectedPositions) {
-                throw new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException(
-                    'Submit exactly one answer for every question in this attempt'
-                );
-            }
+            self::assertCompleteAnswerPositions($expectedPositions, $submittedPositions);
 
             $correct = 0;
             $answerResults = [];
@@ -285,6 +281,15 @@ final class QuizController
             'startedAt' => $row->started_at,
             'status' => $row->status,
         ])->values());
+    }
+
+    public static function assertCompleteAnswerPositions(array $expectedPositions, array $submittedPositions): void
+    {
+        if ($expectedPositions === [] || $submittedPositions !== $expectedPositions) {
+            throw new \\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException(
+                'Submit exactly one answer for every question in this attempt'
+            );
+        }
     }
 
     private function filters(Request $request): array
