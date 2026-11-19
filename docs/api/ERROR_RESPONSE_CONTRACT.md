@@ -70,9 +70,12 @@ The mapping is implemented for the common statuses covered by the current handle
 
 ## Required parity tests
 
+The shared status-to-code fixture is maintained in `docs/api/error-response-parity.json`. Spring Boot and Laravel test suites both read this file so status mapping changes are checked against the same expected values.
+
 Run the same cases against both backend implementations and compare status plus JSON semantics:
 
 - malformed JSON and invalid request fields;
+- shared status-to-code fixture cases (400, 401, 403, 404, 409, 422, 429, 500, and 503);
 - missing, invalid, and expired bearer token;
 - authenticated user without permission;
 - missing or unpublished resource;
