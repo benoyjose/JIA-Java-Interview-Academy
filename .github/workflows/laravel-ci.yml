@@ -6,11 +6,13 @@ on:
       - "backend-laravel/**"
       - ".github/workflows/laravel-ci.yml"
       - "docs/api/openapi.yaml"
+      - "docs/api/error-response-parity.json"
   pull_request:
     paths:
       - "backend-laravel/**"
       - ".github/workflows/laravel-ci.yml"
       - "docs/api/openapi.yaml"
+      - "docs/api/error-response-parity.json"
 
 permissions:
   contents: read
@@ -30,6 +32,6 @@ jobs:
       - name: Resolve PHP dependencies
         run: composer install --working-dir backend-laravel --no-interaction --prefer-dist --no-progress
       # PHP syntax lint temporarily deferred; Composer validation and PHPUnit remain enabled.
-      - name: Laravel quiz validation tests
+      - name: Laravel unit and HTTP parity tests
         working-directory: backend-laravel
-        run: vendor/bin/phpunit --bootstrap vendor/autoload.php tests/Unit
+        run: vendor/bin/phpunit --bootstrap vendor/autoload.php tests
