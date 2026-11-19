@@ -111,6 +111,48 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void adminCanReloadDraftAndReviewerCanInspectExactSubmittedRevision() throws Exception {
+        String slug = "admin-read-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Read API draft"));
+        var detail = service.authoringDetail(draft.id());
+        assertThat(detail.title()).isEqualTo("Read API draft");
+        assertThat(new ObjectMapper().readTree(detail.contentJson()).path("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(detail.editingDraft()).isTrue();
+
+        var list = service.adminLessons("DRAFT");
+        assertThat(list).anySatisfy(item -> {
+            assertThat(item.id()).isEqualTo(draft.id());
+            assertThat(item.status()).isEqualTo("DRAFT");
+        });
+
+        UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+        var review = service.reviewDetail(taskId);
+        assertThat(review.lessonId()).isEqualTo(draft.id());
+        assertThat(review.revisionId()).isNotNull();
+        assertThat(review.title()).isEqualTo("Read API draft");
+        assertThat(new ObjectMapper().readTree(review.contentJson()).path("blocks").isArray()).isTrue();
+        assertThat(review.revisionNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void authoringDetailReturnsPendingRevisionForPublishedLessonWithoutChangingLiveRevision() {
+        String slug = "admin-published-read-" + UUID.randomUUID();
+        var initial = service.createDraft(editor, request(slug, "Published v1"));
+        UUID initialTask = (UUID) service.submitForReview(editor, initial.id()).get("taskId");
+        service.decideReview(reviewer, initialTask, new ReviewDecisionRequest("APPROVE", "Initial approval"));
+        service.publish(admin, initial.id());
+
+        service.updateDraft(editor, initial.id(), request(slug, "Draft v2"));
+        var detail = service.authoringDetail(initial.id());
+        assertThat(detail.title()).isEqualTo("Draft v2");
+        assertThat(detail.editingDraft()).isTrue();
+        assertThat(detail.publishedRevision()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM lesson_revisions WHERE id=(SELECT published_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Published v1");
+    }
+
+    @Test
     void lessonCannotBePublishedBeforeApproval() {
         var draft = service.createDraft(editor,
                 request("unapproved-" + UUID.randomUUID(), "Not approved"));

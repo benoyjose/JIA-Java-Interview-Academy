@@ -394,6 +394,29 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /admin/lessons:
+    get:
+      summary: List lessons for content administration
+      tags: [Content Admin]
+      operationId: listAdminLessons
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED]
+      responses:
+        '200':
+          description: Recent lessons, newest updates first (maximum 100)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       summary: Create a lesson draft
       tags: [Content Admin]
@@ -415,6 +438,25 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/lessons/{lessonId}:
+    get:
+      summary: Get the current editable revision for a lesson
+      tags: [Content Admin]
+      operationId: getAdminLesson
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current draft or published revision detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonAuthoringDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
     put:
       summary: Update a draft lesson and create a revision
       tags: [Content Admin]
@@ -472,6 +514,26 @@ paths:
                 items: { $ref: '#/components/schemas/ContentReviewTask' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reviews/{taskId}:
+    get:
+      summary: Get the exact pending revision submitted for review
+      tags: [Content Admin]
+      operationId: getContentReviewDetail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Immutable revision snapshot for reviewer inspection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /admin/reviews/{taskId}/decision:
     post:
       summary: Approve, request changes or reject a lesson revision
@@ -722,6 +784,55 @@ components:
               difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
               attempts: { type: integer }
               accuracyPercent: { type: [number, 'null'] }
+    AdminLessonListItem:
+      type: object
+      required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        categorySlug: { type: string }
+        status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        contentRevision: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        draftRevision: { type: [integer, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    LessonAuthoringDetail:
+      type: object
+      required: [id, slug, title, categorySlug, difficulty, sourceType, contentJson, status, revisionNumber, editingDraft, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        categorySlug: { type: string }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        status: { type: string }
+        revisionNumber: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        editingDraft: { type: boolean }
+        changeNote: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    ReviewDetail:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, difficulty, sourceType, contentJson, revisionNumber, submittedBy, submittedAt, lessonStatus]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        revisionNumber: { type: integer }
+        changeNote: { type: [string, 'null'] }
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        lessonStatus: { type: string }
     LessonDraftRequest:
       type: object
       required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
