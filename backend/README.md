@@ -1,6 +1,6 @@
 # JIA API
 
-Spring Boot 4.1.x / Java 25 LTS backend for JIA.
+Spring Boot 4.1.3 / Java 25 LTS backend for JIA.
 
 ## Local setup
 
