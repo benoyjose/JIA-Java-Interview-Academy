@@ -1,56 +1,47 @@
 # JIA — Java Interview Academy
 
-JIA is a learning and interview-readiness platform built around structured technical content, concise interview answers, hands-on code, and topic-wise assessments.
+JIA is the first separately marketed academy app in a family of interview-preparation products, built on one shared platform.
 
 ## Product family
+- **JIA:** Java Interview Academy — first launch.
+- **PIA:** Python Interview Academy — future separate app.
+- **GIA:** Go Interview Academy — future separate app.
 
-JIA is the first academy. The platform is designed to add PIA (Python Interview Academy) and GIA (Go Interview Academy) later through academy-specific curriculum and configuration, without duplicating shared platform services.
+Each academy will have distinct Android and iOS store listings, branding, app names, icons and package/bundle identifiers. The apps share code modules and connect to one backend platform, one canonical database and one central admin portal. The admin team can manage each academy independently and view consolidated reporting.
 
 ## Product surfaces
-
-- **Android app:** Kotlin + Jetpack Compose; offline-first learning and practice.
-- **iOS app:** Swift + SwiftUI; feature parity with the learner experience on Android.
-- **Backend A:** Java 25 + Spring Boot.
-- **Backend B:** PHP 8.5 + Laravel 13; equivalent API and business functionality.
-- **Admin portal:** React + TypeScript; content, assessment, publishing and release management.
+- Android apps: Kotlin + Jetpack Compose, shared modules and academy-specific build flavors.
+- iOS apps: Swift + SwiftUI, shared modules and academy-specific app targets.
+- Backend A: Java 25 + Spring Boot.
+- Backend B: PHP 8.5 + Laravel 13; equivalent API and business functionality.
+- One React + TypeScript admin portal for all academies.
 
 ## Backend deployment principle
-
-Spring Boot and Laravel are interchangeable implementations of one versioned API contract. Initially deploy only one backend to production to control operating cost and avoid dual-write/data-consistency problems. Keep both implementations aligned and test them against the same OpenAPI contract. Laravel can be evaluated as the lower-cost initial deployment; Spring Boot remains the alternative implementation.
+Spring Boot and Laravel are interchangeable implementations of one versioned API contract. Initially deploy only one backend to production to control operating cost and avoid dual-write/data-consistency problems. Keep both implementations aligned and test them against the same OpenAPI contract.
 
 ## Core principles
-
 1. User-owned learning material is the primary source of truth.
 2. Every lesson follows a consistent, interview-oriented structure.
 3. Default answers are concise and speakable; expanded explanations and code are available on demand.
 4. Content updates are independent of mobile app releases.
 5. Existing repositories are reference-only and must not be modified by this project.
 6. External material must be attributed and reviewed before publication.
-7. Android and iOS should share product behavior and API contracts, with platform-native UX.
+7. Each app is academy-scoped; shared backend access does not mean cross-academy content leakage.
 
-## Learning tracks
-
-See [JIA Java Curriculum](docs/JIA_JAVA_CURRICULUM.md) for the comprehensive coverage blueprint and [Multi-Academy Platform Strategy](docs/MULTI_ACADEMY_PLATFORM.md) for the shared platform architecture.
-
-## Initial JIA tracks
-
-Core Java; Advanced Java; Spring Framework; Spring Boot; Hibernate/JPA; Microservices; Messaging (Kafka and RabbitMQ); Databases; System Design; DevOps; Cloud and Observability; Engineering Excellence.
+## JIA learning tracks
+See [JIA Java Curriculum](docs/JIA_JAVA_CURRICULUM.md) for comprehensive coverage and [Multi-Academy Platform Strategy](docs/MULTI_ACADEMY_PLATFORM.md) for the shared-app/backend/admin architecture.
 
 ## Repository layout
-
 ```
-android/          Android application
-ios/              iOS application
+android/          Shared Android modules and academy app flavors
+ios/              Shared iOS modules and academy app targets
 backend/          Spring Boot API
 backend-laravel/  Laravel API
-admin-web/        Admin portal
+admin-web/        Central admin portal
 content/          Versioned learning content and seed data
 docs/             Product, architecture, API and content specifications
 infra/            Local development and deployment assets
 ```
 
 ## Project status
-
-Spring Boot catalogue foundation is committed. Cross-platform/backend architecture and API parity contract are being established. No lesson bodies are invented or published; user-provided material remains the priority.
-
-See [Product Scope](docs/PRODUCT_SCOPE.md), [Content Model](docs/CONTENT_MODEL.md), [Architecture](docs/ARCHITECTURE.md), [Backend Parity Decision](docs/decisions/ADR-002-dual-backend-strategy.md), and [OpenAPI Contract](docs/api/openapi.yaml).
+Catalogue, identity and early academy/content-governance database foundations are committed. Full CMS APIs/UI, assessment engine and learner apps remain under implementation. No lesson bodies are invented or published; user-provided material remains the priority.
