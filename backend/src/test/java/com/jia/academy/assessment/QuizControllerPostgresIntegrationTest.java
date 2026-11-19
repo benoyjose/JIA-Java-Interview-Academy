@@ -6,9 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.assessment.api.QuizController;
 import com.jia.academy.security.CurrentUser;
+import com.jia.academy.security.TokenAuthenticationFilter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.sql.Timestamp;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,6 +21,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -119,6 +128,37 @@ class QuizControllerPostgresIntegrationTest {
                 .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
         assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, attemptId))
                 .isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
+    void authenticatesBearerTokenAndUpdatesLastUsedTimestamp() throws Exception {
+        String rawToken = "jia-postgres-auth-integration-token";
+        String tokenHash = HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        UUID tokenId = UUID.fromString("72000000-0000-0000-0000-000000000001");
+        jdbc.update("INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles WHERE code='LEARNER' ON CONFLICT DO NOTHING",
+                USER_ONE);
+        jdbc.update("""
+                INSERT INTO api_tokens(id,user_id,token_hash,token_name,expires_at)
+                VALUES (?,?,?,?,?)
+                """, tokenId, USER_ONE, tokenHash, "integration-test", Timestamp.from(Instant.now().plusSeconds(3600)));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + rawToken);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+        try {
+            new TokenAuthenticationFilter(jdbc).doFilter(request, response, chain);
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            assertThat(authentication).isNotNull();
+            assertThat(authentication.getPrincipal()).isInstanceOf(CurrentUser.class);
+            assertThat(((CurrentUser) authentication.getPrincipal()).id()).isEqualTo(USER_ONE);
+            assertThat(jdbc.queryForObject("SELECT last_used_at IS NOT NULL FROM api_tokens WHERE id=?",
+                    Boolean.class, tokenId)).isTrue();
+        } finally {
+            SecurityContextHolder.clearContext();
+            jdbc.update("DELETE FROM api_tokens WHERE id=?", tokenId);
+        }
     }
 
     @Test
