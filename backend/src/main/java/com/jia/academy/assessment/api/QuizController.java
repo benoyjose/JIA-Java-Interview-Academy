@@ -63,8 +63,8 @@ public class QuizController {
         }
         Filters filters = filters(difficulty, technologySlug, categorySlug);
         if ("DAILY_CHALLENGE".equals(mode)) {
-            jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?::text, 0))",
-                    Object.class, user.id() + ":" + Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDate());
+            jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || CURRENT_DATE::text, 0))",
+                    rs -> {}, user.id().toString());
             List<UUID> existing = jdbc.query("""
                 SELECT id FROM quiz_attempts
                 WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=CURRENT_DATE
@@ -376,7 +376,7 @@ public class QuizController {
     private Map<String,Object> dailyChallengeResponse(UUID attemptId) {
         var attempts = jdbc.query("""
             SELECT difficulty, question_count, started_at, challenge_date
-            FROM quiz_attempts WHERE id=? AND user_id IN (SELECT id FROM users WHERE id=quiz_attempts.user_id)
+            FROM quiz_attempts WHERE id=?
             """, (rs,n) -> new Object[]{rs.getString("difficulty"), rs.getInt("question_count"),
                 rs.getTimestamp("started_at"), rs.getString("challenge_date")}, attemptId);
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily challenge not found");
