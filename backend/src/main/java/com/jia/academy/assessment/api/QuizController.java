@@ -119,6 +119,53 @@ public class QuizController {
         return response;
     }
 
+    @PostMapping("/quiz-attempts/{attemptId}/answers")
+    @Transactional
+    public Map<String, Object> saveAnswers(@AuthenticationPrincipal CurrentUser user,
+            @PathVariable UUID attemptId, @RequestBody Map<String, Object> body) {
+        requireUser(user);
+        Object raw = body.get("answers");
+        if (!(raw instanceof List<?> answers) || answers.isEmpty() || answers.size() > 100) {
+            throw badRequest("answers must contain between 1 and 100 items");
+        }
+        var attempts = jdbc.query("""
+            SELECT mode, status, deadline_at FROM quiz_attempts
+            WHERE id=? AND user_id=? FOR UPDATE
+            """, (rs,n) -> new Object[]{rs.getString("mode"), rs.getString("status"), rs.getTimestamp("deadline_at")},
+                attemptId, user.id());
+        if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
+        Object[] attempt = attempts.getFirst();
+        if (!"TIMED_MOCK".equals(attempt[0])) throw badRequest("Answer autosave is only available for timed mock attempts");
+        if (!"IN_PROGRESS".equals(attempt[1])) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
+        Timestamp deadline = (Timestamp) attempt[2];
+        if (deadline == null || !Instant.now().isBefore(deadline.toInstant())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
+        }
+        Set<Integer> positions = new HashSet<>();
+        for (Object item : answers) {
+            if (!(item instanceof Map<?,?> map) || !(map.get("position") instanceof Number position)
+                    || !(map.get("response") instanceof Map<?,?> response)) throw badRequest("Each answer requires position and response");
+            int p = position.intValue();
+            if (p < 1 || position.doubleValue() != p || !positions.add(p)) throw badRequest("Answer positions must be unique positive integers");
+            validateTimeSpentMs(map.get("timeSpentMs"));
+            Integer expected = jdbc.query("SELECT position FROM quiz_attempt_questions WHERE attempt_id=? AND position=?",
+                    rs -> rs.next() ? rs.getInt(1) : null, attemptId, p);
+            if (expected == null) throw badRequest("Answer position is not part of this attempt");
+            Map<String,Object> normalized = new HashMap<>();
+            response.forEach((k,v) -> normalized.put(String.valueOf(k),v));
+            jdbc.update("""
+                INSERT INTO quiz_attempt_answers(attempt_id,position,response_json,time_spent_ms,answered_at)
+                VALUES (?,?,?::jsonb,?,?)
+                ON CONFLICT (attempt_id,position) DO UPDATE SET
+                  response_json=EXCLUDED.response_json,
+                  time_spent_ms=EXCLUDED.time_spent_ms,
+                  answered_at=EXCLUDED.answered_at
+                """, attemptId, p, writeJson(normalized),
+                map.get("timeSpentMs") instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
+        }
+        return Map.of("attemptId", attemptId, "savedCount", positions.size());
+    }
+
     @PostMapping("/quiz-attempts/{attemptId}/submit")
     @Transactional
     public Map<String, Object> submit(@AuthenticationPrincipal CurrentUser user,
