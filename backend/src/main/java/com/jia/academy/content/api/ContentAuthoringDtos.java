@@ -3,6 +3,7 @@ package com.jia.academy.content.api;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public final class ContentAuthoringDtos {
