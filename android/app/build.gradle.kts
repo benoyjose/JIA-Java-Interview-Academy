@@ -8,11 +8,11 @@ val jiaApiBaseUrl = providers.gradleProperty("JIA_API_BASE_URL").orElse("")
 
 android {
     namespace = "com.jia.academy.app"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.jia.academy.app"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "JIA_API_BASE_URL", "\"${jiaApiBaseUrl.get()}\"")
