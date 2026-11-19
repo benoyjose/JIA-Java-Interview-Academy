@@ -1,13 +1,76 @@
 openapi: 3.1.0
 info:
   title: JIA API
-  version: 1.0.0
-  description: Normative shared contract for Spring Boot and Laravel implementations and Android, iOS and admin clients.
+  version: 1.1.0
+  description: Shared API contract for Spring Boot and Laravel backends.
 servers:
   - url: /api/v1
 tags:
+  - name: Authentication
   - name: Catalogue
 paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, maxLength: 160 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '201':
+          description: Learner account created and token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '409': { description: Email already registered }
+  /auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, maxLength: 128 }
+                deviceName: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { description: Invalid credentials }
+  /auth/me:
+    get:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { description: Unauthenticated }
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Token revoked }
+        '401': { description: Unauthenticated }
   /technologies:
     get:
       tags: [Catalogue]
@@ -17,14 +80,12 @@ paths:
           description: Published technologies
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Technology' }
+              schema: { type: array, items: { $ref: '#/components/schemas/Technology' } }
   /technologies/{slug}:
     get:
       tags: [Catalogue]
       operationId: getTechnology
-      parameters: [ { $ref: '#/components/parameters/Slug' } ]
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
       responses:
         '200':
           description: Published technology
@@ -43,12 +104,10 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Published categories for a technology
+          description: Published categories
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Category' }
+              schema: { type: array, items: { $ref: '#/components/schemas/Category' } }
   /categories/{categorySlug}/lessons:
     get:
       tags: [Catalogue]
@@ -60,25 +119,28 @@ paths:
           schema: { type: string }
       responses:
         '200':
-          description: Published lesson summaries
+          description: Published lessons
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/LessonSummary' }
+              schema: { type: array, items: { $ref: '#/components/schemas/LessonSummary' } }
   /lessons/{slug}:
     get:
       tags: [Catalogue]
       operationId: getLesson
-      parameters: [ { $ref: '#/components/parameters/Slug' } ]
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
       responses:
         '200':
-          description: Published lesson detail
+          description: Published lesson
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Lesson' }
         '404': { $ref: '#/components/responses/NotFound' }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
   parameters:
     Slug:
       name: slug
@@ -87,11 +149,24 @@ components:
       schema: { type: string }
   responses:
     NotFound:
-      description: Resource not found or not published
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+      description: Not found or not published
   schemas:
+    User:
+      type: object
+      required: [id, name, email, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        roles: { type: array, items: { type: string } }
+    TokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/User' }
     Technology:
       type: object
       required: [id, slug, name, sortOrder]
@@ -127,10 +202,4 @@ components:
           required: [sourceType]
           properties:
             sourceType: { type: string }
-            contentJson: { type: [string, 'null'], description: JSON content currently serialized as a string by the Spring Boot implementation; this will be normalized to a structured object in a separately versioned contract change. }
-    Error:
-      type: object
-      properties:
-        status: { type: integer }
-        error: { type: string }
-        message: { type: string }
+            contentJson: { type: [string, 'null'] }
