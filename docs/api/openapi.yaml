@@ -82,7 +82,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
-        '401': { description: Invalid, expired or untrusted provider token }
+        '401': { description: 'Invalid, expired or untrusted provider token' }
         '409': { description: Identity requires explicit account linking }
         '503': { description: Provider sign-in is not configured }
   /auth/federated/apple:
@@ -166,6 +166,7 @@ paths:
         '429': { description: Verification attempt limit exceeded }
   /auth/me:
     get:
+      summary: Get the current authenticated account
       tags: [Authentication]
       security: [{ bearerAuth: [] }]
       responses:
@@ -177,6 +178,7 @@ paths:
         '401': { description: Unauthenticated }
   /auth/logout:
     post:
+      summary: Revoke the current session token
       tags: [Authentication]
       security: [{ bearerAuth: [] }]
       responses:
