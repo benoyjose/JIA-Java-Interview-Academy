@@ -75,8 +75,7 @@ class QuizControllerPostgresIntegrationTest {
 
     @Test
     void createsAttemptAndGradesAllAnswersAgainstSnapshottedRevisions() {
-        Map<String, Object> started = controller.start(learnerOne,
-                Map.of("difficulty", "BEGINNER", "questionCount", 2));
+        Map<String, Object> started = startResponse();
         UUID attemptId = (UUID) started.get("attemptId");
         assertThat(started.get("questionCount")).isEqualTo(2);
         assertThat(started.get("questions")).asList().hasSize(2);
@@ -146,8 +145,15 @@ class QuizControllerPostgresIntegrationTest {
     }
 
     private UUID startAttempt() {
-        return (UUID) controller.start(learnerOne,
-                Map.of("difficulty", "BEGINNER", "questionCount", 2)).get("attemptId");
+        return (UUID) startResponse().get("attemptId");
+    }
+
+    private Map<String, Object> startResponse() {
+        try {
+            return controller.start(learnerOne, Map.of("difficulty", "BEGINNER", "questionCount", 2));
+        } catch (org.springframework.jdbc.BadSqlGrammarException ex) {
+            throw new AssertionError("Quiz start SQL failed: " + ex.getMostSpecificCause().getMessage(), ex);
+        }
     }
 
     private static Map<String, Object> answer(int position) {
