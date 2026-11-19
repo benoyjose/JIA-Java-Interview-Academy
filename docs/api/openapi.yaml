@@ -117,7 +117,6 @@ paths:
       security: []
       tags: [Authentication]
       operationId: requestPhoneOtp
-      summary: Request an SMS one-time passcode (not yet implemented)
       requestBody:
         required: true
         content:
@@ -131,7 +130,8 @@ paths:
                   pattern: '^\\+[1-9][0-9]{7,14}$'
                   example: '+919876543210'
       responses:
-        '202': { description: Request accepted without disclosing account existence }
+        '202': { description: SMS challenge created and delivery accepted }
+        '503': { description: SMS gateway is not configured or is unavailable }
         '429': { description: Rate limit exceeded }
   /auth/phone/verify:
     post:
@@ -139,7 +139,6 @@ paths:
       security: []
       tags: [Authentication]
       operationId: verifyPhoneOtp
-      summary: Verify SMS one-time passcode (not yet implemented)
       requestBody:
         required: true
         content:
@@ -151,7 +150,185 @@ paths:
                 phoneNumber:
                   type: string
                   pattern: '^\\+[1-9][0-9]{7,14}$'
-                code: { type: string, minLength: 4, maxLength: 10 }
+                code: { type: string, pattern: '^[0-9]{6}
+                deviceName: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Phone verified and session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { description: Invalid or expired code }
+        '429': { description: Verification attempt limit exceeded }
+  /auth/me:
+    get:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { description: Unauthenticated }
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Token revoked }
+        '401': { description: Unauthenticated }
+  /technologies:
+    get:
+      summary: List published technology tracks
+      security: []
+      tags: [Catalogue]
+      operationId: listTechnologies
+      responses:
+        '200':
+          description: Published technologies
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Technology' }
+  /technologies/{slug}:
+    get:
+      summary: Get a published technology track
+      security: []
+      tags: [Catalogue]
+      operationId: getTechnology
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: Published technology
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Technology' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /technologies/{technologySlug}/categories:
+    get:
+      summary: List published categories for a technology
+      security: []
+      tags: [Catalogue]
+      operationId: listCategories
+      parameters:
+        - name: technologySlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Published categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+  /categories/{categorySlug}/lessons:
+    get:
+      summary: List published lessons in a category
+      security: []
+      tags: [Catalogue]
+      operationId: listLessons
+      parameters:
+        - name: categorySlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Published lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LessonSummary' }
+  /lessons/{slug}:
+    get:
+      summary: Get a published lesson
+      security: []
+      tags: [Catalogue]
+      operationId: getLesson
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: Published lesson
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lesson' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    NotFound:
+      description: Not found or not published
+  schemas:
+    User:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        roles:
+          type: array
+          items: { type: string }
+    TokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/User' }
+    Technology:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Category:
+      type: object
+      required: [id, slug, name, sortOrder, technologySlug]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer }
+        technologySlug: { type: string }
+    LessonSummary:
+      type: object
+      required: [id, slug, title, difficulty, contentRevision]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        contentRevision: { type: integer }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          required: [sourceType]
+          properties:
+            sourceType: { type: string }
+            contentJson: { type: [string, 'null'] }
+ }
                 deviceName: { type: string, maxLength: 100 }
       responses:
         '200':
