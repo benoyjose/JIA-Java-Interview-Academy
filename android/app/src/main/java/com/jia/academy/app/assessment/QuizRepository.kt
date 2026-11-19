@@ -32,7 +32,8 @@ data class JiaQuizAttempt(
     val id: String, val difficulty: String, val questions: List<JiaQuizQuestion>,
     val mode: JiaQuizMode, val deadlineAt: String?, val durationLimitSeconds: Int?
 )
-data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double, val explanations: Map<Int, Pair<Boolean, String>>)
+data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double,
+    val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
 data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String)
 data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
 data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>)
@@ -134,7 +135,7 @@ class QuizRepository {
                 item.getInt("position") to (item.optBoolean("isCorrect") to item.optString("explanation"))
             }
             JiaQuizResult(result.getInt("questionCount"), result.getInt("correctCount"),
-                result.getDouble("scorePercent"), explanations)
+                result.getDouble("scorePercent"), explanations, result.optBoolean("timedOut", false))
         }
 
     suspend fun performance(baseUrl: String, token: String): JiaQuizPerformance = withContext(Dispatchers.IO) {
