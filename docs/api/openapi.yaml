@@ -393,6 +393,35 @@ paths:
                 items: { $ref: '#/components/schemas/QuizAttemptSummary' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /admin/questions/import:
+    post:
+      summary: Import a batch of reviewed objective question drafts
+      description: Create-only import. Questions remain DRAFT and answer keys are never returned by learner-facing endpoints.
+      tags: [Content Admin]
+      operationId: importQuestionDrafts
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [formatVersion, questions]
+              properties:
+                formatVersion: { const: 1 }
+                questions:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { $ref: '../schemas/question-import-v1.schema.json' }
+      responses:
+        '201': { description: Questions imported as immutable draft revisions }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/lessons:
     get:
       summary: List lessons for content administration
