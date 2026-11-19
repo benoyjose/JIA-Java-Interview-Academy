@@ -1,6 +1,6 @@
 # API error response contract
 
-**Status:** Initial implementation in PR #13; cross-backend parity and rollout validation pending  
+**Status:** Common error envelope implemented; HTTP parity coverage is expanding in PR #14; rollout validation pending  
 **Applies to:** Spring Boot and Laravel implementations of `/api/v1`  
 **Purpose:** Define one client-facing error representation before changing either backend's runtime behavior.
 
@@ -60,8 +60,8 @@ The mapping is implemented for the common statuses covered by the current handle
 
 ## Implementation requirements
 
-1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Filter-chain integration tests remain required.
-2. Implemented in Laravel's API exception rendering for validation, authentication, authorization, HTTP exceptions, not-found, throttling status mapping, and unexpected failures. Middleware-generated token and permission errors use the same envelope.
+1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Spring MVC response tests and production-filter-chain tests for missing/invalid bearer tokens are included in PR #14; permission-denial filter-chain coverage remains outstanding.
+2. Implemented in Laravel's API exception rendering for validation, authentication, authorization, HTTP exceptions, not-found, throttling status mapping, and unexpected failures. Laravel HTTP feature tests cover authentication, permission denial, validation, bad request, not-found, and unexpected exceptions in PR #14.
 3. Status-to-code mapping is implemented for the documented statuses. Add parity tests to prove status preservation across framework-specific exceptions.
 4. Validation field paths and message arrays are included; tests must verify they do not leak rejected secrets or request bodies.
 5. Correlation IDs are not emitted by the initial implementation; add a trusted request correlation strategy in a follow-up before relying on `traceId`.
@@ -70,9 +70,12 @@ The mapping is implemented for the common statuses covered by the current handle
 
 ## Required parity tests
 
+The shared status-to-code fixture is maintained in `docs/api/error-response-parity.json`. Spring Boot and Laravel test suites both read this file so status mapping changes are checked against the same expected values.
+
 Run the same cases against both backend implementations and compare status plus JSON semantics:
 
 - malformed JSON and invalid request fields;
+- shared status-to-code fixture cases (400, 401, 403, 404, 409, 422, 429, 500, and 503);
 - missing, invalid, and expired bearer token;
 - authenticated user without permission;
 - missing or unpublished resource;
@@ -86,7 +89,7 @@ Assertions should verify required envelope fields, optional field behavior, no s
 
 1. Added shared OpenAPI schema and reusable error responses for the documented statuses.
 2. Added backend error mappers and initial Spring unit tests; full integration and Laravel parity tests remain outstanding.
-3. Add parity tests that execute equivalent fixtures against both implementations.
+3. Add parity tests that execute equivalent fixtures against both implementations. PR #14 adds shared status-code fixtures, Spring MVC/filter-chain tests, and Laravel HTTP feature tests; not every documented scenario is yet exercised through both runtimes.
 4. Audit Android and web API clients for error parsing dependencies; add backward-compatible parsing before changing server responses.
 5. Switch both backends together, run all CI workflows, and update `CONTRACT_PARITY.md` only after evidence confirms parity.
 

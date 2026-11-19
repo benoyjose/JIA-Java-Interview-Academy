@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {"status": 400, "code": "BAD_REQUEST"},
+    {"status": 401, "code": "UNAUTHENTICATED"},
+    {"status": 403, "code": "FORBIDDEN"},
+    {"status": 404, "code": "NOT_FOUND"},
+    {"status": 409, "code": "CONFLICT"},
+    {"status": 422, "code": "VALIDATION_ERROR"},
+    {"status": 429, "code": "RATE_LIMITED"},
+    {"status": 500, "code": "INTERNAL_ERROR"},
+    {"status": 503, "code": "INTERNAL_ERROR"}
+  ],
+  "validation": {
+    "code": "VALIDATION_ERROR",
+    "message": "The request contains invalid fields.",
+    "errors": {
+      "answers.0.timeSpentMs": [
+        "The time spent must be a non-negative integer."
+      ]
+    }
+  }
+}
