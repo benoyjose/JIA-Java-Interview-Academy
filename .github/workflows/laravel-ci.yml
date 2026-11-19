@@ -20,6 +20,30 @@ permissions:
 jobs:
   php-quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.7
+        env:
+          POSTGRES_DB: jia_test
+          POSTGRES_USER: jia
+          POSTGRES_PASSWORD: jia_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jia -d jia_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: jia_test
+      DB_USERNAME: jia
+      DB_PASSWORD: jia_test_only
     steps:
       - uses: actions/checkout@v4
       - name: Set up PHP
