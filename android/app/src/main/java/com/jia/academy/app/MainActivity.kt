@@ -27,6 +27,10 @@ import androidx.compose.material3.TopAppBar
 import com.jia.academy.app.auth.AuthRepository
 import com.jia.academy.app.auth.AuthScreen
 import com.jia.academy.app.auth.JiaSession
+import com.jia.academy.app.assessment.QuizRepository
+import com.jia.academy.app.assessment.JiaQuizAttempt
+import com.jia.academy.app.assessment.JiaQuizResult
+import com.jia.academy.app.assessment.JiaQuizHistoryItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -186,7 +190,7 @@ fun JiaApp() {
     }) { padding ->
         when (val current = route) {
             BrowseRoute.Home -> TechnologyScreen(repository, signedInAccount, Modifier.padding(padding), ::navigate, onSignOut = { signedInAccount = null })
-            BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, Modifier.padding(padding))
+            BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, signedInAccount != null, Modifier.padding(padding))
             BrowseRoute.Authentication -> AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
                 signedInAccount = session.account.name
                 goBack()
@@ -372,15 +376,20 @@ private fun LessonScreen(
 
 
 @Composable
-private fun QuizSelectionScreen(repository: CatalogueRepository, modifier: Modifier) {
+private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modifier: Modifier) {
     val levels = listOf(
-        "BEGINNER" to "Beginner",
-        "NOVICE" to "Novice",
-        "PROFESSIONAL" to "Professional",
-        "EXPERT" to "Expert"
+        "BEGINNER" to "Beginner", "NOVICE" to "Novice",
+        "PROFESSIONAL" to "Professional", "EXPERT" to "Expert"
     )
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val quizRepository = remember { QuizRepository() }
     var selected by remember { mutableStateOf("BEGINNER") }
     var availability by remember { mutableStateOf<QuizAvailability?>(null) }
+    var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
+    var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
+    var result by remember { mutableStateOf<JiaQuizResult?>(null) }
+    var history by remember { mutableStateOf<List<JiaQuizHistoryItem>?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -388,39 +397,139 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, modifier: Modif
         loading = true
         error = null
         runCatching { repository.getQuizAvailability(BuildConfig.JIA_API_BASE_URL, selected) }
-            .onSuccess { availability = it }
-            .onFailure { error = it.message ?: "Unable to check quiz availability." }
+            .onSuccess { availability = it }.onFailure { error = it.message ?: "Unable to check quiz availability." }
         loading = false
     }
 
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Choose your difficulty", style = MaterialTheme.typography.headlineSmall)
-        Text("Select any level. You can practise higher or lower levels whenever you want.")
-        levels.forEach { (value, label) ->
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = selected == value, onClick = { selected = value }, label = { Text(label) })
-                    Text(
-                        when (value) {
-                            "BEGINNER" -> "Fundamentals, definitions and direct examples"
-                            "NOVICE" -> "Practical application and common code patterns"
-                            "PROFESSIONAL" -> "Advanced Java, Spring and problem-solving"
-                            else -> "Architecture, JVM internals and distributed systems"
-                        },
-                        style = MaterialTheme.typography.bodySmall
-                    )
+    val activeAttempt = attempt
+    val completed = result
+    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Java practice", style = MaterialTheme.typography.headlineSmall)
+        when {
+            completed != null && activeAttempt != null -> {
+                Text("Quiz result", style = MaterialTheme.typography.titleLarge)
+                Text("${completed.correctCount} / ${completed.questionCount} correct",
+                    style = MaterialTheme.typography.headlineMedium)
+                Text("Score: ${completed.scorePercent}%")
+                activeAttempt.questions.forEach { question ->
+                    val review = completed.explanations[question.position]
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Q${question.position}. ${question.prompt}")
+                            Text(if (review?.first == true) "Correct" else "Incorrect",
+                                color = if (review?.first == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            if (!review?.second.isNullOrBlank()) Text(review!!.second)
+                        }
+                    }
+                }
+                Button(onClick = { attempt = null; result = null; answers = emptyMap() }) { Text("Back to difficulty selection") }
+            }
+            activeAttempt != null -> {
+                Text("${levels.first { it.first == activeAttempt.difficulty }.second} practice · ${activeAttempt.questions.size} questions")
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(activeAttempt.questions, key = { it.position }) { question ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Question ${question.position}", style = MaterialTheme.typography.labelLarge)
+                                Text(question.prompt, style = MaterialTheme.typography.titleMedium)
+                                val multi = question.questionType == "MULTI_SELECT"
+                                Text(if (multi) "Select all that apply" else "Select one answer",
+                                    style = MaterialTheme.typography.bodySmall)
+                                question.options.forEach { (value, label) ->
+                                    val checked = value in answers[question.position].orEmpty()
+                                    FilterChip(
+                                        selected = checked,
+                                        onClick = {
+                                            val current = answers[question.position].orEmpty()
+                                            val next = if (multi) {
+                                                if (checked) current - value else current + value
+                                            } else setOf(value)
+                                            answers = answers + (question.position to next)
+                                        },
+                                        label = { Text("$value. $label") }
+                                    )
+                                }
+                                question.hint?.let { Text("Hint: $it", style = MaterialTheme.typography.bodySmall) }
+                            }
+                        }
+                    }
+                }
+                Button(
+                    enabled = !loading && answers.values.any { it.isNotEmpty() },
+                    onClick = {
+                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                        if (token.isNullOrBlank()) { error = "Please sign in again to submit this quiz."; return@Button }
+                        loading = true
+                        error = null
+                        scope.launch {
+                            runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt, answers) }
+                                .onSuccess { result = it }.onFailure { error = it.message ?: "Unable to submit quiz." }
+                            loading = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (loading) "Submitting…" else "Submit answers") }
+            }
+            else -> {
+                Text("Choose your difficulty", style = MaterialTheme.typography.titleMedium)
+                levels.forEach { (value, label) ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilterChip(selected == value, onClick = { selected = value }, label = { Text(label) })
+                            Text(when (value) {
+                                "BEGINNER" -> "Fundamentals, definitions and direct examples"
+                                "NOVICE" -> "Practical application and common code patterns"
+                                "PROFESSIONAL" -> "Advanced Java, Spring and problem-solving"
+                                else -> "Architecture, JVM internals and distributed systems"
+                            }, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                when {
+                    loading -> CircularProgressIndicator()
+                    error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+                    availability != null -> Text("${availability!!.availableQuestionCount} published questions available.")
+                }
+                if (!signedIn) {
+                    Text("Sign in is required to start and save a quiz. You can continue browsing lessons without an account.")
+                } else {
+                    Button(
+                        enabled = !loading && (availability?.availableQuestionCount ?: 0) > 0,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                            if (token.isNullOrBlank()) { error = "Please sign in again."; return@Button }
+                            loading = true
+                            error = null
+                            val count = minOf(10, availability?.availableQuestionCount ?: 0)
+                            scope.launch {
+                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count) }
+                                    .onSuccess { attempt = it; answers = emptyMap(); result = null }
+                                    .onFailure { error = it.message ?: "Unable to start quiz." }
+                                loading = false
+                            }
+                        }
+                    ) { Text("Start practice quiz") }
+                    TextButton(onClick = {
+                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                        if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
+                        loading = true
+                        scope.launch {
+                            runCatching { quizRepository.history(BuildConfig.JIA_API_BASE_URL, token) }
+                                .onSuccess { history = it }.onFailure { error = it.message ?: "Unable to load history." }
+                            loading = false
+                        }
+                    }) { Text("View my quiz history") }
+                    history?.let { rows ->
+                        Text("Recent attempts", style = MaterialTheme.typography.titleMedium)
+                        if (rows.isEmpty()) Text("No quiz attempts yet.")
+                        rows.forEach { row ->
+                            Text("${row.difficulty} · ${row.correctCount ?: 0}/${row.questionCount} · ${row.scorePercent?.let { "$it%" } ?: row.status}")
+                        }
+                    }
                 }
             }
         }
-        Text("Question availability", style = MaterialTheme.typography.titleMedium)
-        when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
-            availability != null -> Text("${availability!!.availableQuestionCount} published questions available at ${levels.first { it.first == selected }.second} level.")
-        }
-        Text(
-            "Quiz attempts and personal performance history require sign-in. Questions appear here as reviewed question-bank items are published.",
-            style = MaterialTheme.typography.bodySmall
-        )
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }
