@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
@@ -50,7 +51,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                         rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("email"),
                         List.of((String[]) rs.getArray("roles").getArray()),
                         List.of((String[]) rs.getArray("permissions").getArray())
-                    ), hash, Instant.now());
+                    ), hash, Timestamp.from(Instant.now()));
 
                 if (!users.isEmpty()) {
                     CurrentUser user = users.getFirst();
@@ -59,7 +60,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                     user.permissions().forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
                     var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    jdbc.update("UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?", Instant.now(), hash);
+                    jdbc.update("UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?", Timestamp.from(Instant.now()), hash);
                 }
             }
         }
