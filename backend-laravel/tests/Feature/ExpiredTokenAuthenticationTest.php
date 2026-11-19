@@ -2,15 +2,37 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use Tests\TestCase;
 
 final class ExpiredTokenAuthenticationTest extends TestCase
 {
     public function test_expired_persisted_bearer_token_returns_contract_401_without_updating_last_used(): void
     {
-        Artisan::call('migrate:fresh', ['--force' => true]);
+        Schema::dropIfExists('api_tokens');
+        Schema::dropIfExists('users');
+
+        Schema::create('users', function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->string('name', 160);
+            $table->string('email', 254);
+            $table->string('password_hash', 255);
+            $table->string('status', 20)->default('ACTIVE');
+            $table->timestampsTz();
+        });
+
+        Schema::create('api_tokens', function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->uuid('user_id');
+            $table->char('token_hash', 64)->unique();
+            $table->string('token_name', 100);
+            $table->timestampTz('created_at')->useCurrent();
+            $table->timestampTz('last_used_at')->nullable();
+            $table->timestampTz('expires_at');
+            $table->timestampTz('revoked_at')->nullable();
+        });
 
         $userId = '60000000-0000-0000-0000-000000000099';
         $tokenId = '72000000-0000-0000-0000-000000000099';
