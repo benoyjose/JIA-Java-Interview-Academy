@@ -153,12 +153,12 @@ public class ContentAuthoringService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported lesson status filter");
         }
         String search = normalizeSearch(query);
-        String pattern = search == null ? null : "%" + search + "%";
+        String pattern = search == null ? null : search + "%";
         long totalItems = jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM lessons l JOIN categories c ON c.id=l.category_id
                 WHERE (? IS NULL OR l.status=?)
-                  AND (CAST(? AS text) IS NULL OR l.title ILIKE ? OR l.slug ILIKE ? OR c.slug ILIKE ?)
+                  AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
                 """, Long.class, status, status, search, pattern, pattern, pattern);
         long offset = (long) page * size;
         List<LessonAdminListItem> items = jdbc.query("""
@@ -168,7 +168,7 @@ public class ContentAuthoringService {
                        l.updated_at
                 FROM lessons l JOIN categories c ON c.id=l.category_id
                 WHERE (? IS NULL OR l.status=?)
-                  AND (CAST(? AS text) IS NULL OR l.title ILIKE ? OR l.slug ILIKE ? OR c.slug ILIKE ?)
+                  AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
                 ORDER BY l.updated_at DESC,l.id DESC
                 LIMIT ? OFFSET ?
                 """, (rs, row) -> new LessonAdminListItem(
@@ -235,7 +235,7 @@ public class ContentAuthoringService {
     public PageResult<ReviewQueueItem> reviewQueue(String query, int page, int size) {
         validatePage(query, page, size);
         String search = normalizeSearch(query);
-        String pattern = search == null ? null : "%" + search + "%";
+        String pattern = search == null ? null : search + "%";
         long totalItems = jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM content_review_tasks t
@@ -243,7 +243,7 @@ public class ContentAuthoringService {
                 JOIN lesson_revisions r ON r.id=t.revision_id
                 JOIN users u ON u.id=t.submitted_by
                 WHERE t.status='PENDING'
-                  AND (CAST(? AS text) IS NULL OR l.slug ILIKE ? OR r.title ILIKE ? OR u.name ILIKE ?)
+                  AND (CAST(? AS text) IS NULL OR lower(l.slug) LIKE lower(?) OR lower(r.title) LIKE lower(?) OR lower(u.name) LIKE lower(?))
                 """, Long.class, search, pattern, pattern, pattern);
         long offset = (long) page * size;
         List<ReviewQueueItem> items = jdbc.query("""
@@ -254,7 +254,7 @@ public class ContentAuthoringService {
                 JOIN lesson_revisions r ON r.id=t.revision_id
                 JOIN users u ON u.id=t.submitted_by
                 WHERE t.status='PENDING'
-                  AND (CAST(? AS text) IS NULL OR l.slug ILIKE ? OR r.title ILIKE ? OR u.name ILIKE ?)
+                  AND (CAST(? AS text) IS NULL OR lower(l.slug) LIKE lower(?) OR lower(r.title) LIKE lower(?) OR lower(u.name) LIKE lower(?))
                 ORDER BY t.submitted_at ASC,t.id ASC
                 LIMIT ? OFFSET ?
                 """, (rs, row) -> new ReviewQueueItem(
