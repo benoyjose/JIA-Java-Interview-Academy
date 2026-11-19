@@ -111,9 +111,9 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="editor-actions"><button className="button button-secondary" type="button" onClick={onCancel}>Cancel</button>
         <button className="button button-secondary" type="submit" disabled={busy}>{busy ? "Saving…" : "Save draft"}</button>
-        {canSubmit && <button className="button button-primary" type="button" disabled={busy} onClick={() => {
-          const form = document.querySelector<HTMLFormElement>(".editor-form");
-          if (form) void save({ preventDefault: () => {}, currentTarget: form } as FormEvent<HTMLFormElement>, true);
+        {canSubmit && <button className="button button-primary" type="button" disabled={busy} onClick={event => {
+          const form = event.currentTarget.form;
+          if (form?.reportValidity()) void save({ preventDefault: () => {}, currentTarget: form } as FormEvent<HTMLFormElement>, true);
         }}>Save & submit</button>}
         {canPublish && <button className="button button-primary" type="button" disabled={busy} onClick={() => onPublish?.(lesson!.id)}>Publish approved</button>}
       </div>
