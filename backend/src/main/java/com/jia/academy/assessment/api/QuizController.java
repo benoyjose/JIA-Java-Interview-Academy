@@ -49,7 +49,18 @@ public class QuizController {
         int count = body.get("questionCount") instanceof Number n ? n.intValue() : 10;
         String mode = body.get("mode") instanceof String s ? s : "PRACTICE";
         if (count < 1 || count > 100) throw badRequest("questionCount must be between 1 and 100");
-        validateMode(mode);
+        Integer durationLimitSeconds = null;
+        Instant deadlineAt = null;
+        if ("TIMED_MOCK".equals(mode)) {
+            Object rawDuration = body.get("durationSeconds");
+            if (!(rawDuration instanceof Number number) || number.doubleValue() != number.intValue()
+                    || number.intValue() < 60 || number.intValue() > 21600) {
+                throw badRequest("durationSeconds must be between 60 and 21600");
+            }
+            durationLimitSeconds = number.intValue();
+        } else {
+            validateMode(mode);
+        }
         Filters filters = filters(difficulty, technologySlug, categorySlug);
 
         String sql = """
@@ -69,11 +80,14 @@ public class QuizController {
 
         UUID attemptId = UUID.randomUUID();
         Instant startedAt = Instant.now();
+        deadlineAt = durationLimitSeconds == null ? null : startedAt.plusSeconds(durationLimitSeconds);
         jdbc.update("""
-            INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,question_count,started_at)
-            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?)
+            INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,
+                question_count,started_at,duration_limit_seconds,deadline_at)
+            VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?)
             """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
-                difficulty, mode, count, Timestamp.from(startedAt));
+                difficulty, mode, count, Timestamp.from(startedAt), durationLimitSeconds,
+                deadlineAt == null ? null : Timestamp.from(deadlineAt));
 
         List<Map<String, Object>> questions = new ArrayList<>();
         for (int i = 0; i < selected.size(); i++) {
@@ -94,8 +108,15 @@ public class QuizController {
             item.put("difficulty", q.difficulty());
             questions.add(item);
         }
-        return Map.of("attemptId", attemptId, "difficulty", difficulty, "mode", mode,
-                "questionCount", count, "questions", questions);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("attemptId", attemptId);
+        response.put("difficulty", difficulty);
+        response.put("mode", mode);
+        response.put("questionCount", count);
+        response.put("durationLimitSeconds", durationLimitSeconds);
+        response.put("deadlineAt", deadlineAt == null ? null : deadlineAt.toString());
+        response.put("questions", questions);
+        return response;
     }
 
     @PostMapping("/quiz-attempts/{attemptId}/submit")
