@@ -1,5 +1,7 @@
 # JIA Product Scope
 
+JIA is the first academy on a shared platform designed to support future PIA (Python Interview Academy) and GIA (Go Interview Academy) products. Shared platform services must be reusable; curricula and lesson content remain academy-specific. See [Multi-Academy Platform Strategy](MULTI_ACADEMY_PLATFORM.md).
+
 ## 1. Goal
 
 Build a practical technical learning and interview-preparation product for Java/backend engineers. The experience must help a learner understand a topic, implement it, answer interview questions verbally, and identify weak areas through assessment.
@@ -68,6 +70,10 @@ Assessment modes:
 Store attempt history, selected answers, correctness, time spent, score and topic-level outcomes. Explanations should be available after submission or according to quiz configuration.
 
 ## 5. Initial learning tracks
+
+The detailed coverage map is maintained in [JIA Java Curriculum](JIA_JAVA_CURRICULUM.md). It expands these tracks into language foundations, modern Java, collections, JVM, concurrency, I/O, patterns, build tooling, testing, Spring, persistence, databases, distributed systems, messaging, caching, security, performance, cloud, architecture, leadership and coding interviews.
+
+### Initial learning tracks
 
 1. Core Java — language fundamentals, OOP, collections, generics, exceptions, streams, lambdas, JVM and garbage collection.
 2. Advanced Java — concurrency, executors, CompletableFuture, virtual threads, JDBC and performance.
