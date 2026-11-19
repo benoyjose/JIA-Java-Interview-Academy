@@ -406,14 +406,22 @@ paths:
           schema:
             type: string
             enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED]
+        - name: q
+          in: query
+          description: Case-insensitive search across title, slug and category slug
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
       responses:
         '200':
-          description: Recent lessons, newest updates first (maximum 100)
+          description: Searchable lesson page, newest updates first
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/AdminLessonListItem' }
+              schema: { $ref: '#/components/schemas/AdminLessonPage' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -504,14 +512,23 @@ paths:
       tags: [Content Admin]
       operationId: listPendingContentReviews
       security: [{ bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive search across lesson title, slug and submitter name
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
       responses:
         '200':
-          description: Pending review queue
+          description: Searchable pending review page, oldest submissions first
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/ContentReviewTask' }
+              schema: { $ref: '#/components/schemas/ReviewQueuePage' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /admin/reviews/{taskId}:
@@ -784,6 +801,28 @@ components:
               difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
               attempts: { type: integer }
               accuracyPercent: { type: [number, 'null'] }
+    AdminLessonPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    ReviewQueuePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ContentReviewTask' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
     AdminLessonListItem:
       type: object
       required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
