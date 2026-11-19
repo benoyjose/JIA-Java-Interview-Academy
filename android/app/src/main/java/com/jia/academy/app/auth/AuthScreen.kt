@@ -83,7 +83,7 @@ fun AuthScreen(
                         val credential = CredentialManager.create(context).getCredential(activity, request).credential
                         if (credential !is CustomCredential ||
                             credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                            error("Google did not return a supported ID token.")
+                            throw IllegalStateException("Google did not return a supported ID token.")
                         }
                         val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
                         repository.loginWithGoogle(baseUrl, googleCredential.idToken, nonce)
