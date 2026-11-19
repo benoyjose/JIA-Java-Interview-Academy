@@ -114,7 +114,7 @@ Add the final provider-specific environment variable names and setup instruction
 
 ## 5. Backend environment variables
 
-For the Spring Boot backend, configure these values in the deployment secret manager or runtime environment:
+For both Spring Boot and Laravel backends, configure these values in the deployment secret manager or runtime environment:
 
 ```env
 GOOGLE_OAUTH_CLIENT_ID=<google-web-client-id>
@@ -125,7 +125,7 @@ The backend has safe defaults for the public Google and Apple JWKS endpoints and
 
 For local development, use an untracked environment file or your IDE's environment-variable configuration. For staging/production, use the hosting platform's secret manager. Never add a real `.env` file to Git.
 
-Laravel must receive the same provider audience values when its equivalent federated verification is implemented. Do not switch production traffic to Laravel until its Google/Apple verification and contract tests are complete.
+Laravel uses the same `GOOGLE_OAUTH_CLIENT_ID` and `APPLE_SERVICE_ID` values. Its token verification endpoints are implemented, but do not switch production traffic to Laravel until dependency resolution, provider verification and shared contract tests pass.
 
 ## 6. Environment checklist
 
@@ -155,8 +155,7 @@ Laravel must receive the same provider audience values when its equivalent feder
 
 At the time this guide was written:
 
-- Spring Boot has Google and Apple ID-token verification endpoints and provider-neutral identity persistence.
-- Laravel has the provider identity and OTP database migration, but equivalent Google/Apple verification endpoints are still pending.
+- Spring Boot and Laravel have Google and Apple ID-token verification endpoints and provider-neutral identity persistence.
 - Android and iOS provider SDK integrations are still pending.
 - Phone OTP send/verify endpoints and the SMS vendor integration are still pending.
 - Email/password login is implemented in both backend foundations.
