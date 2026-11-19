@@ -9,15 +9,28 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Configuration
 public class SecurityConfiguration {
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, TokenAuthenticationFilter tokenFilter) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, TokenAuthenticationFilter tokenFilter, ObjectMapper mapper) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(errors -> errors
+                .authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(401);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    mapper.writeValue(response.getOutputStream(), ApiErrorResponse.body("UNAUTHENTICATED", "Authentication is required."));
+                })
+                .accessDeniedHandler((request, response, exception) -> {
+                    response.setStatus(403);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    mapper.writeValue(response.getOutputStream(), ApiErrorResponse.body("FORBIDDEN", "You do not have permission to perform this action."));
+                }))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/v1/auth/register",
