@@ -43,3 +43,8 @@ The target architecture remains Kotlin + Jetpack Compose, Room, DataStore, WorkM
 ## API contract
 
 Use `docs/api/openapi.yaml`. Do not hardcode backend-specific behavior or duplicate server-side business rules in the app.
+
+
+## Quiz difficulty selection
+
+The app includes a public quiz-selection screen with Beginner, Novice, Professional and Expert levels. It queries published question availability without requiring sign-in. Starting and saving an attempt, plus learner performance history, require an authenticated session and are not yet wired into the Android client.
