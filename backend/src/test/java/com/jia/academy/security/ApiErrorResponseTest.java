@@ -24,8 +24,8 @@ class ApiErrorResponseTest {
                 Map.of("answers.0.timeSpentMs", List.of("Must be a non-negative integer.")));
 
         assertThat(body).containsKey("errors");
-        assertThat((Map<?, ?>) body.get("errors"))
-                .containsEntry("answers.0.timeSpentMs", List.of("Must be a non-negative integer."));
+        assertThat(((Map<?, ?>) body.get("errors")).get("answers.0.timeSpentMs"))
+                .isEqualTo(List.of("Must be a non-negative integer."));
     }
 
     @Test
