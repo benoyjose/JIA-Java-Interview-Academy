@@ -44,4 +44,7 @@ public final class ContentAuthoringDtos {
             String summary, String difficulty, String sourceType, String contentJson,
             int revisionNumber, String changeNote, String submittedBy,
             Instant submittedAt, String lessonStatus) {}
+
+    public record PageResult<T>(
+            List<T> items, int page, int size, long totalItems, int totalPages) {}
 }
