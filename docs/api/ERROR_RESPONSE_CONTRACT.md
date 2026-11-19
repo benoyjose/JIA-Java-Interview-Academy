@@ -1,12 +1,12 @@
 # API error response contract
 
-**Status:** Common error envelope implemented; HTTP parity coverage is expanding in PR #14; rollout validation pending  
+**Status:** Common error envelope implemented in both backends; shared HTTP parity fixtures and initial integration coverage merged in PR #14; client compatibility audit in progress  
 **Applies to:** Spring Boot and Laravel implementations of `/api/v1`  
 **Purpose:** Define one client-facing error representation before changing either backend's runtime behavior.
 
 ## Current behavior
 
-The two implementations currently expose framework-specific error responses:
+The two implementations now normalize covered errors to the common envelope. Legacy framework-specific fields may still appear on unconverted paths and must remain tolerated during rollout:
 
 - Laravel validation failures generally use Laravel's `message` and `errors` fields.
 - Spring MVC exceptions use Spring's error/problem response behavior.
@@ -60,7 +60,7 @@ The mapping is implemented for the common statuses covered by the current handle
 
 ## Implementation requirements
 
-1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Spring MVC response tests and production-filter-chain tests for missing/invalid bearer tokens are included in PR #14; permission-denial filter-chain coverage remains outstanding.
+1. Implemented in Spring MVC exception handling and Spring Security's authentication-entry-point and access-denied handling. Spring MVC response tests and production-filter-chain tests for missing/invalid bearer tokens are merged in PR #14; permission-denial filter-chain coverage remains outstanding.
 2. Implemented in Laravel's API exception rendering for validation, authentication, authorization, HTTP exceptions, not-found, throttling status mapping, and unexpected failures. Laravel HTTP feature tests cover authentication, permission denial, validation, bad request, not-found, and unexpected exceptions in PR #14.
 3. Status-to-code mapping is implemented for the documented statuses. Add parity tests to prove status preservation across framework-specific exceptions.
 4. Validation field paths and message arrays are included; tests must verify they do not leak rejected secrets or request bodies.
