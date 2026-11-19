@@ -128,6 +128,7 @@ public class QuizController {
             if (position.doubleValue() != answerPosition || answerPosition < 1) {
                 throw badRequest("Answer position must be a positive integer");
             }
+            validateTimeSpentMs(map.get("timeSpentMs"));
             Map<String, Object> normalized = new HashMap<>();
             response.forEach((k, v) -> normalized.put(String.valueOf(k), v));
             if (submitted.put(answerPosition, normalized) != null) throw badRequest("Duplicate answer position");
@@ -257,6 +258,16 @@ public class QuizController {
         if (expectedPositions.isEmpty() || !submittedPositions.equals(expectedPositions)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Submit exactly one answer for every question in this attempt");
+        }
+    }
+
+    static void validateTimeSpentMs(Object value) {
+        if (value == null) return;
+        if (!(value instanceof Number number)
+                || number.doubleValue() < 0
+                || number.doubleValue() != Math.rint(number.doubleValue())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "timeSpentMs must be a non-negative integer");
         }
     }
 
