@@ -5,6 +5,8 @@
 A native Kotlin/Jetpack Compose application is now scaffolded under this directory.
 
 - Public Java technology catalogue screen.
+- Technology → category → lesson list → lesson detail navigation.
+- Published lesson detail retrieval by slug, with summary, difficulty, provenance label and current content payload.
 - Loads published technology tracks from `GET /api/v1/technologies`.
 - No login wall for catalogue browsing.
 - Clear loading, empty and API-configuration/error states.
@@ -34,7 +36,7 @@ See the version catalogue in `gradle/libs.versions.toml`. The versions are align
 
 ## Architecture and next slices
 
-Keep the app feature-oriented and MVVM-friendly. The first screen is intentionally small; next implement category and lesson navigation, lesson rendering, offline caching, optional sign-in, bookmarks and learner progress. Authentication must never be required to read published content.
+Keep the app feature-oriented and MVVM-friendly. The first browse flow is implemented. Next implement structured lesson-section rendering, search, offline caching, optional sign-in, bookmarks and learner progress. The current detail screen displays the API's `contentJson` payload as returned; it does not yet interpret a canonical lesson-block schema. Authentication must never be required to read published content.
 
 The target architecture remains Kotlin + Jetpack Compose, Room, DataStore, WorkManager, and Keystore-backed credential storage. Do not put provider secrets in the app binary.
 
