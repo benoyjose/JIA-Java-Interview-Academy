@@ -20,9 +20,10 @@ A native Kotlin/Jetpack Compose application is now scaffolded under this directo
 
 ```properties
 JIA_API_BASE_URL=https://your-jia-api-host
+JIA_GOOGLE_WEB_CLIENT_ID=your-google-oauth-web-client-id.apps.googleusercontent.com
 ```
 
-The configured value is the host root, without the `/api/v1` suffix. For a local emulator, use a reachable HTTPS development endpoint or configure a dedicated debug-only network policy; do not enable cleartext traffic in release builds.
+The configured value is the host root, without the `/api/v1` suffix. `JIA_GOOGLE_WEB_CLIENT_ID` must be the OAuth **Web application** client ID (server client ID), not an Android client ID. Configure the matching audience on the backend as `JIA_AUTH_GOOGLE_CLIENT_ID` (or the equivalent `jia.auth.google.client-id` property). Do not commit either value to the repository. For a local emulator, use a reachable HTTPS development endpoint or configure a dedicated debug-only network policy; do not enable cleartext traffic in release builds.
 
 4. Sync Gradle and run the `app` configuration on an Android 8.0+ device/emulator.
 
@@ -36,7 +37,7 @@ See the version catalogue in `gradle/libs.versions.toml`. The versions are align
 
 ## Architecture and next slices
 
-Keep the app feature-oriented and MVVM-friendly. The first browse flow is implemented. Email registration/login, phone OTP request/verification, session restoration and server-side logout are connected to the API. Access tokens are encrypted with AES-GCM using a non-exportable Android Keystore key. Public lesson browsing remains available without an account. Google sign-in remains pending; do not put provider secrets in the app binary. Quiz taking, submission, results, recent history and performance-by-difficulty are implemented against the authenticated API. The current detail screen displays the API's `contentJson` payload as returned; it does not yet interpret a canonical lesson-block schema. Authentication must never be required to read published content.
+Keep the app feature-oriented and MVVM-friendly. The first browse flow is implemented. Email registration/login, phone OTP request/verification, session restoration and server-side logout are connected to the API. Access tokens are encrypted with AES-GCM using a non-exportable Android Keystore key. Public lesson browsing remains available without an account. Google sign-in uses Android Credential Manager and exchanges the Google ID token with the JIA backend. Configure the Web Client ID locally; the server validates token signature, issuer, audience, expiry, nonce and verified email. No Gmail password is collected. Quiz taking, submission, results, recent history and performance-by-difficulty are implemented against the authenticated API. The current detail screen displays the API's `contentJson` payload as returned; it does not yet interpret a canonical lesson-block schema. Authentication must never be required to read published content.
 
 The target architecture remains Kotlin + Jetpack Compose, Room, DataStore, WorkManager, and Keystore-backed credential storage. Do not put provider secrets in the app binary.
 
