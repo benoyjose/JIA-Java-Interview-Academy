@@ -20,6 +20,18 @@ public class ContentAuthoringController {
         this.content = content;
     }
 
+    @GetMapping("/lessons")
+    @PreAuthorize("hasAuthority('content.create')")
+    public List<LessonAdminListItem> lessons(@RequestParam(required = false) String status) {
+        return content.adminLessons(status);
+    }
+
+    @GetMapping("/lessons/{lessonId}")
+    @PreAuthorize("hasAuthority('content.create')")
+    public LessonAuthoringDetail lesson(@PathVariable UUID lessonId) {
+        return content.authoringDetail(lessonId);
+    }
+
     @PostMapping("/lessons")
     @PreAuthorize("hasAuthority('content.create')")
     public LessonDraftResponse createDraft(@AuthenticationPrincipal CurrentUser actor,
@@ -46,6 +58,12 @@ public class ContentAuthoringController {
     @PreAuthorize("hasAuthority('content.review')")
     public List<ReviewQueueItem> reviewQueue() {
         return content.reviewQueue();
+    }
+
+    @GetMapping("/reviews/{taskId}")
+    @PreAuthorize("hasAuthority('content.review')")
+    public ReviewDetail review(@PathVariable UUID taskId) {
+        return content.reviewDetail(taskId);
     }
 
     @PostMapping("/reviews/{taskId}/decision")
