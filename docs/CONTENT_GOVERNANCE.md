@@ -54,4 +54,14 @@ The lesson document schema is versioned. Content is delivered independently of m
 - Import/export must preserve provenance, revision and attribution.
 
 ## Current implementation status
-The database foundation now includes lesson revision snapshots, review tasks and audit events in both backend migration sets. The admin CRUD/review/publish APIs and React UI are not yet implemented. Do not claim the CMS is operational until those routes, authorization checks, tests and UI exist.
+
+The Spring Boot primary backend now has an initial content-authoring API increment:
+- Create and update unpublished lesson drafts, recording immutable revision snapshots and change notes.
+- Submit a draft revision for review; the review task is bound to the exact revision.
+- List pending reviews; reviewers can approve, request changes or reject.
+- Prevent authors from reviewing their own submissions.
+- Admins can publish approved lessons; public catalogue routes continue to return only PUBLISHED records.
+- Basic role/permission checks use the existing EDITOR, REVIEWER and ADMIN roles.
+- Essential lifecycle actions are recorded in the existing audit_events table.
+
+Current MVP boundary: edits are limited to lessons that have not yet been published. Editing an already-published lesson safely requires a separate draft/published revision pointer so the live learner view remains unchanged during review. That capability, rollback UI, media upload, React admin portal and Laravel implementation are not part of this increment. Do not describe the full CMS as complete.

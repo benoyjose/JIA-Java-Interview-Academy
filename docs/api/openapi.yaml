@@ -13,6 +13,7 @@ security:
 tags:
   - name: Authentication
   - name: Catalogue
+  - name: Content Admin
 paths:
   /auth/register:
     post:
@@ -392,6 +393,128 @@ paths:
                 items: { $ref: '#/components/schemas/QuizAttemptSummary' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /admin/lessons:
+    post:
+      summary: Create a lesson draft
+      tags: [Content Admin]
+      operationId: createLessonDraft
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LessonDraftRequest' }
+      responses:
+        '200':
+          description: Draft created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonDraft' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}:
+    put:
+      summary: Update a draft lesson and create a revision
+      tags: [Content Admin]
+      operationId: updateLessonDraft
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LessonDraftRequest' }
+      responses:
+        '200':
+          description: Draft updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonDraft' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}/submit:
+    post:
+      summary: Submit a draft for review
+      tags: [Content Admin]
+      operationId: submitLessonForReview
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Review task created }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/reviews:
+    get:
+      summary: List pending content reviews
+      tags: [Content Admin]
+      operationId: listPendingContentReviews
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Pending review queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ContentReviewTask' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reviews/{taskId}/decision:
+    post:
+      summary: Approve, request changes or reject a lesson revision
+      tags: [Content Admin]
+      operationId: decideContentReview
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [APPROVE, REQUEST_CHANGES, REJECT] }
+                comment: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200': { description: Review decision recorded }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/lessons/{lessonId}/publish:
+    post:
+      summary: Publish an approved lesson
+      tags: [Content Admin]
+      operationId: publishLesson
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Lesson published }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -599,6 +722,39 @@ components:
               difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
               attempts: { type: integer }
               accuracyPercent: { type: [number, 'null'] }
+    LessonDraftRequest:
+      type: object
+      required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
+      properties:
+        categorySlug: { type: string, maxLength: 100 }
+        slug: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 700 }
+        difficulty: { type: string, enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT] }
+        sourceType: { type: string, enum: [USER_ORIGINAL, ADMIN_AUTHORED, EXTERNAL_REFERENCE] }
+        contentJson: { type: string, description: JSON lesson document with schemaVersion and blocks }
+        changeNote: { type: [string, 'null'], maxLength: 500 }
+    LessonDraft:
+      type: object
+      required: [id, slug, title, status, revisionNumber]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, const: DRAFT }
+        revisionNumber: { type: integer, minimum: 1 }
+    ContentReviewTask:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, submittedBy, status, submittedAt]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        submittedBy: { type: string }
+        status: { type: string, const: PENDING }
+        submittedAt: { type: string, format: date-time }
     Lesson:
       allOf:
         - $ref: '#/components/schemas/LessonSummary'
