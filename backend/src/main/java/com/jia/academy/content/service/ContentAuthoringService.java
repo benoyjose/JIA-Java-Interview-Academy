@@ -1,6 +1,5 @@
 package com.jia.academy.content.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.content.api.ContentAuthoringDtos.*;
 import com.jia.academy.security.CurrentUser;
@@ -20,10 +19,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class ContentAuthoringService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
+    private final LessonContentValidator contentValidator;
 
-    public ContentAuthoringService(JdbcTemplate jdbc, ObjectMapper mapper) {
+    public ContentAuthoringService(JdbcTemplate jdbc, ObjectMapper mapper, LessonContentValidator contentValidator) {
         this.jdbc = jdbc;
         this.mapper = mapper;
+        this.contentValidator = contentValidator;
     }
 
     @Transactional
@@ -417,18 +418,7 @@ public class ContentAuthoringService {
     }
 
     private void validateContent(String contentJson) {
-        try {
-            JsonNode root = mapper.readTree(contentJson);
-            if (root == null || !root.isObject() || !root.has("schemaVersion")
-                    || !root.path("blocks").isArray()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Content must include schemaVersion and a blocks array");
-            }
-        } catch (ResponseStatusException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Content JSON is invalid");
-        }
+        contentValidator.validate(contentJson);
     }
 
     private void validateTaxonomy(String difficulty, String sourceType) {

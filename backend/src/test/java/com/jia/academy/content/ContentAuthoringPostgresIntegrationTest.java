@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.content.api.ContentAuthoringDtos.LessonDraftRequest;
 import com.jia.academy.content.api.ContentAuthoringDtos.ReviewDecisionRequest;
 import com.jia.academy.content.service.ContentAuthoringService;
+import com.jia.academy.content.service.LessonContentValidator;
 import com.jia.academy.security.CurrentUser;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,8 @@ class ContentAuthoringPostgresIntegrationTest {
                 .locations("classpath:db/migration").load().migrate();
         jdbc = new JdbcTemplate(new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
-        service = new ContentAuthoringService(jdbc, new ObjectMapper());
+        ObjectMapper mapper = new ObjectMapper();
+        service = new ContentAuthoringService(jdbc, mapper, new LessonContentValidator(mapper));
         editor = user("Editor", "editor@example.test", "EDITOR");
         reviewer = user("Reviewer", "reviewer@example.test", "REVIEWER");
         admin = user("Admin", "admin@example.test", "ADMIN");
