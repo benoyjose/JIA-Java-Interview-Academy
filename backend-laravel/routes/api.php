@@ -1,12 +1,12 @@
 <?php
 
-use App\\Http\\Controllers\\Api\\V1\\AuthController;
-use App\\Http\\Controllers\\Api\\V1\\FederatedAuthController;
-use App\\Http\\Controllers\\Api\\V1\\PhoneOtpController;
-use App\\Http\\Controllers\\Api\\V1\\CatalogueController;
-use App\\Http\\Controllers\\Api\\V1\\QuizController;
-use App\\Http\\Middleware\\AuthenticateJiaToken;
-use Illuminate\\Support\\Facades\\Route;
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\FederatedAuthController;
+use App\Http\Controllers\Api\V1\PhoneOtpController;
+use App\Http\Controllers\Api\V1\CatalogueController;
+use App\Http\Controllers\Api\V1\QuizController;
+use App\Http\Middleware\AuthenticateJiaToken;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
