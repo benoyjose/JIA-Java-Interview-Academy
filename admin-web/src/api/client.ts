@@ -24,6 +24,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch {
     throw new ApiError("Unable to reach the JIA API. Check your connection and try again.", 0);
   }
+  if (response.status === 401 && getStoredToken()) {
+    clearStoredToken();
+    window.dispatchEvent(new Event("jia:session-expired"));
+  }
   if (!response.ok) {
     let payload: { code?: string; message?: string } = {};
     try { payload = (await response.json()) as typeof payload; } catch { /* safe fallback */ }
