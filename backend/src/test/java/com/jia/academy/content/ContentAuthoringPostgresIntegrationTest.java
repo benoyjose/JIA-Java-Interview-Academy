@@ -162,7 +162,7 @@ class ContentAuthoringPostgresIntegrationTest {
 
         assertThatThrownBy(() -> service.adminLessons(null, null, -1, 25))
                 .isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> service.reviewQueue(null, null, 0, 101))
+        assertThatThrownBy(() -> service.reviewQueue(null, 0, 101))
                 .isInstanceOf(ResponseStatusException.class);
     }
 
