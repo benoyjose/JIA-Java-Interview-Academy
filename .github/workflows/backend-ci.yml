@@ -3,10 +3,12 @@ on:
   push:
     paths:
       - 'backend/**'
+      - 'docs/api/openapi.yaml'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     paths:
       - 'backend/**'
+      - 'docs/api/openapi.yaml'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 jobs:
@@ -21,5 +23,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.9.1'
+      - name: Validate OpenAPI contract
+        run: npx --yes @redocly/cli lint docs/api/openapi.yaml
       - name: Test backend
         run: gradle -p backend clean test
