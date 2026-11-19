@@ -23,7 +23,7 @@ JIA_API_BASE_URL=https://your-jia-api-host
 JIA_GOOGLE_WEB_CLIENT_ID=your-google-oauth-web-client-id.apps.googleusercontent.com
 ```
 
-The configured value is the host root, without the `/api/v1` suffix. `JIA_GOOGLE_WEB_CLIENT_ID` must be the OAuth **Web application** client ID (server client ID), not an Android client ID. Configure the matching audience on the backend as `JIA_AUTH_GOOGLE_CLIENT_ID` (or the equivalent `jia.auth.google.client-id` property). Do not commit either value to the repository. For a local emulator, use a reachable HTTPS development endpoint or configure a dedicated debug-only network policy; do not enable cleartext traffic in release builds.
+The configured value is the host root, without the `/api/v1` suffix. `JIA_GOOGLE_WEB_CLIENT_ID` must be the OAuth **Web application** client ID (server client ID), not an Android client ID. Configure the matching audience on the backend as `GOOGLE_OAUTH_CLIENT_ID` (mapped to `jia.auth.google.client-id`). Do not commit either value to the repository. For a local emulator, use a reachable HTTPS development endpoint or configure a dedicated debug-only network policy; do not enable cleartext traffic in release builds.
 
 4. Sync Gradle and run the `app` configuration on an Android 8.0+ device/emulator.
 
