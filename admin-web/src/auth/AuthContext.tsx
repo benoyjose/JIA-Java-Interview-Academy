@@ -10,6 +10,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
+    const expireSession = () => setUser(null);
+    window.addEventListener("jia:session-expired", expireSession);
+    return () => window.removeEventListener("jia:session-expired", expireSession);
+  }, []);
+  useEffect(() => {
     if (!getStoredToken()) { setLoading(false); return; }
     let active = true;
     api.me().then(value => { if (active) setUser(value); }).catch(() => {
