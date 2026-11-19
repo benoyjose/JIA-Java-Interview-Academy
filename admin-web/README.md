@@ -28,7 +28,7 @@ The portal uses the existing email/password endpoint and opaque bearer token. Th
 
 - Vite production build with route-level lazy loading for lesson and review screens.
 - No UI component framework or large editor dependency in the initial bundle.
-- Search uses `useDeferredValue` over the bounded lesson-list response (API currently returns at most 100 rows).
+- Lesson and review search is debounced and executed server-side with bounded page sizes (25 by default, 100 maximum).
 - Full lesson and review snapshots are fetched only after selection; stale detail requests are aborted.
 - No periodic polling; lists refresh after explicit user actions and mutations.
 - JSON validation runs on save/submit, not every keystroke.
