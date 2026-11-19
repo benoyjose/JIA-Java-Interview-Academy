@@ -3,9 +3,9 @@ info:
   title: JIA API
   version: 1.4.0
   description: >-
-    Normative contract for currently implemented Spring Boot and Laravel API routes.
-    Planned CMS, progress, synchronization and release endpoints are added only when
-    implemented and tested in both backends.
+    Normative contract for the production Spring Boot API and supported Laravel
+    compatibility routes. Laravel remains secondary and may not yet expose every
+    Spring-first administration capability.
 servers:
   - url: /api/v1
 security:
