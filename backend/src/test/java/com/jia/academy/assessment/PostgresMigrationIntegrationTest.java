@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(10);
+        assertThat(result.migrationsExecuted).isEqualTo(11);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
@@ -48,6 +48,23 @@ class PostgresMigrationIntegrationTest {
                     "SELECT COUNT(*) AS role_count FROM roles WHERE code IN ('LEARNER','EDITOR','REVIEWER','ADMIN')")) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt("role_count")).isEqualTo(4);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS index_count
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND indexname IN (
+                        'idx_lessons_admin_updated',
+                        'idx_lessons_admin_status_updated',
+                        'idx_content_review_pending_submitted',
+                        'idx_lessons_title_prefix',
+                        'idx_lessons_slug_prefix',
+                        'idx_categories_slug_prefix',
+                        'idx_users_name_prefix'
+                      )
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("index_count")).isEqualTo(7);
             }
         } catch (Exception ex) {
             throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
