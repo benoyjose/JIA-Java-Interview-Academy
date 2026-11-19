@@ -48,7 +48,7 @@ class ApiErrorHttpIntegrationTest {
     void returnsFieldErrorsForValidationFailures() throws Exception {
         mvc.perform(post("/api/v1/__test/validation")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\\"name\\":\\"\\"}"))
+                        .content("{\"name\":\"\"}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value("The request contains invalid fields."))
