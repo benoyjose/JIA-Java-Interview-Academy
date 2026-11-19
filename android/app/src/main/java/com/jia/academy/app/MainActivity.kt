@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,8 @@ import java.net.URLEncoder
 data class Technology(val id: String, val slug: String, val name: String, val description: String?)
 data class Category(val id: String, val slug: String, val name: String, val technologySlug: String)
 data class LessonSummary(val id: String, val slug: String, val title: String, val summary: String?, val difficulty: String)
+data class QuizAvailability(val difficulty: String, val availableQuestionCount: Int)
+
 data class LessonDetail(
     val id: String,
     val slug: String,
@@ -105,6 +109,12 @@ class CatalogueRepository {
         }
     }
 
+    suspend fun getQuizAvailability(baseUrl: String, difficulty: String): QuizAvailability {
+        val query = URLEncoder.encode(difficulty, Charsets.UTF_8.name())
+        val item = JSONObject(get(baseUrl, "/quizzes/availability?difficulty=$query"))
+        return QuizAvailability(item.getString("difficulty"), item.getInt("availableQuestionCount"))
+    }
+
     suspend fun getLesson(baseUrl: String, slug: String): LessonDetail {
         val item = JSONObject(get(baseUrl, "/lessons/${segment(slug)}"))
         return LessonDetail(item.getString("id"), item.getString("slug"), item.getString("title"),
@@ -117,6 +127,7 @@ class CatalogueRepository {
 
 private sealed interface BrowseRoute {
     data object Home : BrowseRoute
+    data object QuizSelection : BrowseRoute
     data class Categories(val technology: Technology) : BrowseRoute
     data class Lessons(val category: Category, val technology: Technology) : BrowseRoute
     data class Lesson(val slug: String, val title: String) : BrowseRoute
@@ -157,6 +168,7 @@ fun JiaApp() {
     }) { padding ->
         when (val current = route) {
             BrowseRoute.Home -> TechnologyScreen(repository, Modifier.padding(padding), ::navigate)
+            BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, Modifier.padding(padding))
             is BrowseRoute.Categories -> CategoryScreen(repository, current.technology, Modifier.padding(padding), ::navigate)
             is BrowseRoute.Lessons -> LessonListScreen(repository, current.category, current.technology, Modifier.padding(padding), ::navigate)
             is BrowseRoute.Lesson -> LessonScreen(repository, current.slug, current.title, Modifier.padding(padding))
@@ -181,6 +193,7 @@ private fun TechnologyScreen(
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Java Interview Academy", style = MaterialTheme.typography.headlineMedium)
         Text("Quick explanations. Practical code. Interview-ready answers.")
+        Button(onClick = { navigate(BrowseRoute.QuizSelection) }) { Text("Choose a quiz difficulty") }
         Text("Explore Java topics", style = MaterialTheme.typography.titleLarge)
         when {
             loading -> CircularProgressIndicator()
@@ -313,5 +326,60 @@ private fun LessonScreen(
             }
             else -> Text(fallbackTitle)
         }
+    }
+}
+
+
+@Composable
+private fun QuizSelectionScreen(repository: CatalogueRepository, modifier: Modifier) {
+    val levels = listOf(
+        "BEGINNER" to "Beginner",
+        "NOVICE" to "Novice",
+        "PROFESSIONAL" to "Professional",
+        "EXPERT" to "Expert"
+    )
+    var selected by remember { mutableStateOf("BEGINNER") }
+    var availability by remember { mutableStateOf<QuizAvailability?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(selected) {
+        loading = true
+        error = null
+        runCatching { repository.getQuizAvailability(BuildConfig.JIA_API_BASE_URL, selected) }
+            .onSuccess { availability = it }
+            .onFailure { error = it.message ?: "Unable to check quiz availability." }
+        loading = false
+    }
+
+    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Choose your difficulty", style = MaterialTheme.typography.headlineSmall)
+        Text("Select any level. You can practise higher or lower levels whenever you want.")
+        levels.forEach { (value, label) ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(selected = selected == value, onClick = { selected = value }, label = { Text(label) })
+                    Text(
+                        when (value) {
+                            "BEGINNER" -> "Fundamentals, definitions and direct examples"
+                            "NOVICE" -> "Practical application and common code patterns"
+                            "PROFESSIONAL" -> "Advanced Java, Spring and problem-solving"
+                            else -> "Architecture, JVM internals and distributed systems"
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+        Text("Question availability", style = MaterialTheme.typography.titleMedium)
+        when {
+            loading -> CircularProgressIndicator()
+            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            availability != null -> Text("${availability!!.availableQuestionCount} published questions available at ${levels.first { it.first == selected }.second} level.")
+        }
+        Text(
+            "Quiz attempts and personal performance history require sign-in. Questions appear here as reviewed question-bank items are published.",
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
