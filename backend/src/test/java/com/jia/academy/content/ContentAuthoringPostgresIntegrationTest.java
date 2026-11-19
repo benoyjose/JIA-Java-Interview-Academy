@@ -111,7 +111,7 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
-    void adminCanReloadDraftAndReviewerCanInspectExactSubmittedRevision() {
+    void adminCanReloadDraftAndReviewerCanInspectExactSubmittedRevision() throws Exception {
         String slug = "admin-read-" + UUID.randomUUID();
         var draft = service.createDraft(editor, request(slug, "Read API draft"));
         var detail = service.authoringDetail(draft.id());
