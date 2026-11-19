@@ -18,6 +18,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "JIA_API_BASE_URL", "\"${jiaApiBaseUrl.get()}\"")
+        buildConfigField("String", "JIA_GOOGLE_WEB_CLIENT_ID", "\"${googleWebClientId.get()}\"")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {
