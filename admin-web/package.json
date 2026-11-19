@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": { "node": ">=26 <27" },
-  "scripts": { "dev": "vite", "build": "tsc -b && vite build", "check": "tsc -b --pretty false", "test": "vitest run", "test:watch": "vitest" },
+  "scripts": { "dev": "vite", "build": "tsc --noEmit -p tsconfig.json && vite build", "check": "tsc --noEmit -p tsconfig.json --pretty false", "test": "vitest run", "test:watch": "vitest" },
   "dependencies": { "react": "19.3.1", "react-dom": "19.3.1" },
   "devDependencies": {
     "@types/react": "19.3.0", "@types/react-dom": "19.2.3",
