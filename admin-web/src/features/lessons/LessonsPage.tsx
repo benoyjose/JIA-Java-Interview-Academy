@@ -75,14 +75,14 @@ export function LessonsPage() {
       <div className="panel lesson-list-panel">
         <div className="panel-heading"><div><h2>All lessons</h2><span className="muted small-copy">Server-filtered · newest updates first</span></div><span className="count-pill">{result.totalItems.toLocaleString()}</span></div>
         <div className="list-controls">
-          <input aria-label="Search lessons" placeholder="Search title, slug or category…" value={search} onChange={event => changeSearch(event.target.value)} />
+          <input aria-label="Search lessons" placeholder="Search title, slug or category…" maxLength={120} value={search} onChange={event => changeSearch(event.target.value)} />
           <select aria-label="Filter by status" value={status} onChange={event => changeStatus(event.target.value)}>{statuses.map(item => <option key={item} value={item}>{item === "ALL" ? "All statuses" : item.replace("_", " ")}</option>)}</select>
         </div>
         {loading ? <div className="loading-line">Loading lessons…</div> : result.items.length === 0 ? <div className="empty-state"><span>▤</span><strong>No lessons found</strong><p>Try another search or create a lesson draft.</p></div> :
           <div className="lesson-list">{result.items.map(item => <button key={item.id} className={selectedId === item.id ? "lesson-row selected" : "lesson-row"} onClick={() => { setSelected(null); setSelectedId(item.id); setCreating(false); setNotice(""); }}>
             <span className="lesson-row-main"><strong>{item.title}</strong><small>{item.categorySlug} / {item.slug}</small></span><span className={`status-badge status-${item.status.toLowerCase()}`}>{item.status.replace("_", " ")}</span><span className="row-chevron">›</span>
           </button>)}</div>}
-        <PageControls page={page} totalPages={result.totalPages} loading={loading} onChange={setPage} />
+        <PageControls page={page} totalPages={result.totalPages} loading={loading} onChange={next => { setPage(next); setSelectedId(null); setSelected(null); }} />
       </div>
       <div className="panel editor-panel">{creating ? <LessonEditor onSaved={onSaved} onCancel={() => setCreating(false)} /> :
         selected ? <LessonEditor key={selected.id + selected.revisionNumber + String(selected.editingDraft)} lesson={selected} onSaved={onSaved} onCancel={() => { setSelected(null); setSelectedId(null); }} onPublish={publish} /> :
