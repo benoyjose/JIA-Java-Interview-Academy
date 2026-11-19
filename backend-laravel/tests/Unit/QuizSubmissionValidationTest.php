@@ -5,7 +5,6 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\V1\QuizController;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class QuizSubmissionValidationTest extends TestCase
 {
