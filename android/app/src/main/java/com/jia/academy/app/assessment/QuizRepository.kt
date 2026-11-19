@@ -17,6 +17,8 @@ data class JiaQuizQuestion(
 data class JiaQuizAttempt(val id: String, val difficulty: String, val questions: List<JiaQuizQuestion>)
 data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double, val explanations: Map<Int, Pair<Boolean, String>>)
 data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String)
+data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
+data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>)
 
 class QuizRepository {
     private fun endpoint(baseUrl: String, path: String) = baseUrl.trimEnd('/') + "/api/v1" + path
@@ -89,6 +91,19 @@ class QuizRepository {
             JiaQuizResult(result.getInt("questionCount"), result.getInt("correctCount"),
                 result.getDouble("scorePercent"), explanations)
         }
+
+    suspend fun performance(baseUrl: String, token: String): JiaQuizPerformance = withContext(Dispatchers.IO) {
+        val json = JSONObject(request(baseUrl, "/me/quiz-performance", token, "GET"))
+        val array = json.optJSONArray("byDifficulty") ?: JSONArray()
+        val levels = (0 until array.length()).map { i ->
+            val item = array.getJSONObject(i)
+            JiaQuizPerformanceLevel(item.getString("difficulty"), item.getInt("attempts"),
+                item.getInt("questionsAttempted"), item.getInt("correctAnswers"),
+                if (item.isNull("accuracyPercent")) null else item.getDouble("accuracyPercent"),
+                if (item.isNull("bestScorePercent")) null else item.getDouble("bestScorePercent"))
+        }
+        JiaQuizPerformance(levels)
+    }
 
     suspend fun history(baseUrl: String, token: String): List<JiaQuizHistoryItem> = withContext(Dispatchers.IO) {
         val array = JSONArray(request(baseUrl, "/me/quiz-attempts?limit=20", token, "GET"))
