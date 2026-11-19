@@ -1,0 +1,95 @@
+package com.jia.academy.app.auth
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+
+@Composable
+fun AuthScreen(
+    repository: AuthRepository,
+    baseUrl: String,
+    onAuthenticated: (JiaSession) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var registering by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(if (registering) "Create your JIA account" else "Sign in to JIA",
+            style = MaterialTheme.typography.headlineSmall)
+        Text("You can continue browsing public lessons without signing in.")
+        if (registering) {
+            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
+        }
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = password, onValueChange = { password = it },
+            label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(), singleLine = true)
+        if (registering) {
+            Text("Use at least 12 characters for your password.", style = MaterialTheme.typography.bodySmall)
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button(
+            onClick = {
+                loading = true
+                error = null
+                scope.launch {
+                    runCatching {
+                        if (registering) repository.register(baseUrl, name.trim(), email.trim(), password)
+                        else repository.login(baseUrl, email.trim(), password)
+                    }.onSuccess { session ->
+                        runCatching {
+                            val userJson = org.json.JSONObject()
+                                .put("id", session.account.id)
+                                .put("name", session.account.name)
+                                .put("email", session.account.email)
+                                .put("roles", org.json.JSONArray(session.account.roles))
+                                .toString()
+                            SecureSessionStore(context).save(session.accessToken, session.expiresAt, userJson)
+                        }.onSuccess { onAuthenticated(session) }
+                            .onFailure { error = "Could not securely save this session." }
+                    }.onFailure { error = it.message ?: "Authentication failed." }
+                    loading = false
+                }
+            },
+            enabled = !loading && email.isNotBlank() && password.isNotBlank() &&
+                (!registering || (name.isNotBlank() && password.length >= 12)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (loading) CircularProgressIndicator() else Text(if (registering) "Create account" else "Sign in")
+        }
+        TextButton(onClick = { registering = !registering; error = null }) {
+            Text(if (registering) "Already have an account? Sign in" else "New to JIA? Create an account")
+        }
+    }
+}
