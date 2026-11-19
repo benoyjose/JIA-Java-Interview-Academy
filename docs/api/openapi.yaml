@@ -315,6 +315,11 @@ paths:
                   type: string
                   enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA]
                   default: PRACTICE
+                durationSeconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 21600
+                  description: Required for TIMED_MOCK; server sets deadlineAt from this duration.
       responses:
         '201':
           description: Quiz attempt created; answer keys are withheld
@@ -323,6 +328,41 @@ paths:
               schema: { $ref: '#/components/schemas/QuizAttemptStart' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /quiz-attempts/{attemptId}/answers:
+    post:
+      summary: Save partial answers for an active timed mock attempt
+      tags: [Assessments]
+      operationId: saveTimedMockAnswers
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [position, response]
+                    properties:
+                      position: { type: integer, minimum: 1 }
+                      response: { type: object, additionalProperties: true }
+                      timeSpentMs: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Partial answers saved }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /quiz-attempts/{attemptId}/submit:
     post:
       summary: Submit and grade a quiz attempt
@@ -751,18 +791,20 @@ components:
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
     QuizAttemptStart:
       type: object
-      required: [attemptId, difficulty, mode, questionCount, questions]
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt]
       properties:
         attemptId: { type: string, format: uuid }
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
         mode: { type: string }
         questionCount: { type: integer }
+        durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
+        deadlineAt: { type: [string, 'null'], format: date-time }
         questions:
           type: array
           items: { $ref: '#/components/schemas/QuizQuestion' }
     QuizAttemptResult:
       type: object
-      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, submittedAt]
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, submittedAt, timedOut]
       properties:
         attemptId: { type: string, format: uuid }
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
@@ -770,6 +812,7 @@ components:
         correctCount: { type: integer }
         scorePercent: { type: number, minimum: 0, maximum: 100 }
         submittedAt: { type: string, format: date-time }
+        timedOut: { type: boolean }
         answers:
           type: array
           items:
