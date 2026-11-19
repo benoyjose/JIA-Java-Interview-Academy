@@ -13,6 +13,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,12 +48,34 @@ class SecurityConfigurationHttpIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Authentication is required."));
     }
 
+    @Test
+    @WithMockUser(username = "learner", authorities = {"catalogue.read"})
+    void authenticatedUserWithoutRequiredPermissionGetsContract403() throws Exception {
+        mvc.perform(get("/api/v1/__test/permission-protected"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("You do not have permission to perform this action."));
+    }
+
+    @Test
+    @WithMockUser(username = "publisher", authorities = {"content.publish"})
+    void authenticatedUserWithRequiredPermissionCanAccessResource() throws Exception {
+        mvc.perform(get("/api/v1/__test/permission-protected"))
+                .andExpect(status().isOk());
+    }
+
     @RestController
     @RequestMapping("/api/v1/__test")
     static class ProtectedTestController {
         @GetMapping("/protected")
         String protectedResource() {
             return "protected";
+        }
+
+        @PreAuthorize("hasAuthority('content.publish')")
+        @GetMapping("/permission-protected")
+        String permissionProtectedResource() {
+            return "permission-protected";
         }
     }
 
