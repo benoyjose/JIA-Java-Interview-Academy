@@ -31,6 +31,7 @@ import com.jia.academy.app.assessment.QuizRepository
 import com.jia.academy.app.assessment.JiaQuizAttempt
 import com.jia.academy.app.assessment.JiaQuizResult
 import com.jia.academy.app.assessment.JiaQuizHistoryItem
+import com.jia.academy.app.assessment.JiaQuizPerformance
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -390,6 +391,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
     var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
     var result by remember { mutableStateOf<JiaQuizResult?>(null) }
     var history by remember { mutableStateOf<List<JiaQuizHistoryItem>?>(null) }
+    var performance by remember { mutableStateOf<JiaQuizPerformance?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -455,7 +457,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                     }
                 }
                 Button(
-                    enabled = !loading && answers.values.any { it.isNotEmpty() },
+                    enabled = !loading,
                     onClick = {
                         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                         if (token.isNullOrBlank()) { error = "Please sign in again to submit this quiz."; return@Button }
@@ -510,6 +512,22 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                             }
                         }
                     ) { Text("Start practice quiz") }
+                    TextButton(onClick = {
+                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                        if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
+                        loading = true
+                        scope.launch {
+                            runCatching { quizRepository.performance(BuildConfig.JIA_API_BASE_URL, token) }
+                                .onSuccess { performance = it }.onFailure { error = it.message ?: "Unable to load performance." }
+                            loading = false
+                        }
+                    }) { Text("View my performance") }
+                    performance?.let { report ->
+                        Text("Performance by difficulty", style = MaterialTheme.typography.titleMedium)
+                        report.levels.forEach { level ->
+                            Text("${level.difficulty}: ${level.attempts} attempts · ${level.correctAnswers}/${level.questionsAttempted} correct · ${level.accuracyPercent?.let { "$it%" } ?: "No score"}")
+                        }
+                    }
                     TextButton(onClick = {
                         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                         if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
