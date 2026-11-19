@@ -1,4 +1,4 @@
-import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, ReviewDetail, ReviewQueueItem, TokenResponse, User } from "./types";
+import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 const TOKEN_KEY = "jia.admin.access-token";
@@ -50,14 +50,22 @@ export const api = {
   }),
   me: () => request<User>("/auth/me"),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
-  lessons: (status?: string, signal?: AbortSignal) =>
-    request<AdminLesson[]>(`/admin/lessons${status ? `?status=${encodeURIComponent(status)}` : ""}`, { signal }),
+  lessons: (params: { status?: string; q?: string; page: number; size: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
+    if (params.status) query.set("status", params.status);
+    if (params.q) query.set("q", params.q);
+    return request<PageResult<AdminLesson>>(`/admin/lessons?${query.toString()}`, { signal });
+  },
   lesson: (id: string, signal?: AbortSignal) => request<LessonDetail>(`/admin/lessons/${encodeURIComponent(id)}`, { signal }),
   createLesson: (body: LessonDraftRequest) => request<LessonDraftResponse>("/admin/lessons", { method: "POST", body: JSON.stringify(body) }),
   updateLesson: (id: string, body: LessonDraftRequest) => request<LessonDraftResponse>(`/admin/lessons/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   submitLesson: (id: string) => request<{ taskId: string }>(`/admin/lessons/${encodeURIComponent(id)}/submit`, { method: "POST" }),
   publishLesson: (id: string) => request<{ status: string }>(`/admin/lessons/${encodeURIComponent(id)}/publish`, { method: "POST" }),
-  reviews: (signal?: AbortSignal) => request<ReviewQueueItem[]>("/admin/reviews", { signal }),
+  reviews: (params: { q?: string; page: number; size: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
+    if (params.q) query.set("q", params.q);
+    return request<PageResult<ReviewQueueItem>>(`/admin/reviews?${query.toString()}`, { signal });
+  },
   review: (taskId: string, signal?: AbortSignal) => request<ReviewDetail>(`/admin/reviews/${encodeURIComponent(taskId)}`, { signal }),
   decideReview: (taskId: string, decision: "APPROVE" | "REQUEST_CHANGES" | "REJECT", comment: string) =>
     request<{ status: string }>(`/admin/reviews/${encodeURIComponent(taskId)}/decision`, {
