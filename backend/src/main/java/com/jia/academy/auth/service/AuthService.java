@@ -125,6 +125,43 @@ public class AuthService {
     }
 
     @Transactional
+    public TokenResponse authenticatePhone(String phoneE164, String deviceName) {
+        var existing = jdbc.query("""
+            SELECT u.id, u.name, u.email, u.status
+            FROM auth_identities ai JOIN users u ON u.id=ai.user_id
+            WHERE ai.provider='PHONE' AND ai.provider_subject=?
+            """, (rs, rowNum) -> new FederatedUser(
+                rs.getObject("id", UUID.class), rs.getString("name"),
+                rs.getString("email"), rs.getString("status")), phoneE164);
+        FederatedUser user;
+        if (!existing.isEmpty()) {
+            user = existing.getFirst();
+            if (!"ACTIVE".equals(user.status())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
+            }
+            jdbc.update("UPDATE auth_identities SET last_authenticated_at=? WHERE provider='PHONE' AND provider_subject=?",
+                    Instant.now(), phoneE164);
+        } else {
+            UUID userId = UUID.randomUUID();
+            String name = "JIA Learner";
+            jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,NULL,NULL,'ACTIVE')",
+                    userId, name);
+            jdbc.update("INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles WHERE code='LEARNER'", userId);
+            jdbc.update("""
+                INSERT INTO auth_identities(id,user_id,provider,provider_subject,provider_email,email_verified,created_at,last_authenticated_at)
+                VALUES (?,?,'PHONE',?,NULL,FALSE,?,?)
+                """, UUID.randomUUID(), userId, phoneE164, Instant.now(), Instant.now());
+            user = new FederatedUser(userId, name, null, "ACTIVE");
+        }
+        List<String> roles = jdbc.queryForList("""
+            SELECT r.code FROM roles r JOIN user_roles ur ON ur.role_id=r.id
+            WHERE ur.user_id=? ORDER BY r.code
+            """, String.class, user.id());
+        return issueToken(user.id(), user.name(), user.email(), roles,
+                deviceName == null || deviceName.isBlank() ? "mobile" : deviceName);
+    }
+
+    @Transactional
     public void logout(String rawToken) {
         jdbc.update("UPDATE api_tokens SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
                 Instant.now(), sha256(rawToken));
