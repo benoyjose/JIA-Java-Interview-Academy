@@ -11,6 +11,15 @@ Spring Boot 4.1.2 / Java 25 LTS backend for JIA.
 
 Flyway applies schema migrations automatically. Hibernate uses schema validation; it does not create or mutate tables.
 
+## Authentication endpoints
+
+- `POST /api/v1/auth/register` — creates a LEARNER account and returns an opaque bearer token.
+- `POST /api/v1/auth/login` — authenticates an active account and returns a token.
+- `GET /api/v1/auth/me` — returns the authenticated account; requires `Authorization: Bearer <token>`.
+- `POST /api/v1/auth/logout` — revokes the current token.
+
+Passwords use BCrypt work factor 12 for hash compatibility with Laravel. Tokens are 256-bit random opaque bearer values, stored as SHA-256 hashes, and expire after 30 days. Registration cannot assign privileged roles.
+
 ## Learner catalogue endpoints
 
 - `GET /api/v1/technologies`
