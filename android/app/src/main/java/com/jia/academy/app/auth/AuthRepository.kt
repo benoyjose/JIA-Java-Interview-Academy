@@ -25,6 +25,29 @@ class AuthRepository {
         post(baseUrl, "/auth/federated/google",
             JSONObject().put("idToken", idToken).put("nonce", nonce))
 
+    suspend fun unlinkFederatedIdentity(baseUrl: String, accessToken: String, provider: String) =
+        withContext(Dispatchers.IO) {
+            val normalizedProvider = provider.lowercase()
+            require(normalizedProvider == "google" || normalizedProvider == "apple") {
+                "Only Google or Apple identities can be unlinked."
+            }
+            val connection = (URL(url(baseUrl, "/auth/federated/link/$normalizedProvider"))
+                .openConnection() as HttpURLConnection).apply {
+                requestMethod = "DELETE"
+                connectTimeout = 10_000
+                readTimeout = 10_000
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Authorization", "Bearer $accessToken")
+            }
+            try {
+                val status = connection.responseCode
+                if (status !in 200..299) {
+                    val response = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    error(ApiErrorMessage.from(response, "Could not unlink sign-in method", status))
+                }
+            } finally { connection.disconnect() }
+        }
+
     suspend fun requestPhoneOtp(baseUrl: String, phoneNumber: String): Unit = withContext(Dispatchers.IO) {
         val connection = (URL(url(baseUrl, "/auth/phone/otp")).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
