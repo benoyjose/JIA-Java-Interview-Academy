@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.assessment.api.QuizController;
+import com.jia.academy.catalogue.api.LearnerLibraryController;
 import com.jia.academy.security.CurrentUser;
 import com.jia.academy.security.TokenAuthenticationFilter;
 import java.util.List;
@@ -51,6 +52,7 @@ class QuizControllerPostgresIntegrationTest {
 
     private static JdbcTemplate jdbc;
     private static QuizController controller;
+    private static LearnerLibraryController learnerLibrary;
     private static CurrentUser learnerOne;
     private static CurrentUser learnerTwo;
 
@@ -65,6 +67,7 @@ class QuizControllerPostgresIntegrationTest {
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         jdbc = new JdbcTemplate(dataSource);
         controller = new QuizController(jdbc, new ObjectMapper());
+        learnerLibrary = new LearnerLibraryController(jdbc, new ObjectMapper());
         learnerOne = new CurrentUser(USER_ONE, "Learner One", "one@example.test", List.of("LEARNER"), List.of());
         learnerTwo = new CurrentUser(USER_TWO, "Learner Two", "two@example.test", List.of("LEARNER"), List.of());
 
@@ -250,6 +253,42 @@ class QuizControllerPostgresIntegrationTest {
         assertThatThrownBy(() -> controller.submit(learnerOne, attemptId, answers(1, 2)))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+    }
+
+
+    @Test
+    void learnerProgressAndBookmarksAreIdempotentAndKeepCompletionMonotonic() {
+        UUID lessonId = UUID.fromString("73000000-0000-0000-0000-000000000001");
+        UUID lessonRevisionId = UUID.fromString("74000000-0000-0000-0000-000000000001");
+        jdbc.update("""
+            INSERT INTO lessons(id,category_id,slug,title,difficulty,content_json,content_revision,source_type,status)
+            VALUES (?,?,?,'Progress test lesson','BEGINNER','{}'::jsonb,1,'ADMIN_AUTHORED','PUBLISHED')
+            """, lessonId, CATEGORY, "progress-test-lesson");
+        jdbc.update("""
+            INSERT INTO lesson_revisions(id,lesson_id,revision_number,title,difficulty,content_json,source_type)
+            VALUES (?,?,1,'Progress test lesson','BEGINNER','{}'::jsonb,'ADMIN_AUTHORED')
+            """, lessonRevisionId, lessonId);
+        jdbc.update("UPDATE lessons SET published_revision_id=? WHERE id=?", lessonRevisionId, lessonId);
+
+        Map<String,Object> partial = learnerLibrary.updateProgress(learnerOne, "progress-test-lesson",
+                Map.of("contentRevision", 1, "progressPercent", 45.0, "lastPosition", Map.of("blockId", "b2")));
+        assertThat(partial.get("progressPercent")).isEqualTo(45.0);
+
+        learnerLibrary.updateProgress(learnerOne, "progress-test-lesson",
+                Map.of("contentRevision", 1, "progressPercent", 100.0));
+        learnerLibrary.updateProgress(learnerOne, "progress-test-lesson",
+                Map.of("contentRevision", 1, "progressPercent", 20.0));
+
+        Map<String,Object> progress = learnerLibrary.progress(learnerOne).getFirst();
+        assertThat(progress.get("status")).isEqualTo("COMPLETED");
+        assertThat(progress.get("progressPercent")).isEqualTo(new java.math.BigDecimal("100.00"));
+        assertThat(progress.get("lastPosition")).isEqualTo(Map.of("blockId", "b2"));
+
+        learnerLibrary.bookmark(learnerOne, "progress-test-lesson");
+        learnerLibrary.bookmark(learnerOne, "progress-test-lesson");
+        assertThat(learnerLibrary.bookmarks(learnerOne)).hasSize(1);
+        learnerLibrary.removeBookmark(learnerOne, "progress-test-lesson");
+        assertThat(learnerLibrary.bookmarks(learnerOne)).isEmpty();
     }
 
     private static void insertQuestion(UUID questionId, UUID revisionId, String prompt) {

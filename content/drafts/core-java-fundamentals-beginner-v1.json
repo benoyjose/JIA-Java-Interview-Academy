@@ -1,0 +1,121 @@
+{
+  "formatVersion": 1,
+  "questions": [
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-method-arguments-pass-by-value",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "BEGINNER",
+      "prompt": {
+        "text": "How does Java pass method arguments to a method?"
+      },
+      "options": [
+        {"value": "A", "label": "Always by value"},
+        {"value": "B", "label": "Primitive values by value, objects by reference"},
+        {"value": "C", "label": "Always by reference"},
+        {"value": "D", "label": "The caller chooses the passing mechanism"}
+      ],
+      "answer": {"correctValues": ["A"]},
+      "explanation": "Java is always pass-by-value. For an object argument, the value copied is the object reference. A method can use that copied reference to mutate the object, but reassigning the parameter does not reassign the caller's variable.",
+      "hint": "Ask what value is copied when the argument is an object.",
+      "provenance": {
+        "sourceType": "USER_ORIGINAL",
+        "sourceDescription": "JIA draft question bank; author-created for editorial review.",
+        "attribution": null
+      },
+      "changeNote": "Initial draft; requires technical and editorial review before publication."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "string-equals-versus-reference-equality",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "BEGINNER",
+      "prompt": {
+        "text": "Which expression compares the character content of two Java String objects?"
+      },
+      "options": [
+        {"value": "A", "label": "first == second"},
+        {"value": "B", "label": "first.equals(second)"},
+        {"value": "C", "label": "first.compareReference(second)"},
+        {"value": "D", "label": "first = second"}
+      ],
+      "answer": {"correctValues": ["B"]},
+      "explanation": "String overrides equals(Object) to compare character sequences. The == operator compares whether two reference variables refer to the same object.",
+      "hint": "Distinguish object identity from logical equality.",
+      "provenance": {
+        "sourceType": "USER_ORIGINAL",
+        "sourceDescription": "JIA draft question bank; author-created for editorial review.",
+        "attribution": null
+      },
+      "changeNote": "Initial draft; requires technical and editorial review before publication."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "final-reference-and-object-mutability",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "BEGINNER",
+      "prompt": {
+        "text": "If a Java variable is declared final and refers to a mutable object, the object's state can still be changed through that reference."
+      },
+      "options": [
+        {"value": "true", "label": "True"},
+        {"value": "false", "label": "False"}
+      ],
+      "answer": {"correctValues": ["true"]},
+      "explanation": "final prevents the variable from being reassigned to a different reference. It does not make the referenced object immutable; mutability is determined by the object's API and implementation.",
+      "hint": "final applies to the variable binding, not automatically to the referenced object.",
+      "provenance": {
+        "sourceType": "USER_ORIGINAL",
+        "sourceDescription": "JIA draft question bank; author-created for editorial review.",
+        "attribution": null
+      },
+      "changeNote": "Initial draft; requires technical and editorial review before publication."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-string-immutability",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "BEGINNER",
+      "prompt": {
+        "text": "Calling a String method such as concat() changes the original String object's character content."
+      },
+      "options": [
+        {"value": "true", "label": "True"},
+        {"value": "false", "label": "False"}
+      ],
+      "answer": {"correctValues": ["false"]},
+      "explanation": "String is immutable. Methods that appear to transform a String return a result rather than modifying the original object's character content.",
+      "hint": "Check whether the transformation returns a new String.",
+      "provenance": {
+        "sourceType": "USER_ORIGINAL",
+        "sourceDescription": "JIA draft question bank; author-created for editorial review.",
+        "attribution": null
+      },
+      "changeNote": "Initial draft; requires technical and editorial review before publication."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "primitive-equality-operator",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "BEGINNER",
+      "prompt": {
+        "text": "For two int variables, what does the == operator compare?"
+      },
+      "options": [
+        {"value": "A", "label": "Their numeric values"},
+        {"value": "B", "label": "Their memory addresses"},
+        {"value": "C", "label": "Their variable names"},
+        {"value": "D", "label": "Their declared types only"}
+      ],
+      "answer": {"correctValues": ["A"]},
+      "explanation": "For primitive operands such as int, == tests whether the primitive values are equal. Reference equality has different semantics when both operands are references.",
+      "hint": "These operands are primitives, not object references.",
+      "provenance": {
+        "sourceType": "USER_ORIGINAL",
+        "sourceDescription": "JIA draft question bank; author-created for editorial review.",
+        "attribution": null
+      },
+      "changeNote": "Initial draft; requires technical and editorial review before publication."
+    }
+  ]
+}
