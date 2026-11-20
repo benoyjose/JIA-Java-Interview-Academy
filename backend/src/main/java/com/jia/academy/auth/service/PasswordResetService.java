@@ -32,18 +32,21 @@ public class PasswordResetService {
     private final String resetUrl;
     private final String encryptionSecret;
     private final String fromAddress;
+    private final String mailHost;
 
     public PasswordResetService(JdbcTemplate jdbc, PasswordEncoder passwordEncoder,
             ObjectProvider<JavaMailSender> mailSender,
             @Value("${jia.auth.password-reset-url:}") String resetUrl,
             @Value("${jia.auth.reset-encryption-key:}") String encryptionSecret,
-            @Value("${spring.mail.username:}") String fromAddress) {
+            @Value("${SMTP_FROM:}") String fromAddress,
+            @Value("${spring.mail.host:}") String mailHost) {
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.mailSender = mailSender;
         this.resetUrl = resetUrl;
         this.encryptionSecret = encryptionSecret;
         this.fromAddress = fromAddress;
+        this.mailHost = mailHost;
     }
 
     @Transactional
@@ -92,8 +95,11 @@ public class PasswordResetService {
         }
         ResetToken token = rows.getFirst();
         Timestamp now = Timestamp.from(Instant.now());
-        jdbc.update("UPDATE users SET password_hash=?,updated_at=? WHERE id=? AND status='ACTIVE'",
+        int changed = jdbc.update("UPDATE users SET password_hash=?,updated_at=? WHERE id=? AND status='ACTIVE'",
                 passwordEncoder.encode(newPassword), now, token.userId());
+        if (changed == 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
+        }
         jdbc.update("UPDATE password_reset_tokens SET consumed_at=? WHERE id=?", now, token.id());
         jdbc.update("UPDATE password_reset_tokens SET consumed_at=? WHERE user_id=? AND consumed_at IS NULL",
                 now, token.userId());
@@ -145,7 +151,8 @@ public class PasswordResetService {
     }
 
     private void requireDeliveryConfiguration() {
-        if (resetUrl == null || resetUrl.isBlank() || encryptionSecret == null || encryptionSecret.length() < 32) {
+        if (resetUrl == null || resetUrl.isBlank() || encryptionSecret == null || encryptionSecret.length() < 32
+                || mailHost == null || mailHost.isBlank() || mailSender.getIfAvailable() == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Password recovery is not configured on this server");
         }
