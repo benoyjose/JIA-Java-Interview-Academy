@@ -33,6 +33,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 class ContentReleaseAndAuthRateLimitPostgresTest {
+    private static final UUID OTHER_ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000002");
+    private static final UUID OTHER_TECHNOLOGY = UUID.fromString("11000000-0000-0000-0000-000000000099");
+    private static final UUID OTHER_CATEGORY = UUID.fromString("21000000-0000-0000-0000-000000000099");
+    private static final UUID OTHER_LESSON = UUID.fromString("31000000-0000-0000-0000-000000000099");
+    private static final UUID OTHER_REVISION = UUID.fromString("41000000-0000-0000-0000-000000000099");
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:18.7-alpine")
@@ -51,6 +56,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     private static CurrentUser editor;
     private static CurrentUser reviewer;
     private static CurrentUser admin;
+    private static CurrentUser otherAcademyAdmin;
 
     @BeforeAll
     static void migrate() {
@@ -69,6 +75,31 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         editor = user("Editor", "EDITOR");
         reviewer = user("Reviewer", "REVIEWER");
         admin = user("Admin", "ADMIN");
+        jdbc.update("INSERT INTO academies(id,code,name,status) VALUES (?,?,?,'ACTIVE')",
+                OTHER_ACADEMY, "OTHER", "Other Academy");
+        jdbc.update("INSERT INTO technologies(id,academy_id,slug,name,sort_order,status) VALUES (?,?,?,'Other Tech',1,'PUBLISHED')",
+                OTHER_TECHNOLOGY, OTHER_ACADEMY, "other-tech");
+        jdbc.update("INSERT INTO categories(id,technology_id,slug,name,sort_order,status) VALUES (?,?,?,'Other Category',1,'PUBLISHED')",
+                OTHER_CATEGORY, OTHER_TECHNOLOGY, "other-category");
+        otherAcademyAdmin = user("Other Academy Admin", "ADMIN");
+        jdbc.update("UPDATE academy_memberships SET is_default=FALSE WHERE user_id=?", otherAcademyAdmin.id());
+        jdbc.update("INSERT INTO academy_memberships(user_id,academy_id,status,is_default) VALUES (?,?,'ACTIVE',TRUE)",
+                otherAcademyAdmin.id(), OTHER_ACADEMY);
+        otherAcademyAdmin = new CurrentUser(otherAcademyAdmin.id(), otherAcademyAdmin.name(),
+                otherAcademyAdmin.email(), otherAcademyAdmin.roles(), otherAcademyAdmin.permissions(), List.of(OTHER_ACADEMY));
+        jdbc.update("""
+                INSERT INTO lessons(id,category_id,slug,title,summary,difficulty,content_json,content_revision,source_type,status)
+                VALUES (?,?,?,'Other Academy Lesson','Isolated release test','BEGINNER',
+                    '{"schemaVersion":1,"blocks":[{"type":"markdown","key":"overview","body":"Other academy content"}]}'::jsonb,
+                    1,'ADMIN_AUTHORED','PUBLISHED')
+                """, OTHER_LESSON, OTHER_CATEGORY, "other-academy-release-lesson");
+        jdbc.update("""
+                INSERT INTO lesson_revisions(id,lesson_id,revision_number,title,summary,difficulty,content_json,source_type,changed_by,change_note)
+                VALUES (?,?,1,'Other Academy Lesson','Isolated release test','BEGINNER',
+                    '{"schemaVersion":1,"blocks":[{"type":"markdown","key":"overview","body":"Other academy content"}]}'::jsonb,
+                    'ADMIN_AUTHORED',?,'Seed other academy release test')
+                """, OTHER_REVISION, OTHER_LESSON, otherAcademyAdmin.id());
+        jdbc.update("UPDATE lessons SET published_revision_id=? WHERE id=?", OTHER_REVISION, OTHER_LESSON);
     }
 
     @Test
@@ -92,6 +123,25 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         var immutableDownload = releases.lesson(release.version(), slug);
         assertThat(immutableDownload.title()).isEqualTo("Version one");
         assertThat(immutableDownload.contentRevision()).isEqualTo(1);
+    }
+
+    @Test
+    void contentReleaseManifestsAndVersionsAreIsolatedByAcademy() {
+        releases.create(admin);
+        var otherRelease = releases.create(otherAcademyAdmin);
+        assertThat(otherRelease.version()).isEqualTo(1);
+        assertThat(otherRelease.items()).extracting(item -> item.slug())
+                .containsExactly("other-academy-release-lesson");
+        assertThat(releases.latest(otherAcademyAdmin).items()).extracting(item -> item.slug())
+                .containsExactly("other-academy-release-lesson");
+        assertThat(releases.latest().items()).extracting(item -> item.slug())
+                .doesNotContain("other-academy-release-lesson");
+        assertThat(releases.get(otherRelease.version(), admin).items()).extracting(item -> item.slug())
+                .doesNotContain("other-academy-release-lesson");
+        assertThat(releases.lesson(otherRelease.version(), "other-academy-release-lesson", otherAcademyAdmin)
+                .title()).isEqualTo("Other Academy Lesson");
+        assertThatThrownBy(() -> releases.lesson(otherRelease.version(),
+                "other-academy-release-lesson", admin)).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test

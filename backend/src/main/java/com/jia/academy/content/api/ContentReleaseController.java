@@ -16,19 +16,19 @@ public class ContentReleaseController {
     }
 
     @GetMapping("/content/releases/latest")
-    public ContentReleaseResponse latest() {
-        return releases.latest();
+    public ContentReleaseResponse latest(@AuthenticationPrincipal CurrentUser user) {
+        return releases.latest(user);
     }
 
     @GetMapping("/content/releases/{version}")
-    public ContentReleaseResponse get(@PathVariable long version) {
-        return releases.get(version);
+    public ContentReleaseResponse get(@PathVariable long version, @AuthenticationPrincipal CurrentUser user) {
+        return releases.get(version, user);
     }
 
     @GetMapping("/content/releases/{version}/lessons/{slug}")
     public com.jia.academy.catalogue.api.CatalogueDtos.LessonDetailResponse lesson(
-            @PathVariable long version, @PathVariable String slug) {
-        return releases.lesson(version, slug);
+            @PathVariable long version, @PathVariable String slug, @AuthenticationPrincipal CurrentUser user) {
+        return releases.lesson(version, slug, user);
     }
 
     @PostMapping("/admin/content-releases")
