@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "JIA",
-    platforms: [.iOS(.v17), .macOS(.v13)],
+    platforms: [.iOS(.v17), .macOS(.v14)],
     products: [.library(name: "JIAClient", targets: ["JIAClient"])],
     targets: [
         .target(name: "JIAClient"),
