@@ -88,6 +88,8 @@ class QuizControllerPostgresIntegrationTest {
         insertQuestion(QUESTION_TWO, REVISION_TWO, "Question two");
         jdbc.update("INSERT INTO academies(id,code,name,status) VALUES (?,?,?,'ACTIVE')",
                 OTHER_ACADEMY, "OTHER", "Other Academy");
+        jdbc.update("INSERT INTO academy_memberships(user_id,academy_id,status,is_default) VALUES (?,?,'ACTIVE',FALSE)",
+                USER_ONE, OTHER_ACADEMY);
         jdbc.update("""
                 INSERT INTO technologies(id,academy_id,slug,name,sort_order,status)
                 VALUES (?,?,?,'Other Academy Java',1,'PUBLISHED')
