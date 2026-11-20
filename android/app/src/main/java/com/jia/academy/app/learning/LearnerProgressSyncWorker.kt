@@ -28,45 +28,84 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             ?: return@withContext Result.failure()
         val store = OfflineLearningStore(applicationContext)
 
+        try {
+            downloadReleaseLessons(baseUrl, token, store)
+            syncPendingProgress(baseUrl, token, store)
+            Result.success()
+        } catch (_: IOException) {
+            Result.retry()
+        } catch (_: RuntimeException) {
+            Result.retry()
+        }
+    }
+
+    private fun downloadReleaseLessons(baseUrl: String, token: String, store: OfflineLearningStore) {
+        val manifestResponse = request(baseUrl, "/content/releases/latest", null, "GET")
+        if (manifestResponse.first == 404) return
+        if (manifestResponse.first !in 200..299) throw IOException("Content manifest request failed")
+        val manifest = JSONObject(manifestResponse.second)
+        val version = manifest.getLong("version")
+        val items = manifest.getJSONArray("items")
+        for (index in 0 until items.length()) {
+            val item = items.getJSONObject(index)
+            val slug = item.getString("slug")
+            val checksum = item.getString("checksum")
+            if (store.hasCachedLesson(slug, checksum)) continue
+            val path = "/content/releases/$version/lessons/" + URLEncoder.encode(slug, Charsets.UTF_8.name())
+            val (status, response) = request(baseUrl, path, null, "GET")
+            if (status !in 200..299) throw IOException("Lesson download failed: HTTP $status")
+            val json = JSONObject(response)
+            val lesson = com.jia.academy.app.catalogue.LessonDetail(
+                json.getString("id"), json.getString("slug"), json.getString("title"),
+                json.optString("summary").takeIf(String::isNotBlank),
+                json.optString("difficulty", "Not specified"), json.optInt("contentRevision", 1),
+                json.optString("sourceType", "Unknown"),
+                json.optString("contentJson").takeIf(String::isNotBlank)
+            )
+            store.cacheLesson(lesson, checksum)
+        }
+    }
+
+    private fun syncPendingProgress(baseUrl: String, token: String, store: OfflineLearningStore) {
         for (item in store.pendingProgress()) {
-            try {
-                val encodedSlug = URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
-                val connection = (URL("$baseUrl/api/v1/me/lesson-progress/$encodedSlug")
-                    .openConnection() as HttpURLConnection).apply {
-                    requestMethod = "PUT"
-                    connectTimeout = 10_000
-                    readTimeout = 15_000
-                    doOutput = true
-                    setRequestProperty("Accept", "application/json")
-                    setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("Authorization", "Bearer $token")
-                }
-                val body = JSONObject()
-                    .put("contentRevision", item.contentRevision)
-                    .put("progressPercent", item.progressPercent)
-                item.lastPositionJson?.let { body.put("lastPosition", JSONObject(it)) }
-                val status = try {
-                    connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body.toString()) }
-                    connection.responseCode
-                } finally {
-                    connection.disconnect()
-                }
-                if (status in 200..299) {
-                    store.markProgressSynced(item)
-                } else if (status == 408 || status == 429 || status >= 500) {
-                    return@withContext Result.retry()
-                } else {
-                    return@withContext Result.failure(
-                        Data.Builder().putInt("httpStatus", status).putString("lessonSlug", item.lessonSlug).build()
-                    )
-                }
-            } catch (_: IOException) {
-                return@withContext Result.retry()
-            } catch (_: RuntimeException) {
-                return@withContext Result.retry()
+            val path = "/me/lesson-progress/" + URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
+            val body = JSONObject()
+                .put("contentRevision", item.contentRevision)
+                .put("progressPercent", item.progressPercent)
+            item.lastPositionJson?.let { body.put("lastPosition", JSONObject(it)) }
+            val (status, _) = request(baseUrl, path, token, "PUT", body)
+            if (status in 200..299) {
+                store.markProgressSynced(item)
+            } else if (status == 408 || status == 429 || status >= 500) {
+                throw IOException("Progress sync should be retried")
+            } else {
+                throw IllegalStateException("Progress sync rejected with HTTP $status")
             }
         }
-        Result.success()
+    }
+
+    private fun request(
+        baseUrl: String, path: String, token: String?, method: String, body: JSONObject? = null
+    ): Pair<Int, String> {
+        val connection = (URL(baseUrl + "/api/v1" + path).openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = 10_000
+            readTimeout = 20_000
+            setRequestProperty("Accept", "application/json")
+            if (token != null) setRequestProperty("Authorization", "Bearer $token")
+            if (body != null) {
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+            }
+        }
+        return try {
+            if (body != null) connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body.toString()) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            status to (stream?.bufferedReader()?.use { it.readText() }.orEmpty())
+        } finally {
+            connection.disconnect()
+        }
     }
 
     companion object {
