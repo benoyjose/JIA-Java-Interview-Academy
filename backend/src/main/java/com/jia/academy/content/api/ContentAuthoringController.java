@@ -32,18 +32,18 @@ public class ContentAuthoringController {
 
     @GetMapping("/lessons")
     @PreAuthorize("hasAuthority('content.create')")
-    public PageResult<LessonAdminListItem> lessons(
+    public PageResult<LessonAdminListItem> lessons(@AuthenticationPrincipal CurrentUser actor,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return content.adminLessons(status, q, page, size);
+        return content.adminLessons(actor, status, q, page, size);
     }
 
     @GetMapping("/lessons/{lessonId}")
     @PreAuthorize("hasAuthority('content.create')")
-    public LessonAuthoringDetail lesson(@PathVariable UUID lessonId) {
-        return content.authoringDetail(lessonId);
+    public LessonAuthoringDetail lesson(@AuthenticationPrincipal CurrentUser actor, @PathVariable UUID lessonId) {
+        return content.authoringDetail(actor, lessonId);
     }
 
     @PostMapping("/lessons/import")
@@ -78,17 +78,17 @@ public class ContentAuthoringController {
 
     @GetMapping("/reviews")
     @PreAuthorize("hasAuthority('content.review')")
-    public PageResult<ReviewQueueItem> reviewQueue(
+    public PageResult<ReviewQueueItem> reviewQueue(@AuthenticationPrincipal CurrentUser actor,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return content.reviewQueue(q, page, size);
+        return content.reviewQueue(actor, q, page, size);
     }
 
     @GetMapping("/reviews/{taskId}")
     @PreAuthorize("hasAuthority('content.review')")
-    public ReviewDetail review(@PathVariable UUID taskId) {
-        return content.reviewDetail(taskId);
+    public ReviewDetail review(@AuthenticationPrincipal CurrentUser actor, @PathVariable UUID taskId) {
+        return content.reviewDetail(actor, taskId);
     }
 
     @PostMapping("/reviews/{taskId}/decision")
@@ -101,8 +101,8 @@ public class ContentAuthoringController {
 
     @GetMapping("/lessons/{lessonId}/history")
     @PreAuthorize("hasAuthority('content.create') or hasAuthority('content.review')")
-    public java.util.List<RevisionHistoryItem> revisionHistory(@PathVariable UUID lessonId) {
-        return revisionHistory.history(lessonId);
+    public java.util.List<RevisionHistoryItem> revisionHistory(@AuthenticationPrincipal CurrentUser actor, @PathVariable UUID lessonId) {
+        return revisionHistory.history(actor, lessonId);
     }
 
     @PostMapping("/lessons/{lessonId}/rollback")
