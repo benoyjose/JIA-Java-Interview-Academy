@@ -173,16 +173,33 @@ public class AuthService {
     }
 
     private TokenResponse issueToken(UUID userId, String name, String email, List<String> roles, String device) {
-        byte[] bytes = new byte[32];
-        RANDOM.nextBytes(bytes);
-        String rawToken = "jia_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        return issueToken(userId, name, email, roles, device, UUID.randomUUID());
+    }
+
+    private TokenResponse issueToken(UUID userId, String name, String email, List<String> roles,
+                                     String device, UUID familyId) {
+        byte[] accessBytes = new byte[32];
+        byte[] refreshBytes = new byte[48];
+        RANDOM.nextBytes(accessBytes);
+        RANDOM.nextBytes(refreshBytes);
+        String rawAccessToken = "jia_" + Base64.getUrlEncoder().withoutPadding().encodeToString(accessBytes);
+        String rawRefreshToken = "jia_r_" + Base64.getUrlEncoder().withoutPadding().encodeToString(refreshBytes);
         Instant now = Instant.now();
-        Instant expires = now.plusSeconds(TOKEN_DAYS * 24 * 60 * 60);
+        Instant accessExpires = now.plusSeconds(TOKEN_DAYS * 24 * 60 * 60);
+        Instant refreshExpires = now.plusSeconds(60L * 24 * 60 * 60);
+        UUID accessTokenId = UUID.randomUUID();
+        String tokenName = device.substring(0, Math.min(100, device.length()));
         jdbc.update("""
             INSERT INTO api_tokens(id,user_id,token_hash,token_name,created_at,expires_at)
             VALUES (?,?,?,?,?,?)
-            """, UUID.randomUUID(), userId, sha256(rawToken), device.substring(0, Math.min(100, device.length())), Timestamp.from(now), Timestamp.from(expires));
-        return new TokenResponse(rawToken, "Bearer", expires, new UserResponse(userId, name, email, roles));
+            """, accessTokenId, userId, sha256(rawAccessToken), tokenName, Timestamp.from(now), Timestamp.from(accessExpires));
+        jdbc.update("""
+            INSERT INTO auth_refresh_tokens(id,user_id,token_hash,family_id,access_token_id,token_name,created_at,expires_at)
+            VALUES (?,?,?,?,?,?,?,?)
+            """, UUID.randomUUID(), userId, sha256(rawRefreshToken), familyId, accessTokenId,
+                tokenName, Timestamp.from(now), Timestamp.from(refreshExpires));
+        return new TokenResponse(rawAccessToken, rawRefreshToken, "Bearer", accessExpires,
+                new UserResponse(userId, name, email, roles));
     }
 
     private static String sha256(String value) {
