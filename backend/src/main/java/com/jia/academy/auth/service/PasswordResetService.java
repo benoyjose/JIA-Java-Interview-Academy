@@ -111,8 +111,9 @@ public class PasswordResetService {
     public void dispatchPasswordResetEmails() {
         JavaMailSender sender = mailSender.getIfAvailable();
         if (sender == null) return;
+        jdbc.update("UPDATE auth_email_outbox SET status='PENDING',processing_at=NULL WHERE status='PROCESSING' AND processing_at < now() - interval '5 minutes'");
         List<OutboxMessage> messages = jdbc.query("""
-                UPDATE auth_email_outbox SET status='PROCESSING',attempts=attempts+1
+                UPDATE auth_email_outbox SET status='PROCESSING',processing_at=now(),attempts=attempts+1
                 WHERE id=(SELECT id FROM auth_email_outbox
                     WHERE status='PENDING' AND available_at<=now()
                     ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
@@ -132,13 +133,13 @@ public class PasswordResetService {
                     + "Use this one-time link within 30 minutes:\n" + link
                     + "\n\nIf you did not request this change, ignore this email.");
             sender.send(mail);
-            jdbc.update("UPDATE auth_email_outbox SET status='SENT',sent_at=now(),last_error=NULL WHERE id=?",
+            jdbc.update("UPDATE auth_email_outbox SET status='SENT',sent_at=now(),processing_at=NULL,last_error=NULL WHERE id=?",
                     message.id());
         } catch (Exception ex) {
             String status = message.attempts() >= 5 ? "FAILED" : "PENDING";
             jdbc.update("""
                     UPDATE auth_email_outbox SET status=?,available_at=now() + interval '2 minutes',
-                        last_error=? WHERE id=?
+                        processing_at=NULL,last_error=? WHERE id=?
                     """, status, safeError(ex), message.id());
         }
     }
