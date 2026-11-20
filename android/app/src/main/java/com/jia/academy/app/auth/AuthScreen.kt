@@ -14,6 +14,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,16 +43,33 @@ fun AuthScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(repository))
+    val authState by authViewModel.state.collectAsStateWithLifecycle()
+    val loading = authState.loading
+    val error = authState.error
+    val otpRequested = authState.otpRequested
+    LaunchedEffect(authState.session) {
+        val session = authState.session ?: return@LaunchedEffect
+        runCatching {
+            val userJson = org.json.JSONObject().put("id", session.account.id)
+                .put("name", session.account.name).put("email", session.account.email)
+                .put("roles", org.json.JSONArray(session.account.roles)).toString()
+            SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
+        }.onSuccess {
+            onAuthenticated(session)
+            authViewModel.consumeSession()
+        }.onFailure {
+            authViewModel.setError("Could not securely save this session.")
+            authViewModel.consumeSession()
+        }
+    }
     var registering by remember { mutableStateOf(false) }
     var phoneMode by remember { mutableStateOf(false) }
     var phoneNumber by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
-    var otpRequested by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier.fillMaxSize().padding(20.dp),
