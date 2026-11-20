@@ -35,3 +35,9 @@ export type PageResult<T> = {
   totalItems: number;
   totalPages: number;
 };
+
+export type ContentRelease = {
+  version: number;
+  createdAt: string;
+  items: Array<{ id: string; slug: string; title: string; contentRevision: number; checksum: string }>;
+};
