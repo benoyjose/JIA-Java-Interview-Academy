@@ -26,6 +26,41 @@ sealed interface LessonBlock {
 
 data class LessonDocument(val schemaVersion: Int, val blocks: List<LessonBlock>, val skippedBlockCount: Int)
 
+data class DiagramNode(val id: String, val label: String)
+data class DiagramEdge(val from: String, val to: String, val label: String?)
+data class MermaidDiagram(val nodes: List<DiagramNode>, val edges: List<DiagramEdge>)
+
+/** Parses the common Mermaid flowchart subset into an accessible node/edge model. */
+object MermaidDiagramParser {
+    private val nodePattern = Regex("""([A-Za-z0-9_]+)\\s*(?:\\[([^\\]]+)\\]|\\(([^)]+)\\)|\\{([^}]+)\\})?""")
+    private val edgePattern = Regex("""([A-Za-z0-9_]+)\\s*(?:-->|---|-.->|==>)\\s*(?:\\|([^|]+)\\|\\s*)?([A-Za-z0-9_]+)""")
+
+    fun parse(source: String): MermaidDiagram {
+        val nodes = linkedMapOf<String, String>()
+        val edges = mutableListOf<DiagramEdge>()
+        source.lineSequence()
+            .map(String::trim)
+            .filter { it.isNotBlank() && !it.startsWith("%%")
+                    && !it.startsWith("graph ") && !it.startsWith("flowchart ") }
+            .forEach { line ->
+                edgePattern.findAll(line).forEach { match ->
+                    val from = match.groupValues[1]
+                    val to = match.groupValues[3]
+                    nodes.putIfAbsent(from, from)
+                    nodes.putIfAbsent(to, to)
+                    edges += DiagramEdge(from, to, match.groupValues[2].trim().takeIf(String::isNotBlank))
+                }
+                nodePattern.findAll(line).forEach { match ->
+                    val id = match.groupValues[1]
+                    val label = listOf(match.groupValues[2], match.groupValues[3], match.groupValues[4])
+                        .firstOrNull(String::isNotBlank) ?: id
+                    nodes[id] = label.trim()
+                }
+            }
+        return MermaidDiagram(nodes.map { DiagramNode(it.key, it.value) }, edges.distinct())
+    }
+}
+
 object LessonContentParser {
     const val SUPPORTED_SCHEMA_VERSION = 1
 
