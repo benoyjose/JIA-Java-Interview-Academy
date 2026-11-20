@@ -43,3 +43,10 @@ jia:
     token: ${JIA_SMS_TOKEN:}
   otp:
     hmac-secret: ${JIA_OTP_HMAC_SECRET:}
+  media:
+    s3:
+      enabled: ${JIA_MEDIA_S3_ENABLED:false}
+      endpoint: ${JIA_MEDIA_S3_ENDPOINT:}
+      region: ${JIA_MEDIA_S3_REGION:ap-south-1}
+      bucket: ${JIA_MEDIA_S3_BUCKET:}
+      upload-url-minutes: ${JIA_MEDIA_UPLOAD_URL_MINUTES:10}

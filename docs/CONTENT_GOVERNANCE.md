@@ -66,5 +66,6 @@ The Spring Boot primary backend now has an initial content-authoring API increme
 - Basic role/permission checks use the existing EDITOR, REVIEWER and ADMIN roles.
 - Essential lifecycle actions are recorded in the existing audit_events table.
 - Authorized editors and reviewers can preview the revision selected for authoring without changing public catalogue visibility; cross-academy preview requests are hidden as not found.
+- Academy-scoped media metadata and direct-to-object-storage uploads use short-lived S3-compatible presigned PUT URLs. The API verifies uploaded object size and content type before marking metadata READY and records an audit event.
 
 Current MVP boundary: published lessons can receive a separate draft revision and promote it after approval. Authorized editor/reviewer preview is available through the admin API and uses the same structured content payload as learner reading, while public catalogue routes continue to expose only published revisions. Changing a published lesson's slug or category is intentionally rejected in this workflow; taxonomy moves need their own reviewed operation. Media upload, React admin portal and Laravel implementation remain future increments. Do not describe the full CMS as complete.
