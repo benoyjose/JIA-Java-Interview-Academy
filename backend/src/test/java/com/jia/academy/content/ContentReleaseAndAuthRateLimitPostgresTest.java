@@ -5,6 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.auth.service.AuthRateLimitService;
+import com.jia.academy.auth.service.AuthService;
+import com.jia.academy.auth.api.AuthDtos.RegisterRequest;
+import com.jia.academy.content.service.TaxonomyAdminService;
+import com.jia.academy.content.service.LessonRevisionHistoryService;
+import com.jia.academy.learning.service.LearningService;
+import com.jia.academy.learning.service.LearningService.ProgressRequest;
+import java.math.BigDecimal;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.jia.academy.content.api.ContentAuthoringDtos.LessonDraftRequest;
 import com.jia.academy.content.api.ContentAuthoringDtos.ReviewDecisionRequest;
 import com.jia.academy.content.service.ContentAuthoringService;
@@ -36,6 +44,10 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     private static ContentAuthoringService authoring;
     private static ContentReleaseService releases;
     private static AuthRateLimitService rateLimits;
+    private static AuthService auth;
+    private static TaxonomyAdminService taxonomy;
+    private static LessonRevisionHistoryService history;
+    private static LearningService learning;
     private static CurrentUser editor;
     private static CurrentUser reviewer;
     private static CurrentUser admin;
@@ -50,6 +62,10 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         authoring = new ContentAuthoringService(jdbc, mapper, new LessonContentValidator(mapper));
         releases = new ContentReleaseService(jdbc, mapper);
         rateLimits = new AuthRateLimitService(jdbc);
+        auth = new AuthService(jdbc, new BCryptPasswordEncoder());
+        taxonomy = new TaxonomyAdminService(jdbc);
+        history = new LessonRevisionHistoryService(jdbc);
+        learning = new LearningService(jdbc, mapper);
         editor = user("Editor", "EDITOR");
         reviewer = user("Reviewer", "REVIEWER");
         admin = user("Admin", "ADMIN");
@@ -87,6 +103,72 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         assertThatThrownBy(() -> rateLimits.checkAndRecord(ip, "learner@example.test"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Too many sign-in attempts");
+    }
+
+    @Test
+    void taxonomyCrudProtectsContentAndArchivesEmptyCategories() {
+        String slug = "test-taxonomy-" + UUID.randomUUID().toString().substring(0, 8);
+        var created = taxonomy.create(editor, new TaxonomyAdminService.CategoryRequest(
+                "core-java", null, slug, "Test taxonomy", 99));
+        assertThat(created.status()).isEqualTo("DRAFT");
+        assertThat(taxonomy.categories("core-java")).extracting(TaxonomyAdminService.CategoryItem::slug)
+                .contains(slug);
+        var updated = taxonomy.update(editor, created.id(), new TaxonomyAdminService.CategoryRequest(
+                "core-java", null, slug + "-updated", "Updated taxonomy", 100));
+        assertThat(updated.name()).isEqualTo("Updated taxonomy");
+        taxonomy.archive(editor, created.id());
+        assertThat(taxonomy.categories("core-java").stream()
+                .filter(item -> item.id().equals(created.id())).findFirst().orElseThrow().status())
+                .isEqualTo("ARCHIVED");
+    }
+
+    @Test
+    void revisionHistoryIncludesReviewDecisionAndPublishedRevisionMarker() {
+        String slug = "revision-history-" + UUID.randomUUID();
+        var draft = authoring.createDraft(editor, request(slug, "History lesson"));
+        UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
+        var beforeDecision = history.history(draft.id());
+        assertThat(beforeDecision).hasSize(1);
+        assertThat(beforeDecision.getFirst().reviewStatus()).isEqualTo("PENDING");
+        authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "History approved"));
+        authoring.publish(admin, draft.id());
+        assertThat(history.history(draft.id()).getFirst().published()).isTrue();
+    }
+
+    @Test
+    void learnerProgressAndBookmarksAreMonotonicAndIdempotent() {
+        CurrentUser learner = user("Learner", "LEARNER");
+        String slug = "offline-sync-" + UUID.randomUUID();
+        var draft = authoring.createDraft(editor, request(slug, "Offline sync lesson"));
+        UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
+        authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "Reviewed"));
+        authoring.publish(admin, draft.id());
+
+        var first = learning.updateProgress(learner, slug, new ProgressRequest(1, BigDecimal.valueOf(60), null));
+        var stale = learning.updateProgress(learner, slug, new ProgressRequest(1, BigDecimal.valueOf(25), null));
+        assertThat(first.progressPercent()).isEqualByComparingTo("60");
+        assertThat(stale.progressPercent()).isEqualByComparingTo("60");
+        var complete = learning.updateProgress(learner, slug, new ProgressRequest(1, BigDecimal.valueOf(100), null));
+        assertThat(complete.status()).isEqualTo("COMPLETED");
+
+        learning.bookmark(learner, slug);
+        learning.bookmark(learner, slug);
+        assertThat(learning.bookmarks(learner)).extracting(LearningService.BookmarkItem::lessonSlug).contains(slug);
+        learning.removeBookmark(learner, slug);
+        assertThat(learning.bookmarks(learner)).extracting(LearningService.BookmarkItem::lessonSlug).doesNotContain(slug);
+    }
+
+    @Test
+    void refreshTokensRotateOnceAndReuseRevokesTheEntireSessionFamily() {
+        var registered = auth.register(new RegisterRequest("Refresh Test",
+                "refresh-" + UUID.randomUUID() + "@example.test", "long-secure-test-password"));
+        var rotated = auth.refresh(registered.refreshToken());
+        assertThat(rotated.refreshToken()).isNotEqualTo(registered.refreshToken());
+        assertThatThrownBy(() -> auth.refresh(registered.refreshToken()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("reuse detected");
+        assertThatThrownBy(() -> auth.refresh(rotated.refreshToken()))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     private static CurrentUser user(String name, String role) {
