@@ -23,7 +23,7 @@ data class LessonDetail(
     val contentJson: String?
 )
 
-class CatalogueRepository {
+class CatalogueRepository(private val offlineStore: com.jia.academy.app.learning.OfflineLearningStore? = null) {
     private fun apiUrl(baseUrl: String, path: String): String {
         require(baseUrl.isNotBlank()) {
             "Configure JIA_API_BASE_URL in ~/.gradle/gradle.properties to connect to the JIA API."
@@ -84,11 +84,15 @@ class CatalogueRepository {
     }
 
     suspend fun getLesson(baseUrl: String, slug: String): LessonDetail {
-        val item = JSONObject(get(baseUrl, "/lessons/${segment(slug)}"))
-        return LessonDetail(item.getString("id"), item.getString("slug"), item.getString("title"),
-            item.optString("summary").takeIf(String::isNotBlank),
-            item.optString("difficulty", "Not specified"),
-            item.optString("sourceType", "Unknown"),
-            item.optString("contentJson").takeIf(String::isNotBlank))
+        return try {
+            val item = JSONObject(get(baseUrl, "/lessons/${segment(slug)}"))
+            LessonDetail(item.getString("id"), item.getString("slug"), item.getString("title"),
+                item.optString("summary").takeIf(String::isNotBlank),
+                item.optString("difficulty", "Not specified"), item.optInt("contentRevision", 1),
+                item.optString("sourceType", "Unknown"),
+                item.optString("contentJson").takeIf(String::isNotBlank)).also { offlineStore?.cacheLesson(it) }
+        } catch (error: Exception) {
+            offlineStore?.cachedLesson(slug) ?: throw error
+        }
     }
 }
