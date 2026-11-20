@@ -1261,6 +1261,40 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}/preview:
+    get:
+      summary: Preview the current draft or pending lesson revision using learner content fields
+      description: Requires content.create or content.review. This endpoint never changes public catalogue visibility.
+      tags: [Content Admin]
+      operationId: previewLesson
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Authorized preview of the selected lesson revision
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, slug, title, difficulty, revisionNumber, sourceType, contentJson, preview, lifecycleStatus]
+                properties:
+                  id: { type: string, format: uuid }
+                  slug: { type: string }
+                  title: { type: string }
+                  summary: { type: string, nullable: true }
+                  difficulty: { type: string }
+                  revisionNumber: { type: integer }
+                  sourceType: { type: string }
+                  contentJson: { type: string }
+                  preview: { type: boolean, const: true }
+                  lifecycleStatus: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /admin/lessons/{lessonId}/unpublish:
     post:
       summary: Remove a published lesson from the public catalogue while retaining its published revision
