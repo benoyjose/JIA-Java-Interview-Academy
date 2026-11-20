@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 
 data class JiaAccount(val id: String, val name: String, val email: String?, val roles: List<String>)
 data class JiaSession(val accessToken: String, val refreshToken: String, val expiresAt: String, val account: JiaAccount)
@@ -27,7 +28,7 @@ class AuthRepository {
 
     suspend fun unlinkFederatedIdentity(baseUrl: String, accessToken: String, provider: String) =
         withContext(Dispatchers.IO) {
-            val normalizedProvider = provider.lowercase()
+            val normalizedProvider = provider.lowercase(Locale.ROOT)
             require(normalizedProvider == "google" || normalizedProvider == "apple") {
                 "Only Google or Apple identities can be unlinked."
             }
