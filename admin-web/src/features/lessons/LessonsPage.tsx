@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, validateLessonContent } from "../../api/client";
-import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonStatus, PageResult } from "../../api/types";
+import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, LessonStatus, PageResult } from "../../api/types";
+import { useAuth } from "../../auth/AuthContext";
 
 const PAGE_SIZE = 25;
 const statuses: Array<LessonStatus | "ALL"> = ["ALL", "DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"];
@@ -9,6 +10,7 @@ const emptyPage: PageResult<AdminLesson> = { items: [], page: 0, size: PAGE_SIZE
 const emptyContent = JSON.stringify({ schemaVersion: 1, blocks: [] }, null, 2);
 
 export function LessonsPage() {
+  const { user } = useAuth();
   const [result, setResult] = useState(emptyPage);
   const [status, setStatus] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -21,6 +23,7 @@ export function LessonsPage() {
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [notice, setNotice] = useState("");
+  const [releaseBusy, setReleaseBusy] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
@@ -54,6 +57,15 @@ export function LessonsPage() {
     try { await api.publishLesson(id); setSelectedId(id); setRefreshKey(value => value + 1); setNotice("Lesson published successfully."); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Publishing failed."); }
   }
+  async function publishContentRelease() {
+    setReleaseBusy(true); setError(""); setNotice("");
+    try {
+      const release: ContentRelease = await api.createContentRelease();
+      setNotice(`Content release v${release.version} published with ${release.items.length} lesson(s).`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not publish content release.");
+    } finally { setReleaseBusy(false); }
+  }
   function changeStatus(value: string) {
     setStatus(value); setPage(0); setSelectedId(null); setSelected(null);
   }
@@ -62,7 +74,7 @@ export function LessonsPage() {
   }
 
   return <section>
-    <div className="page-heading"><div><p className="eyebrow">CONTENT LIBRARY</p><h1>Lessons</h1><p className="muted">Create, revise and publish structured Java learning content.</p></div><button className="button button-primary" onClick={startCreate}>＋ New lesson</button></div>
+    <div className="page-heading"><div><p className="eyebrow">CONTENT LIBRARY</p><h1>Lessons</h1><p className="muted">Create, revise and publish structured Java learning content.</p></div><div className="page-actions">{user?.roles.includes("ADMIN") && <button className="button button-secondary" disabled={releaseBusy} onClick={() => void publishContentRelease()}>{releaseBusy ? "Publishing…" : "Publish content release"}</button>}<button className="button button-primary" onClick={startCreate}>＋ New lesson</button></div></div>
     <div className="stat-grid">
       <Stat label="Matching lessons" value={result.totalItems} note="Server-side total" />
       <Stat label="Current page" value={result.totalPages ? page + 1 : 0} note={`of ${result.totalPages}`} />
