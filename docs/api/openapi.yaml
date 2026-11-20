@@ -1172,14 +1172,7 @@ components:
               slug: { type: string }
               title: { type: string }
               contentRevision: { type: integer, minimum: 1 }
-              checksum: { type: string, pattern: '^[a-f0-9]{64}      allOf:
-        - $ref: '#/components/schemas/LessonSummary'
-        - type: object
-          required: [sourceType]
-          properties:
-            sourceType: { type: string }
-            contentJson: { type: [string, 'null'] }
- }
+              checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
     Lesson:
       allOf:
         - $ref: '#/components/schemas/LessonSummary'
