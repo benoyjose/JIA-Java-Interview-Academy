@@ -950,7 +950,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      summary: Create a draft technology taxonomy entry
+      summary: Create a technology taxonomy entry
       tags: [Content Admin]
       operationId: createAdminTechnology
       requestBody:
@@ -975,7 +975,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
-      summary: Create a draft taxonomy category
+      summary: Create a taxonomy category
       tags: [Content Admin]
       operationId: createAdminCategory
       requestBody:
