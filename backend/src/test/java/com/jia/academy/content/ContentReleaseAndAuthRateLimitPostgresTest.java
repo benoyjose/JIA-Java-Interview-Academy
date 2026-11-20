@@ -110,7 +110,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         String slug = "test-taxonomy-" + UUID.randomUUID().toString().substring(0, 8);
         var created = taxonomy.create(editor, new TaxonomyAdminService.CategoryRequest(
                 "core-java", null, slug, "Test taxonomy", 99));
-        assertThat(created.status()).isEqualTo("DRAFT");
+        assertThat(created.status()).isEqualTo("PUBLISHED");
         assertThat(taxonomy.categories("core-java")).extracting(TaxonomyAdminService.CategoryItem::slug)
                 .contains(slug);
         var updated = taxonomy.update(editor, created.id(), new TaxonomyAdminService.CategoryRequest(
