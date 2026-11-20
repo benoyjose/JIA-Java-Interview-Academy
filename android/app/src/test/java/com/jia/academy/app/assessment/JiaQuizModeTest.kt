@@ -1,14 +1,13 @@
 package com.jia.academy.app.assessment
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JiaQuizModeTest {
     @Test
-    fun practiceTimedMockAndDailyChallengeAreAvailableToLearners() {
-        assertEquals(listOf(JiaQuizMode.PRACTICE, JiaQuizMode.TIMED_MOCK, JiaQuizMode.DAILY_CHALLENGE), JiaQuizMode.learnerOptions)
+    fun allImplementedModesAreAvailableToLearners() {
+        assertEquals(listOf(JiaQuizMode.PRACTICE, JiaQuizMode.TIMED_MOCK, JiaQuizMode.DAILY_CHALLENGE, JiaQuizMode.WEAK_AREA), JiaQuizMode.learnerOptions)
     }
 
     @Test
@@ -19,8 +18,8 @@ class JiaQuizModeTest {
     }
 
     @Test
-    fun weakAreaRemainsUnavailable() {
-        assertFalse(JiaQuizMode.WEAK_AREA.availableToLearners)
-        assertFalse(JiaQuizMode.WEAK_AREA in JiaQuizMode.learnerOptions)
+    fun weakAreaUsesBackendContractValue() {
+        assertEquals("WEAK_AREA", JiaQuizMode.WEAK_AREA.apiValue)
+        assertTrue(JiaQuizMode.WEAK_AREA.availableToLearners)
     }
 }

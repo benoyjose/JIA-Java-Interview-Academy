@@ -314,12 +314,13 @@ paths:
                 mode:
                   type: string
                   enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA]
+                  description: WEAK_AREA prioritizes categories with the learner's lowest historical answer accuracy; categories without history are ranked after measured categories.
                   default: PRACTICE
                 durationSeconds:
                   type: integer
                   minimum: 60
                   maximum: 21600
-                  description: Required for TIMED_MOCK; server sets deadlineAt from this duration. Ignored for DAILY_CHALLENGE.
+                  description: Required for TIMED_MOCK; server sets deadlineAt from this duration. Ignored for DAILY_CHALLENGE and WEAK_AREA.
       responses:
         '201':
           description: Quiz attempt created; answer keys are withheld

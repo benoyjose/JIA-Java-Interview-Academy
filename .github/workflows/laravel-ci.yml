@@ -57,6 +57,13 @@ jobs:
         run: composer install --working-dir backend-laravel --no-interaction --prefer-dist --no-progress
       - name: Prepare Laravel writable runtime directories
         run: mkdir -p backend-laravel/bootstrap/cache backend-laravel/storage/framework/cache backend-laravel/storage/framework/sessions backend-laravel/storage/framework/views backend-laravel/storage/logs
+      - name: Verify Laravel application boots and routes register
+        working-directory: backend-laravel
+        run: php artisan route:list --except-vendor
+
+      - name: Audit Composer dependencies
+        run: composer audit --working-dir backend-laravel
+
       - name: PHP syntax check
         run: find backend-laravel -type f -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l
       - name: Laravel unit and HTTP parity tests

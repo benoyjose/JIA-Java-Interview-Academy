@@ -154,6 +154,21 @@ class QuizControllerPostgresIntegrationTest {
     }
 
     @Test
+    void weakAreaModeUsesLearnerPerformanceAndCreatesAnAttempt() {
+        UUID previousAttempt = startAttempt();
+        controller.submit(learnerOne, previousAttempt,
+                Map.of("answers", List.of(answer(1), Map.of("position", 2, "response", Map.of("value", "B"), "timeSpentMs", 100))));
+
+        Map<String,Object> weakArea = controller.start(learnerOne,
+                Map.of("difficulty", "BEGINNER", "questionCount", 2, "mode", "WEAK_AREA"));
+
+        assertThat(weakArea.get("mode")).isEqualTo("WEAK_AREA");
+        assertThat(weakArea.get("questions")).asList().hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT mode FROM quiz_attempts WHERE id=?",
+                String.class, weakArea.get("attemptId"))).isEqualTo("WEAK_AREA");
+    }
+
+    @Test
     void rejectsTimedMockDurationOutsideSupportedRange() {
         assertThatThrownBy(() -> controller.start(learnerOne,
                 Map.of("difficulty", "BEGINNER", "questionCount", 2, "mode", "TIMED_MOCK", "durationSeconds", 30)))

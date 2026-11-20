@@ -58,7 +58,7 @@ public class QuizController {
                 throw badRequest("durationSeconds must be between 60 and 21600");
             }
             durationLimitSeconds = number.intValue();
-        } else if (!"DAILY_CHALLENGE".equals(mode)) {
+        } else if (!"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
             validateMode(mode);
         }
         Filters filters = filters(difficulty, technologySlug, categorySlug);
@@ -80,8 +80,24 @@ public class QuizController {
             JOIN technologies t ON t.id = q.technology_id AND t.academy_id = ?
             JOIN question_revisions qr ON qr.question_id = q.id AND qr.revision_number = q.current_revision
             WHERE q.academy_id = ? AND q.status = 'PUBLISHED' AND q.difficulty = ?
-            """ + filterSql(filters) + " ORDER BY random() LIMIT ?";
-        List<QuestionRow> selected = jdbc.query(sql, this::questionRow, startArgs(filters, count));
+            """ + filterSql(filters);
+        if ("WEAK_AREA".equals(mode)) {
+            sql += """
+                 ORDER BY COALESCE((
+                     SELECT SUM(CASE WHEN paa.is_correct THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0)
+                     FROM quiz_attempts pa
+                     JOIN quiz_attempt_questions paq ON paq.attempt_id = pa.id
+                     JOIN quiz_attempt_answers paa ON paa.attempt_id = paq.attempt_id AND paa.position = paq.position
+                     JOIN questions pq ON pq.id = paq.question_id
+                     WHERE pa.user_id = ? AND pa.academy_id = q.academy_id
+                       AND pa.status = 'SUBMITTED' AND pq.category_id = q.category_id
+                 ), 1.0) ASC, random()
+                """;
+        } else {
+            sql += " ORDER BY random()";
+        }
+        sql += " LIMIT ?";
+        List<QuestionRow> selected = jdbc.query(sql, this::questionRow, startArgs(filters, count, user.id(), mode));
         if (selected.size() < count) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Not enough published questions for selected filters. Available: " + selected.size());
@@ -414,7 +430,7 @@ public class QuizController {
     }
 
     static void validateMode(String mode) {
-        if (!"PRACTICE".equals(mode) && !"DAILY_CHALLENGE".equals(mode)) {
+        if (!"PRACTICE".equals(mode) && !"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Quiz mode is not available yet: " + mode);
         }
@@ -477,10 +493,11 @@ public class QuizController {
                 + "JOIN question_revisions qr ON qr.question_id=q.id AND qr.revision_number=q.current_revision "
                 + "WHERE q.academy_id=? AND q.status='PUBLISHED' AND q.difficulty=? " + filterSql(f);
     }
-    private Object[] startArgs(Filters f, int count) {
+    private Object[] startArgs(Filters f, int count, UUID userId, String mode) {
         List<Object> args = new ArrayList<>(List.of(JIA_ACADEMY, JIA_ACADEMY, f.difficulty()));
         if (f.technologyId() != null) args.add(f.technologyId());
         if (f.categoryId() != null) args.add(f.categoryId());
+        if ("WEAK_AREA".equals(mode)) args.add(userId);
         args.add(count);
         return args.toArray();
     }
