@@ -70,6 +70,7 @@ fun AuthScreen(
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var googleLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier.fillMaxSize().padding(20.dp),
@@ -79,17 +80,17 @@ fun AuthScreen(
             style = MaterialTheme.typography.headlineSmall)
         Text("You can continue browsing public lessons without signing in.")
         Button(
-            enabled = !loading && com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isNotBlank(),
+            enabled = !loading && !googleLoading && com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 val activity = context as? Activity
-                if (activity == null) { error = "Google sign-in requires an active Android screen."; return@Button }
+                if (activity == null) { authViewModel.setError("Google sign-in requires an active Android screen."); return@Button }
                 if (com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isBlank()) {
-                    error = "Configure JIA_GOOGLE_WEB_CLIENT_ID in your local Gradle properties."
+                    authViewModel.setError("Configure JIA_GOOGLE_WEB_CLIENT_ID in your local Gradle properties.")
                     return@Button
                 }
-                loading = true
-                error = null
+                googleLoading = true
+                authViewModel.setError(null)
                 scope.launch {
                     runCatching {
                         val random = ByteArray(32).also { SecureRandom().nextBytes(it) }
@@ -106,17 +107,11 @@ fun AuthScreen(
                             throw IllegalStateException("Google did not return a supported ID token.")
                         }
                         val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                        repository.loginWithGoogle(baseUrl, googleCredential.idToken, nonce)
-                    }.onSuccess { session ->
-                        runCatching {
-                            val userJson = org.json.JSONObject().put("id", session.account.id)
-                                .put("name", session.account.name).put("email", session.account.email)
-                                .put("roles", org.json.JSONArray(session.account.roles)).toString()
-                            SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
-                        }.onSuccess { onAuthenticated(session) }
-                            .onFailure { error = "Could not securely save this session." }
-                    }.onFailure { error = it.message ?: "Google sign-in failed." }
-                    loading = false
+                        googleCredential.idToken to nonce
+                    }.onSuccess { (idToken, nonceValue) ->
+                        authViewModel.loginWithGoogle(baseUrl, idToken, nonceValue)
+                    }.onFailure { authViewModel.setError(it.message ?: "Google sign-in failed.") }
+                    googleLoading = false
                 }
             }
         ) { Text("Continue with Google") }
