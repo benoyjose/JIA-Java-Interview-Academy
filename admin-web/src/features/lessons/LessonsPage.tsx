@@ -132,6 +132,7 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
   const [history, setHistory] = useState<RevisionHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [rollbackBusy, setRollbackBusy] = useState<number | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!lesson) return;
@@ -198,6 +199,11 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
       <label>Summary<textarea rows={2} maxLength={700} value={summary} onChange={event => setSummary(event.target.value)} /></label>
       <div className="field-row"><label>Difficulty<select value={difficulty} onChange={event => setDifficulty(event.target.value as LessonDraftRequest["difficulty"])}>{["BEGINNER", "NOVICE", "PROFESSIONAL", "EXPERT"].map(value => <option key={value}>{value}</option>)}</select></label><label>Source type<select value={sourceType} onChange={event => setSourceType(event.target.value as LessonDraftRequest["sourceType"])}>{["ADMIN_AUTHORED", "USER_ORIGINAL", "EXTERNAL_REFERENCE"].map(value => <option key={value}>{value}</option>)}</select></label></div>
       <label>Content document (JSON)<textarea className="code-input" rows={11} spellCheck={false} value={contentJson} onChange={event => setContentJson(event.target.value)} /></label>
+      <button type="button" className="text-button" aria-expanded={previewOpen}
+        onClick={() => setPreviewOpen(value => !value)}>
+        {previewOpen ? "Hide learner preview" : "Preview as learner"}
+      </button>
+      {previewOpen && <LessonPreview contentJson={contentJson} />}
       <label>Change note<input maxLength={500} placeholder="What changed in this revision?" value={changeNote} onChange={event => setChangeNote(event.target.value)} /></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="editor-actions">
@@ -212,3 +218,62 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
     </form>
   </div>;
 }
+type PreviewBlock = {
+  type?: string; title?: string; body?: string | string[]; source?: string;
+  language?: string; items?: string[]; url?: string; alt?: string; caption?: string;
+  label?: string; expandedExplanation?: string; points?: string[];
+};
+
+function LessonPreview({ contentJson }: { contentJson: string }) {
+  let blocks: PreviewBlock[];
+  try {
+    const document = JSON.parse(contentJson) as { schemaVersion?: number; blocks?: PreviewBlock[] };
+    if (document.schemaVersion !== 1 || !Array.isArray(document.blocks)) {
+      return <div className="notice error" role="alert">Preview unavailable: unsupported lesson document schema.</div>;
+    }
+    blocks = document.blocks;
+  } catch {
+    return <div className="notice error" role="alert">Preview unavailable: fix the JSON syntax first.</div>;
+  }
+
+  return <section className="lesson-preview" aria-label="Private learner preview">
+    <div className="panel-heading"><h3>Learner preview</h3><span className="muted small-copy">Draft only · not publicly visible</span></div>
+    {blocks.map((block, index) => {
+      const key = `${block.type ?? "unknown"}-${index}`;
+      const heading = block.title ? <h4>{block.title}</h4> : null;
+      const body = typeof block.body === "string" ? block.body : null;
+      switch (block.type) {
+        case "markdown": case "section": case "overview": case "objectives":
+        case "prerequisites": case "explanation": case "tradeoffs":
+        case "commonMistakes": case "troubleshooting": case "followUps":
+          return <article key={key}>{heading}{body && <p>{body}</p>}</article>;
+        case "callout":
+          return <aside key={key} className="notice info">{heading}{body}</aside>;
+        case "code":
+          return <article key={key}>{heading}<small>{block.language?.toUpperCase() ?? "CODE"}</small>
+            <pre><code>{block.source ?? ""}</code></pre></article>;
+        case "list":
+          return <article key={key}>{heading}<ul>{(block.items ?? []).map((item, i) => <li key={i}>{item}</li>)}</ul></article>;
+        case "interviewAnswer": {
+          const points = Array.isArray(block.body) ? block.body : block.points ?? [];
+          return <article key={key}>{heading}<ol>{points.map((point, i) => <li key={i}>{point}</li>)}</ol>
+            {block.expandedExplanation && <p>{block.expandedExplanation}</p>}</article>;
+        }
+        case "diagram":
+          return <article key={key}>{heading}<pre><code>{block.source ?? ""}</code></pre></article>;
+        case "image":
+          return block.url?.startsWith("https://") && block.alt
+            ? <figure key={key}>{heading}<img src={block.url} alt={block.alt} loading="lazy" />
+                {block.caption && <figcaption>{block.caption}</figcaption>}</figure> : null;
+        case "video": case "resourceLink":
+          return block.url?.startsWith("https://")
+            ? <article key={key}>{heading}<a href={block.url} target="_blank" rel="noreferrer">{block.label ?? block.alt ?? "Open resource"}</a>
+                {block.caption && <p>{block.caption}</p>}</article> : null;
+        default:
+          return null;
+      }
+    })}
+    {blocks.length === 0 && <p className="muted">No lesson blocks to preview.</p>}
+  </section>;
+}
+
