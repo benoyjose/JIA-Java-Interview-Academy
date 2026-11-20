@@ -376,6 +376,22 @@ paths:
         '204': { description: Identity linked }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /auth/federated/link/{provider}:
+    delete:
+      summary: Unlink a Google or Apple identity from the authenticated account
+      tags: [Authentication]
+      operationId: unlinkFederatedIdentity
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { type: string, enum: [google, apple] }
+      responses:
+        '204': { description: Identity unlinked }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/taxonomy/technologies:
     get:
       summary: List technologies for CMS taxonomy management
