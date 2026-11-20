@@ -1285,7 +1285,7 @@ paths:
                   id: { type: string, format: uuid }
                   slug: { type: string }
                   title: { type: string }
-                  summary: { type: string, nullable: true }
+                  summary: { type: [string, 'null'] }
                   difficulty: { type: string }
                   revisionNumber: { type: integer }
                   sourceType: { type: string }
