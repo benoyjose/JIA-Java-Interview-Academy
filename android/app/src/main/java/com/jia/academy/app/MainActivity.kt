@@ -327,23 +327,28 @@ private fun LessonScreen(
     modifier: Modifier
 ) {
     val context = LocalContext.current
-    var lesson by remember(slug) { mutableStateOf<LessonDetail?>(null) }
-    var loading by remember(slug) { mutableStateOf(true) }
-    var error by remember(slug) { mutableStateOf<String?>(null) }
+    val lessonViewModel: com.jia.academy.app.lesson.LessonViewModel = viewModel(
+        key = slug, factory = com.jia.academy.app.lesson.LessonViewModelFactory(repository)
+    )
+    val lessonState by lessonViewModel.state.collectAsStateWithLifecycle()
+    val lesson = lessonState.lesson
+    val loading = lessonState.loading
+    val error = lessonState.error
     var progressMessage by remember(slug) { mutableStateOf<String?>(null) }
     var bookmarked by remember(slug) { mutableStateOf(false) }
     var syncDiagnostics by remember { mutableStateOf<com.jia.academy.app.learning.OfflineSyncDiagnostics?>(null) }
     LaunchedEffect(slug) {
         bookmarked = OfflineLearningStore(context).isBookmarked(slug)
         syncDiagnostics = OfflineLearningStore(context).syncDiagnostics()
-        runCatching { repository.getLesson(BuildConfig.JIA_API_BASE_URL, slug) }
-            .onSuccess { lesson = it }.onFailure { error = it.message ?: "Unable to load lesson." }
-        loading = false
+        lessonViewModel.load(BuildConfig.JIA_API_BASE_URL, slug)
     }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
             loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(error ?: "Unable to load lesson.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { lessonViewModel.load(BuildConfig.JIA_API_BASE_URL, slug, force = true) }) { Text("Retry") }
+            }
             lesson != null -> {
                 Text(lesson!!.title, style = MaterialTheme.typography.headlineSmall)
                 Text("Difficulty: ${lesson!!.difficulty} · Source: ${lesson!!.sourceType}",
