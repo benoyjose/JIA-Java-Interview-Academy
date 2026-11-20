@@ -153,26 +153,7 @@ fun AuthScreen(
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(
             onClick = {
-                loading = true
-                error = null
-                scope.launch {
-                    runCatching {
-                        if (registering) repository.register(baseUrl, name.trim(), email.trim(), password)
-                        else repository.login(baseUrl, email.trim(), password)
-                    }.onSuccess { session ->
-                        runCatching {
-                            val userJson = org.json.JSONObject()
-                                .put("id", session.account.id)
-                                .put("name", session.account.name)
-                                .put("email", session.account.email)
-                                .put("roles", org.json.JSONArray(session.account.roles))
-                                .toString()
-                            SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
-                        }.onSuccess { onAuthenticated(session) }
-                            .onFailure { error = "Could not securely save this session." }
-                    }.onFailure { error = it.message ?: "Authentication failed." }
-                    loading = false
-                }
+                authViewModel.authenticate(baseUrl, registering, name, email, password)
             },
             enabled = !loading && email.isNotBlank() && password.isNotBlank() &&
                 (!registering || (name.isNotBlank() && password.length >= 12)),
@@ -180,10 +161,10 @@ fun AuthScreen(
         ) {
             if (loading) CircularProgressIndicator() else Text(if (registering) "Create account" else "Sign in")
         }
-        TextButton(onClick = { registering = !registering; error = null }) {
+        TextButton(onClick = { registering = !registering; authViewModel.setError(null) }) {
             Text(if (registering) "Already have an account? Sign in" else "New to JIA? Create an account")
         }
-        TextButton(onClick = { phoneMode = true; registering = false; error = null }) {
+        TextButton(onClick = { phoneMode = true; registering = false; authViewModel.resetOtp() }) {
             Text("Continue with phone number")
         }
         }
