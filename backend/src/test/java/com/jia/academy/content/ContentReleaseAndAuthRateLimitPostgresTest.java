@@ -111,13 +111,13 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         var created = taxonomy.create(editor, new TaxonomyAdminService.CategoryRequest(
                 "core-java", null, slug, "Test taxonomy", 99));
         assertThat(created.status()).isEqualTo("PUBLISHED");
-        assertThat(taxonomy.categories("core-java")).extracting(TaxonomyAdminService.CategoryItem::slug)
+        assertThat(taxonomy.categories("core-java", editor)).extracting(TaxonomyAdminService.CategoryItem::slug)
                 .contains(slug);
         var updated = taxonomy.update(editor, created.id(), new TaxonomyAdminService.CategoryRequest(
                 "core-java", null, slug + "-updated", "Updated taxonomy", 100));
         assertThat(updated.name()).isEqualTo("Updated taxonomy");
         taxonomy.archive(editor, created.id());
-        assertThat(taxonomy.categories("core-java").stream()
+        assertThat(taxonomy.categories("core-java", editor).stream()
                 .filter(item -> item.id().equals(created.id())).findFirst().orElseThrow().status())
                 .isEqualTo("ARCHIVED");
 
@@ -126,7 +126,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 technologySlug, "Test Technology", "Created by integration test", 999));
         assertThat(technology.status()).isEqualTo("PUBLISHED");
         taxonomy.archiveTechnology(editor, technology.id());
-        assertThat(taxonomy.technologies().stream().filter(item -> item.id().equals(technology.id()))
+        assertThat(taxonomy.technologies(admin).stream().filter(item -> item.id().equals(technology.id()))
                 .findFirst().orElseThrow().status()).isEqualTo("ARCHIVED");
     }
 
@@ -135,12 +135,12 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         String slug = "revision-history-" + UUID.randomUUID();
         var draft = authoring.createDraft(editor, request(slug, "History lesson"));
         UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
-        var beforeDecision = history.history(draft.id());
+        var beforeDecision = history.history(editor, draft.id());
         assertThat(beforeDecision).hasSize(1);
         assertThat(beforeDecision.getFirst().reviewStatus()).isEqualTo("PENDING");
         authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "History approved"));
         authoring.publish(admin, draft.id());
-        assertThat(history.history(draft.id()).getFirst().published()).isTrue();
+        assertThat(history.history(editor, draft.id()).getFirst().published()).isTrue();
     }
 
     @Test
@@ -215,7 +215,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,'test-hash','ACTIVE')",
                 id, name, email);
         jdbc.update("INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles WHERE code=?", id, role);
-        return new CurrentUser(id, name, email, List.of(role), List.of());
+        return new CurrentUser(id, name, email, List.of(role), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
     }
 
     private static LessonDraftRequest request(String slug, String title) {

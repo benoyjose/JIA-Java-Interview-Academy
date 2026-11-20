@@ -3,6 +3,7 @@ package com.jia.academy.content.service;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import com.jia.academy.security.CurrentUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,16 @@ public class LessonRevisionHistoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<RevisionHistoryItem> history(UUID lessonId) {
-        Boolean exists = jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM lessons WHERE id=?)",
-                Boolean.class, lessonId);
+    public List<RevisionHistoryItem> history(CurrentUser actor, UUID lessonId) {
+        UUID academyId = primaryAcademyId(actor);
+        Boolean exists = jdbc.queryForObject("""
+                SELECT EXISTS(
+                    SELECT 1 FROM lessons l
+                    JOIN categories c ON c.id=l.category_id
+                    JOIN technologies tech ON tech.id=c.technology_id
+                    WHERE l.id=? AND tech.academy_id=?
+                )
+                """, Boolean.class, lessonId, academyId);
         if (!Boolean.TRUE.equals(exists)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
         }
@@ -33,6 +41,8 @@ public class LessonRevisionHistoryService {
                        submitter.name AS submitted_by
                 FROM lesson_revisions r
                 JOIN lessons l ON l.id=r.lesson_id
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
                 LEFT JOIN users u ON u.id=r.changed_by
                 LEFT JOIN LATERAL (
                     SELECT t.status,t.review_comment,t.reviewed_at,t.submitted_by
@@ -41,7 +51,7 @@ public class LessonRevisionHistoryService {
                     ORDER BY t.submitted_at DESC,t.id DESC LIMIT 1
                 ) latest ON TRUE
                 LEFT JOIN users submitter ON submitter.id=latest.submitted_by
-                WHERE r.lesson_id=?
+                WHERE r.lesson_id=? AND tech.academy_id=?
                 ORDER BY r.revision_number DESC
                 """, (rs, row) -> new RevisionHistoryItem(
                 rs.getObject("id", UUID.class), rs.getInt("revision_number"), rs.getString("title"),
@@ -51,7 +61,14 @@ public class LessonRevisionHistoryService {
                 rs.getBoolean("is_published"), rs.getBoolean("is_current_draft"),
                 rs.getString("review_status"), rs.getString("review_comment"),
                 rs.getTimestamp("reviewed_at") == null ? null : rs.getTimestamp("reviewed_at").toInstant(),
-                rs.getString("submitted_by")), lessonId);
+                rs.getString("submitted_by")), lessonId, academyId);
+    }
+
+    private static UUID primaryAcademyId(CurrentUser actor) {
+        if (actor == null || actor.academyIds() == null || actor.academyIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return actor.academyIds().getFirst();
     }
 
     public record RevisionHistoryItem(UUID revisionId, int revisionNumber, String title, String summary,

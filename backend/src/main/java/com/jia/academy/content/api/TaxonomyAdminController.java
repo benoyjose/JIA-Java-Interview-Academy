@@ -25,8 +25,8 @@ public class TaxonomyAdminController {
     }
 
     @GetMapping("/technologies")
-    public List<TechnologyItem> technologies() {
-        return taxonomy.technologies();
+    public List<TechnologyItem> technologies(@AuthenticationPrincipal CurrentUser actor) {
+        return taxonomy.technologies(actor);
     }
 
     @PostMapping("/technologies")
@@ -49,8 +49,8 @@ public class TaxonomyAdminController {
     }
 
     @GetMapping("/categories")
-    public List<CategoryItem> categories(@RequestParam(required = false) String technology) {
-        return taxonomy.categories(technology);
+    public List<CategoryItem> categories(@AuthenticationPrincipal CurrentUser actor, @RequestParam(required = false) String technology) {
+        return taxonomy.categories(technology, actor);
     }
 
     @PostMapping("/categories")

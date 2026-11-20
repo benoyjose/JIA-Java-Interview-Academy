@@ -68,8 +68,8 @@ class QuizControllerPostgresIntegrationTest {
         jdbc = new JdbcTemplate(dataSource);
         controller = new QuizController(jdbc, new ObjectMapper());
         learnerLibrary = new LearnerLibraryController(jdbc, new ObjectMapper());
-        learnerOne = new CurrentUser(USER_ONE, "Learner One", "one@example.test", List.of("LEARNER"), List.of());
-        learnerTwo = new CurrentUser(USER_TWO, "Learner Two", "two@example.test", List.of("LEARNER"), List.of());
+        learnerOne = new CurrentUser(USER_ONE, "Learner One", "one@example.test", List.of("LEARNER"), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
+        learnerTwo = new CurrentUser(USER_TWO, "Learner Two", "two@example.test", List.of("LEARNER"), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
 
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,?, 'ACTIVE')",
                 USER_ONE, "Learner One", "one@example.test", "test-hash");

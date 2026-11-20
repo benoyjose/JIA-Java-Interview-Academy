@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, getStoredToken, storeToken, validateLessonContent } from "./client";
+import { api, getStoredToken, storeSession, storeToken, validateLessonContent } from "./client";
 
 const sessionValues = new Map<string, string>();
 beforeEach(() => {
@@ -68,6 +68,42 @@ describe("admin API client", () => {
     )));
     await expect(api.me()).rejects.toMatchObject({ status: 401, code: "UNAUTHENTICATED" });
     expect(getStoredToken()).toBeNull();
+  });
+
+
+  it("shares one refresh-token rotation across concurrent unauthorized requests", async () => {
+    storeSession("expired-token", "refresh-old");
+    let resolveRefresh!: (response: Response) => void;
+    const refreshResponse = new Promise<Response>(resolve => { resolveRefresh = resolve; });
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/auth/refresh")) return refreshResponse;
+      const authorization = new Headers(init?.headers).get("Authorization");
+      if (authorization === "Bearer expired-token") {
+        return new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), { status: 401 });
+      }
+      return new Response(JSON.stringify({ id: "u-1", name: "Admin", email: null, roles: ["ADMIN"] }), {
+        status: 200, headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = api.me();
+    const second = api.me();
+    await Promise.resolve();
+    await Promise.resolve();
+    resolveRefresh(new Response(JSON.stringify({
+      accessToken: "fresh-token", refreshToken: "refresh-new", tokenType: "Bearer",
+      expiresAt: "2026-11-20T12:00:00Z",
+      user: { id: "u-1", name: "Admin", email: null, roles: ["ADMIN"] },
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+
+    const [a, b] = await Promise.all([first, second]);
+    expect(a.id).toBe("u-1");
+    expect(b.id).toBe("u-1");
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/refresh"))).toHaveLength(1);
+    expect(getStoredToken()).toBe("fresh-token");
+    expect(sessionValues.get("jia.admin.refresh-token")).toBe("refresh-new");
   });
 
   it("validates the lesson document contract without accepting non-object JSON", () => {

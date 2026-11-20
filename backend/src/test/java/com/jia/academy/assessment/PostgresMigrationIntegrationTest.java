@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(20);
+        assertThat(result.migrationsExecuted).isEqualTo(21);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
@@ -141,6 +141,26 @@ class PostgresMigrationIntegrationTest {
                     """)) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt("index_count")).isEqualTo(7);
+            }
+
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='academy_memberships'")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public' AND trigger_name='trg_users_default_academy_membership'")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname IN ('idx_academy_memberships_academy_status_user','idx_academy_memberships_user_status','uq_academy_memberships_one_default')")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(3);
+            }
+            try (var statement2 = connection.prepareStatement("INSERT INTO users(id,name,email,password_hash,status) VALUES (gen_random_uuid(),'Membership Test','membership-trigger@example.test','test-hash','ACTIVE')")) {
+                statement2.executeUpdate();
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM academy_memberships am JOIN users u ON u.id=am.user_id JOIN academies a ON a.id=am.academy_id WHERE u.email='membership-trigger@example.test' AND a.code='JIA' AND am.status='ACTIVE' AND am.is_default=TRUE")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
             }
         } catch (Exception ex) {
             throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);

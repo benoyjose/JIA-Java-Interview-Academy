@@ -124,19 +124,19 @@ class ContentAuthoringPostgresIntegrationTest {
     void adminCanReloadDraftAndReviewerCanInspectExactSubmittedRevision() throws Exception {
         String slug = "admin-read-" + UUID.randomUUID();
         var draft = service.createDraft(editor, request(slug, "Read API draft"));
-        var detail = service.authoringDetail(draft.id());
+        var detail = service.authoringDetail(editor, draft.id());
         assertThat(detail.title()).isEqualTo("Read API draft");
         assertThat(new ObjectMapper().readTree(detail.contentJson()).path("schemaVersion").asInt()).isEqualTo(1);
         assertThat(detail.editingDraft()).isTrue();
 
-        var list = service.adminLessons("DRAFT", null, 0, 25).items();
+        var list = service.adminLessons(editor, "DRAFT", null, 0, 25).items();
         assertThat(list).anySatisfy(item -> {
             assertThat(item.id()).isEqualTo(draft.id());
             assertThat(item.status()).isEqualTo("DRAFT");
         });
 
         UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
-        var review = service.reviewDetail(taskId);
+        var review = service.reviewDetail(reviewer, taskId);
         assertThat(review.lessonId()).isEqualTo(draft.id());
         assertThat(review.revisionId()).isNotNull();
         assertThat(review.title()).isEqualTo("Read API draft");
@@ -152,8 +152,8 @@ class ContentAuthoringPostgresIntegrationTest {
         service.submitForReview(editor, first.id());
         service.submitForReview(editor, second.id());
 
-        var lessonsPage0 = service.adminLessons(null, query, 0, 1);
-        var lessonsPage1 = service.adminLessons(null, query, 1, 1);
+        var lessonsPage0 = service.adminLessons(editor, null, query, 0, 1);
+        var lessonsPage1 = service.adminLessons(editor, null, query, 1, 1);
         assertThat(lessonsPage0.totalItems()).isEqualTo(2);
         assertThat(lessonsPage0.totalPages()).isEqualTo(2);
         assertThat(lessonsPage0.items()).hasSize(1);
@@ -161,8 +161,8 @@ class ContentAuthoringPostgresIntegrationTest {
         assertThat(lessonsPage0.items().getFirst().id())
                 .isNotEqualTo(lessonsPage1.items().getFirst().id());
 
-        var reviewsPage0 = service.reviewQueue(query, 0, 1);
-        var reviewsPage1 = service.reviewQueue(query, 1, 1);
+        var reviewsPage0 = service.reviewQueue(reviewer, query, 0, 1);
+        var reviewsPage1 = service.reviewQueue(reviewer, query, 1, 1);
         assertThat(reviewsPage0.totalItems()).isEqualTo(2);
         assertThat(reviewsPage0.totalPages()).isEqualTo(2);
         assertThat(reviewsPage0.items()).hasSize(1);
@@ -170,9 +170,9 @@ class ContentAuthoringPostgresIntegrationTest {
         assertThat(reviewsPage0.items().getFirst().taskId())
                 .isNotEqualTo(reviewsPage1.items().getFirst().taskId());
 
-        assertThatThrownBy(() -> service.adminLessons(null, null, -1, 25))
+        assertThatThrownBy(() -> service.adminLessons(editor, null, null, -1, 25))
                 .isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> service.reviewQueue(null, 0, 101))
+        assertThatThrownBy(() -> service.reviewQueue(reviewer, null, 0, 101))
                 .isInstanceOf(ResponseStatusException.class);
     }
 
@@ -185,7 +185,7 @@ class ContentAuthoringPostgresIntegrationTest {
         service.publish(admin, initial.id());
 
         service.updateDraft(editor, initial.id(), request(slug, "Draft v2"));
-        var detail = service.authoringDetail(initial.id());
+        var detail = service.authoringDetail(editor, initial.id());
         assertThat(detail.title()).isEqualTo("Draft v2");
         assertThat(detail.editingDraft()).isTrue();
         assertThat(detail.publishedRevision()).isEqualTo(1);
@@ -314,7 +314,7 @@ class ContentAuthoringPostgresIntegrationTest {
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,'test-hash','ACTIVE')",
                 id, name, email);
         jdbc.update("INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles WHERE code=?", id, role);
-        return new CurrentUser(id, name, email, List.of(role), List.of());
+        return new CurrentUser(id, name, email, List.of(role), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
     }
 
     private static LessonDraftRequest request(String slug, String title) {

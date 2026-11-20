@@ -24,34 +24,32 @@ public class TaxonomyAdminService {
     public TechnologyItem createTechnology(CurrentUser actor, TechnologyRequest request) {
         validateTechnologyRequest(request);
         UUID id = UUID.randomUUID();
-        UUID academyId = jdbc.query("SELECT id FROM academies WHERE code='JIA' AND status='ACTIVE'",
-                (rs, row) -> rs.getObject(1, UUID.class)).stream().findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Default JIA academy is not configured"));
+        UUID academyId = primaryAcademyId(actor);
         jdbc.update("""
                 INSERT INTO technologies(id,academy_id,slug,name,description,sort_order,status,created_at,updated_at)
                 VALUES (?,?,?,?,?,?,'PUBLISHED',now(),now())
                 """, id, academyId, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
                 request.description(), request.sortOrder());
         audit(actor, "TAXONOMY_TECHNOLOGY_CREATED", "TECHNOLOGY", id);
-        return technologies().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+        return technologies(actor).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 
     @Transactional
     public TechnologyItem updateTechnology(CurrentUser actor, UUID id, TechnologyRequest request) {
         validateTechnologyRequest(request);
-        TechnologyItem current = technologies().stream().filter(item -> item.id().equals(id)).findFirst()
+        TechnologyItem current = technologies(actor).stream().filter(item -> item.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found"));
         jdbc.update("""
-                UPDATE technologies SET slug=?,name=?,description=?,sort_order=?,updated_at=now() WHERE id=?
+                UPDATE technologies SET slug=?,name=?,description=?,sort_order=?,updated_at=now() WHERE id=? AND academy_id=?
                 """, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
-                request.description(), request.sortOrder(), id);
+                request.description(), request.sortOrder(), id, primaryAcademyId(actor));
         audit(actor, "TAXONOMY_TECHNOLOGY_UPDATED", "TECHNOLOGY", id);
-        return technologies().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+        return technologies(actor).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 
     @Transactional
     public void archiveTechnology(CurrentUser actor, UUID id) {
-        TechnologyItem current = technologies().stream().filter(item -> item.id().equals(id)).findFirst()
+        TechnologyItem current = technologies(actor).stream().filter(item -> item.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found"));
         Integer categories = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE technology_id=? AND status <> 'ARCHIVED'",
                 Integer.class, id);
@@ -59,22 +57,23 @@ public class TaxonomyAdminService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Archive or move all categories before archiving this technology");
         }
-        jdbc.update("UPDATE technologies SET status='ARCHIVED',updated_at=now() WHERE id=?", id);
+        jdbc.update("UPDATE technologies SET status='ARCHIVED',updated_at=now() WHERE id=? AND academy_id=?", id, primaryAcademyId(actor));
         audit(actor, "TAXONOMY_TECHNOLOGY_ARCHIVED", "TECHNOLOGY", id);
     }
 
     @Transactional(readOnly = true)
-    public List<TechnologyItem> technologies() {
+    public List<TechnologyItem> technologies(CurrentUser actor) {
         return jdbc.query("""
                 SELECT id, slug, name, description, sort_order, status
-                FROM technologies ORDER BY sort_order, name
+                FROM technologies WHERE academy_id=? ORDER BY sort_order, name
                 """, (rs, row) -> new TechnologyItem(
                 rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("name"),
-                rs.getString("description"), rs.getInt("sort_order"), rs.getString("status")));
+                rs.getString("description"), rs.getInt("sort_order"), rs.getString("status")),
+                primaryAcademyId(actor));
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryItem> categories(String technologySlug) {
+    public List<CategoryItem> categories(String technologySlug, CurrentUser actor) {
         return jdbc.query("""
                 SELECT c.id, c.technology_id, t.slug AS technology_slug, c.parent_id,
                        p.slug AS parent_slug, c.slug, c.name, c.sort_order, c.status,
@@ -83,22 +82,21 @@ public class TaxonomyAdminService {
                 FROM categories c
                 JOIN technologies t ON t.id=c.technology_id
                 LEFT JOIN categories p ON p.id=c.parent_id
-                WHERE t.slug = COALESCE(CAST(? AS VARCHAR), t.slug)
+                WHERE t.academy_id=? AND t.slug = COALESCE(CAST(? AS VARCHAR), t.slug)
                 ORDER BY t.sort_order, c.sort_order, c.name
                 """, (rs, row) -> new CategoryItem(
                 rs.getObject("id", UUID.class), rs.getObject("technology_id", UUID.class),
                 rs.getString("technology_slug"), rs.getObject("parent_id", UUID.class),
                 rs.getString("parent_slug"), rs.getString("slug"), rs.getString("name"),
                 rs.getInt("sort_order"), rs.getString("status"),
-                rs.getLong("lesson_count"), rs.getLong("question_count")),
-                technologySlug);
+                rs.getLong("lesson_count"), rs.getLong("question_count")), primaryAcademyId(actor), technologySlug);
     }
 
     @Transactional
     public CategoryItem create(CurrentUser actor, CategoryRequest request) {
         validateRequest(request);
-        UUID technologyId = technologyId(request.technologySlug());
-        UUID parentId = validateParent(request.parentId(), technologyId, null);
+        UUID technologyId = technologyId(request.technologySlug(), actor);
+        UUID parentId = validateParent(request.parentId(), technologyId, null, actor);
         UUID id = UUID.randomUUID();
         try {
             jdbc.update("""
@@ -110,18 +108,18 @@ public class TaxonomyAdminService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A category with this slug already exists");
         }
         audit(actor, "TAXONOMY_CATEGORY_CREATED", "CATEGORY", id);
-        return categories(null).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+        return categories(null, actor).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 
     @Transactional
     public CategoryItem update(CurrentUser actor, UUID id, CategoryRequest request) {
         validateRequest(request);
-        CategoryItem current = categories(null).stream().filter(item -> item.id().equals(id)).findFirst()
+        CategoryItem current = categories(null, actor).stream().filter(item -> item.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         if ("ARCHIVED".equals(current.status())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived categories cannot be edited");
         }
-        UUID technologyId = technologyId(request.technologySlug());
+        UUID technologyId = technologyId(request.technologySlug(), actor);
         if (!current.technologyId().equals(technologyId)) {
             Integer children = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE parent_id=?", Integer.class, id);
             if (children != null && children > 0) {
@@ -129,24 +127,24 @@ public class TaxonomyAdminService {
                         "Move child categories before moving a parent to another technology");
             }
         }
-        UUID parentId = validateParent(request.parentId(), technologyId, id);
+        UUID parentId = validateParent(request.parentId(), technologyId, id, actor);
         try {
             int changed = jdbc.update("""
                     UPDATE categories SET technology_id=?,parent_id=?,slug=?,name=?,sort_order=?,updated_at=now()
-                    WHERE id=? AND status<>'ARCHIVED'
+                    WHERE id=? AND status<>'ARCHIVED' AND technology_id IN (SELECT id FROM technologies WHERE academy_id=?)
                     """, technologyId, parentId, normalizeSlug(request.slug()), request.name().trim(),
-                    request.sortOrder(), id);
+                    request.sortOrder(), id, primaryAcademyId(actor));
             if (changed == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found");
         } catch (org.springframework.dao.DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A category with this slug already exists");
         }
         audit(actor, "TAXONOMY_CATEGORY_UPDATED", "CATEGORY", id);
-        return categories(null).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+        return categories(null, actor).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 
     @Transactional
     public void archive(CurrentUser actor, UUID id) {
-        CategoryItem category = categories(null).stream().filter(item -> item.id().equals(id)).findFirst()
+        CategoryItem category = categories(null, actor).stream().filter(item -> item.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         Integer children = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM categories WHERE parent_id=? AND status<>'ARCHIVED'", Integer.class, id);
@@ -157,8 +155,15 @@ public class TaxonomyAdminService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Categories containing lessons or questions cannot be archived; move content first");
         }
-        jdbc.update("UPDATE categories SET status='ARCHIVED',updated_at=now() WHERE id=?", id);
+        jdbc.update("UPDATE categories SET status='ARCHIVED',updated_at=now() WHERE id=? AND technology_id IN (SELECT id FROM technologies WHERE academy_id=?)", id, primaryAcademyId(actor));
         audit(actor, "TAXONOMY_CATEGORY_ARCHIVED", "CATEGORY", id);
+    }
+
+    private static UUID primaryAcademyId(CurrentUser actor) {
+        if (actor.academyIds() == null || actor.academyIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return actor.academyIds().getFirst();
     }
 
     private static void validateTechnologyRequest(TechnologyRequest request) {
@@ -178,21 +183,22 @@ public class TaxonomyAdminService {
         }
     }
 
-    private UUID technologyId(String slug) {
-        return jdbc.query("SELECT id FROM technologies WHERE slug=? AND status<>'ARCHIVED'",
-                (rs, row) -> rs.getObject(1, UUID.class), slug.trim())
+    private UUID technologyId(String slug, CurrentUser actor) {
+        return jdbc.query("SELECT id FROM technologies WHERE slug=? AND status<>'ARCHIVED' AND academy_id=?",
+                (rs, row) -> rs.getObject(1, UUID.class), slug.trim(), primaryAcademyId(actor))
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found"));
     }
 
-    private UUID validateParent(UUID parentId, UUID technologyId, UUID selfId) {
+    private UUID validateParent(UUID parentId, UUID technologyId, UUID selfId, CurrentUser actor) {
         if (parentId == null) return null;
         if (parentId.equals(selfId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A category cannot be its own parent");
         }
         var parents = jdbc.query("""
-                SELECT technology_id FROM categories WHERE id=? AND status<>'ARCHIVED'
-                """, (rs, row) -> rs.getObject(1, UUID.class), parentId);
+                SELECT c.technology_id FROM categories c JOIN technologies t ON t.id=c.technology_id
+                WHERE c.id=? AND c.status<>'ARCHIVED' AND t.academy_id=?
+                """, (rs, row) -> rs.getObject(1, UUID.class), parentId, primaryAcademyId(actor));
         if (parents.isEmpty() || !technologyId.equals(parents.getFirst())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Parent category must exist under the selected technology");
@@ -222,9 +228,10 @@ public class TaxonomyAdminService {
 
     private void audit(CurrentUser actor, String action, String entityType, UUID id) {
         jdbc.update("""
-                INSERT INTO audit_events(id,actor_user_id,action,entity_type,entity_id,metadata_json,occurred_at)
-                VALUES (?,?,?,?,?,jsonb_build_object('source','admin-taxonomy'),?)
-                """, UUID.randomUUID(), actor.id(), action, entityType, id, Timestamp.from(Instant.now()));
+                INSERT INTO audit_events(id,actor_user_id,academy_id,action,entity_type,entity_id,metadata_json,occurred_at)
+                VALUES (?,?,?,?,?,?,jsonb_build_object('source','admin-taxonomy'),?)
+                """, UUID.randomUUID(), actor.id(), primaryAcademyId(actor), action, entityType, id,
+                Timestamp.from(Instant.now()));
     }
 
     public record TechnologyRequest(String slug, String name, String description, int sortOrder) {}
