@@ -104,14 +104,49 @@ class OfflineLearningStore(context: Context) :
         require(contentRevision > 0)
         require(progressPercent in 0.0..100.0)
         if (lastPositionJson != null) org.json.JSONObject(lastPositionJson)
-        val values = ContentValues().apply {
-            put("lesson_slug", lessonSlug)
-            put("content_revision", contentRevision)
-            put("progress_percent", progressPercent)
-            put("last_position_json", lastPositionJson)
-            put("updated_at", System.currentTimeMillis())
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            var mergedRevision = contentRevision
+            var mergedPercent = progressPercent
+            var mergedPosition = lastPositionJson
+            db.query(
+                "pending_progress",
+                arrayOf("content_revision", "progress_percent", "last_position_json"),
+                "lesson_slug=?",
+                arrayOf(lessonSlug),
+                null, null, null
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    mergedRevision = maxOf(contentRevision, cursor.getInt(0))
+                    mergedPercent = maxOf(progressPercent, cursor.getDouble(1))
+                    if (mergedPosition == null) mergedPosition = cursor.getString(2)
+                }
+            }
+            val values = ContentValues().apply {
+                put("lesson_slug", lessonSlug)
+                put("content_revision", mergedRevision)
+                put("progress_percent", mergedPercent)
+                put("last_position_json", mergedPosition)
+                put("updated_at", System.currentTimeMillis())
+            }
+            db.insertWithOnConflict("pending_progress", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
-        writableDatabase.insertWithOnConflict("pending_progress", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun enqueueProgressAndSchedule(
+        context: Context,
+        baseUrl: String,
+        lessonSlug: String,
+        contentRevision: Int,
+        progressPercent: Double,
+        lastPositionJson: String? = null
+    ) {
+        enqueueProgress(lessonSlug, contentRevision, progressPercent, lastPositionJson)
+        LearnerSyncScheduler.enqueue(context, baseUrl)
     }
 
     fun pendingProgress(): List<PendingLessonProgress> =
