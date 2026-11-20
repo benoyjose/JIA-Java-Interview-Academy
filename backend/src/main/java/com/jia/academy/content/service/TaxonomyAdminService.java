@@ -26,7 +26,7 @@ public class TaxonomyAdminService {
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO technologies(id,slug,name,description,sort_order,status,created_at,updated_at)
-                VALUES (?,?,?,?,?,'DRAFT',now(),now())
+                VALUES (?,?,?,?,?,'PUBLISHED',now(),now())
                 """, id, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
                 request.description(), request.sortOrder());
         audit(actor, "TAXONOMY_TECHNOLOGY_CREATED", "TECHNOLOGY", id);
