@@ -61,14 +61,14 @@ object LessonContentParser {
             "tradeoffs", "commonMistakes", "troubleshooting", "followUps" ->
                 item.optString("body").takeIf(String::isNotBlank)?.let { LessonBlock.Section(key, title, it) }
             "list" -> item.optJSONArray("items")?.strings()?.filter(String::isNotBlank)
-                ?.takeIf(List<String>::isNotEmpty)?.let { LessonBlock.BulletList(key, title, it) }
+                ?.takeIf { it.isNotEmpty() }?.let { LessonBlock.BulletList(key, title, it) }
             "diagram" -> item.optString("source").takeIf(String::isNotBlank)?.let {
                 LessonBlock.Diagram(key, title, item.optString("language", "mermaid"), it)
             }
             "resourceLink" -> {
                 val url = item.optString("url")
                 val scheme = runCatching { java.net.URI(url).scheme?.lowercase() }.getOrNull()
-                if (scheme !in setOf("https", "http")) null
+                if (scheme != "https" && scheme != "http") null
                 else LessonBlock.ResourceLink(key, title, item.optString("label").ifBlank { url }, url)
             }
             "interviewAnswer" -> {
