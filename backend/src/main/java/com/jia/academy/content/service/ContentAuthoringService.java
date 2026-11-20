@@ -185,6 +185,31 @@ public class ContentAuthoringService {
     }
 
     @Transactional(readOnly = true)
+    public LessonPreviewResponse preview(CurrentUser actor, UUID lessonId) {
+        return jdbc.query("""
+                SELECT l.id,l.slug,r.title,r.summary,r.difficulty,r.revision_number,
+                       r.source_type,r.content_json::text AS content_json,l.status
+                FROM lessons l
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                JOIN lesson_revisions r ON r.id=COALESCE(
+                    l.draft_revision_id,
+                    CASE WHEN l.status IN ('PUBLISHED','ARCHIVED') THEN l.published_revision_id
+                         ELSE (SELECT revision.id FROM lesson_revisions revision
+                               WHERE revision.lesson_id=l.id
+                                 AND revision.revision_number=l.content_revision
+                               LIMIT 1)
+                    END)
+                WHERE l.id=? AND tech.academy_id=?
+                """, (rs, row) -> new LessonPreviewResponse(
+                rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
+                rs.getString("summary"), rs.getString("difficulty"), rs.getInt("revision_number"),
+                rs.getString("source_type"), rs.getString("content_json"), true, rs.getString("status")),
+                lessonId, primaryAcademyId(actor)).stream().findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
+    }
+
+    @Transactional(readOnly = true)
     public LessonAuthoringDetail authoringDetail(CurrentUser actor, UUID lessonId) {
         return jdbc.query("""
                 SELECT l.id,l.slug,l.status,l.updated_at,c.slug AS category_slug,
