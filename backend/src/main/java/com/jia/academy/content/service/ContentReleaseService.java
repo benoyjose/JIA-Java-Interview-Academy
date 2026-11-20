@@ -91,7 +91,7 @@ public class ContentReleaseService {
                 JOIN lessons l ON l.id=(item.value->>'id')::uuid
                 JOIN lesson_revisions r ON r.lesson_id=l.id
                     AND r.revision_number=(item.value->>'contentRevision')::integer
-                WHERE cr.version=? AND l.slug=? AND l.status='PUBLISHED'
+                WHERE cr.version=? AND l.slug=?
                 """, (rs, row) -> new LessonDetailResponse(
                 rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
                 rs.getString("summary"), rs.getString("difficulty"), rs.getInt("revision_number"),
