@@ -364,6 +364,50 @@ public class ContentAuthoringService {
     }
 
     @Transactional
+    public Map<String, Object> unpublish(CurrentUser actor, UUID lessonId) {
+        var states = jdbc.query("""
+                SELECT l.status, l.published_revision_id, l.draft_revision_id
+                FROM lessons l
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                WHERE l.id=? AND tech.academy_id=?
+                FOR UPDATE OF l
+                """, (rs, row) -> new UnpublishState(rs.getString("status"),
+                rs.getObject("published_revision_id", UUID.class),
+                rs.getObject("draft_revision_id", UUID.class)), lessonId, primaryAcademyId(actor));
+        if (states.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
+        }
+        UnpublishState state = states.getFirst();
+        if (!"PUBLISHED".equals(state.status()) || state.publishedRevisionId() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a published lesson can be unpublished");
+        }
+        if (state.draftRevisionId() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Resolve the pending draft revision before unpublishing this lesson");
+        }
+        Integer pendingReviews = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM content_review_tasks
+                WHERE lesson_id=? AND status='PENDING'
+                """, Integer.class, lessonId);
+        if (pendingReviews != null && pendingReviews > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Resolve pending review tasks before unpublishing this lesson");
+        }
+        int changed = jdbc.update("""
+                UPDATE lessons SET status='DRAFT',updated_at=now()
+                WHERE id=? AND status='PUBLISHED' AND draft_revision_id IS NULL
+                """, lessonId);
+        if (changed != 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lesson unpublish did not complete");
+        }
+        audit(actor, "LESSON_UNPUBLISHED", lessonId,
+                Map.of("publishedRevisionId", state.publishedRevisionId().toString()));
+        return Map.of("lessonId", lessonId, "publishedRevisionId", state.publishedRevisionId(),
+                "status", "DRAFT");
+    }
+
+    @Transactional
     public Map<String, Object> archive(CurrentUser actor, UUID lessonId) {
         var states = jdbc.query("""
                 SELECT l.status
@@ -520,6 +564,8 @@ public class ContentAuthoringService {
     private record LessonReviewState(String status, int contentRevision, UUID draftRevisionId) {}
     private record ReviewTaskOwner(UUID lessonId, UUID submittedBy, UUID revisionId, String lessonStatus) {}
     private record PublishState(String status, UUID draftRevisionId) {}
+
+    private record UnpublishState(String status, UUID publishedRevisionId, UUID draftRevisionId) {}
     private record PublishedLessonState(String slug, int contentRevision, UUID draftRevisionId, String categorySlug) {}
 
 

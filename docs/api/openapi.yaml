@@ -1261,6 +1261,23 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}/unpublish:
+    post:
+      summary: Remove a published lesson from the public catalogue while retaining its published revision
+      tags: [Content Admin]
+      operationId: unpublishLesson
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Lesson unpublished; revision history is retained }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/lessons/{lessonId}/publish:
     post:
       summary: Publish an approved lesson
