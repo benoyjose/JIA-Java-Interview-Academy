@@ -222,6 +222,50 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void unpublishRemovesLessonFromPublicLifecycleAndRetainsPublishedRevision() {
+        String slug = "unpublish-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Published then unpublished"));
+        UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+        service.decideReview(reviewer, taskId, new ReviewDecisionRequest("APPROVE", "Approved"));
+        service.publish(admin, draft.id());
+
+        UUID publishedRevision = jdbc.queryForObject(
+                "SELECT published_revision_id FROM lessons WHERE id=?", UUID.class, draft.id());
+        var result = service.unpublish(admin, draft.id());
+
+        assertThat(result.get("status")).isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
+                .isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, draft.id())).isEqualTo(publishedRevision);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM lesson_revisions WHERE lesson_id=?",
+                Integer.class, draft.id())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("""
+                SELECT academy_id FROM audit_events
+                WHERE entity_id=? AND action='LESSON_UNPUBLISHED'
+                ORDER BY occurred_at DESC LIMIT 1
+                """, UUID.class, draft.id()))
+                .isEqualTo(UUID.fromString("50000000-0000-0000-0000-000000000001"));
+    }
+
+    @Test
+    void cannotUnpublishLessonWithAnUnreviewedDraftRevision() {
+        String slug = "unpublish-draft-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Initial published"));
+        UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+        service.decideReview(reviewer, taskId, new ReviewDecisionRequest("APPROVE", "Approved"));
+        service.publish(admin, draft.id());
+        service.updateDraft(editor, draft.id(), request(slug, "Pending changes"));
+
+        assertThatThrownBy(() -> service.unpublish(admin, draft.id()))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(409));
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
+                .isEqualTo("PUBLISHED");
+    }
+
+    @Test
     void archiveRemovesPublishedLessonFromPublicLifecycleWithoutDeletingRevisionHistory() {
         String slug = "archive-published-" + UUID.randomUUID();
         var draft = service.createDraft(editor, request(slug, "Published then archived"));
