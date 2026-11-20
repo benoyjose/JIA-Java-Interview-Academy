@@ -37,9 +37,12 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                 List<CurrentUser> users = jdbc.query("""
                     SELECT u.id, u.name, u.email,
                            COALESCE(array_agg(DISTINCT r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::varchar[]) AS roles,
-                           COALESCE(array_agg(DISTINCT p.code) FILTER (WHERE p.code IS NOT NULL), ARRAY[]::varchar[]) AS permissions
+                           COALESCE(array_agg(DISTINCT p.code) FILTER (WHERE p.code IS NOT NULL), ARRAY[]::varchar[]) AS permissions,
+                           COALESCE(array_agg(DISTINCT am.academy_id) FILTER (WHERE am.academy_id IS NOT NULL), ARRAY[]::uuid[]) AS academy_ids
                     FROM api_tokens t
                     JOIN users u ON u.id = t.user_id
+                    JOIN academy_memberships am ON am.user_id = u.id AND am.status = 'ACTIVE'
+                    JOIN academies a ON a.id = am.academy_id AND a.status = 'ACTIVE'
                     LEFT JOIN user_roles ur ON ur.user_id = u.id
                     LEFT JOIN roles r ON r.id = ur.role_id
                     LEFT JOIN role_permissions rp ON rp.role_id = r.id
@@ -50,7 +53,8 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                     """, (rs, rowNum) -> new CurrentUser(
                         rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("email"),
                         List.of((String[]) rs.getArray("roles").getArray()),
-                        List.of((String[]) rs.getArray("permissions").getArray())
+                        List.of((String[]) rs.getArray("permissions").getArray()),
+                        List.of((UUID[]) rs.getArray("academy_ids").getArray())
                     ), hash, Timestamp.from(Instant.now()));
 
                 if (!users.isEmpty()) {
