@@ -153,7 +153,14 @@ class PostgresMigrationIntegrationTest {
             }
             try (var rows = statement.executeQuery("SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname IN ('idx_academy_memberships_academy_status_user','idx_academy_memberships_user_status','uq_academy_memberships_one_default')")) {
                 assertThat(rows.next()).isTrue();
-                assertThat(rows.getInt(1)).isEqualTo(2);
+                assertThat(rows.getInt(1)).isEqualTo(3);
+            }
+            try (var statement2 = connection.prepareStatement("INSERT INTO users(id,name,email,password_hash,status) VALUES (gen_random_uuid(),'Membership Test','membership-trigger@example.test','test-hash','ACTIVE')")) {
+                statement2.executeUpdate();
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM academy_memberships am JOIN users u ON u.id=am.user_id JOIN academies a ON a.id=am.academy_id WHERE u.email='membership-trigger@example.test' AND a.code='JIA' AND am.status='ACTIVE' AND am.is_default=TRUE")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
             }
         } catch (Exception ex) {
             throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
