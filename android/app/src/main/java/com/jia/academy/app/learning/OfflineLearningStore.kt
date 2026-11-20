@@ -22,6 +22,16 @@ data class PendingLessonProgress(
 /** Small transactional cache for last-known-good lessons and queued learner progress. */
 class OfflineLearningStore(context: Context) :
     SQLiteOpenHelper(context.applicationContext, "jia-offline-learning.db", null, 2) {
+    private val appContext = context.applicationContext
+
+    fun downloadsOnMeteredNetwork(): Boolean =
+        appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+            .getBoolean("downloads_on_metered_network", false)
+
+    fun setDownloadsOnMeteredNetwork(enabled: Boolean) {
+        appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+            .edit().putBoolean("downloads_on_metered_network", enabled).apply()
+    }
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
