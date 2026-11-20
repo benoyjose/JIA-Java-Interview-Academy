@@ -9,13 +9,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun LessonContentRenderer(raw: String) {
+    val clipboard = LocalClipboardManager.current
     val document = runCatching { LessonContentParser.parse(raw) }.getOrNull()
     if (document == null) {
         Text("This lesson uses an unsupported or invalid content format.")
@@ -61,6 +69,9 @@ fun LessonContentRenderer(raw: String) {
                             )
                             Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                            TextButton(onClick = { clipboard.setText(AnnotatedString(block.source)) }) {
+                                Text("Copy code")
+                            }
                             block.explanation?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                         }
                     }
@@ -71,16 +82,7 @@ fun LessonContentRenderer(raw: String) {
                         Text(block.body, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                is LessonBlock.InterviewAnswer -> Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(block.title ?: "Interview answer", style = MaterialTheme.typography.titleMedium)
-                        Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"))
-                        block.expandedExplanation?.let {
-                            Text("Expanded explanation", style = MaterialTheme.typography.titleSmall)
-                            Text(it, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
+                is LessonBlock.InterviewAnswer -> InterviewAnswerCard(block)
             }
         }
         if (document.skippedBlockCount > 0) {
@@ -96,5 +98,22 @@ private fun LessonTextBlock(title: String?, body: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         title?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
         Text(markdownToAnnotatedString(body), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun InterviewAnswerCard(block: LessonBlock.InterviewAnswer) {
+    var expanded by remember(block.key) { mutableStateOf(false) }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(block.title ?: "Interview answer", style = MaterialTheme.typography.titleMedium)
+            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"))
+            block.expandedExplanation?.let {
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Hide detailed explanation" else "Show detailed explanation")
+                }
+                if (expanded) Text(it, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
