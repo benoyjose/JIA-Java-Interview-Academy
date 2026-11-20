@@ -36,6 +36,11 @@ public class AuthController {
         return response;
     }
 
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return auth.refresh(request.refreshToken());
+    }
+
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal CurrentUser user) {
         return auth.currentUser(user);
