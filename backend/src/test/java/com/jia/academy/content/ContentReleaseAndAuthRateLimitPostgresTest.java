@@ -127,6 +127,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
 
     @Test
     void contentReleaseManifestsAndVersionsAreIsolatedByAcademy() {
+        releases.create(admin);
         var otherRelease = releases.create(otherAcademyAdmin);
         assertThat(otherRelease.version()).isEqualTo(1);
         assertThat(otherRelease.items()).extracting(item -> item.slug())
