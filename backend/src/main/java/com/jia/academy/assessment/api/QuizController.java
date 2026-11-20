@@ -80,7 +80,7 @@ public class QuizController {
             JOIN technologies t ON t.id = q.technology_id AND t.academy_id = ?
             JOIN question_revisions qr ON qr.question_id = q.id AND qr.revision_number = q.current_revision
             WHERE q.academy_id = ? AND q.status = 'PUBLISHED' AND q.difficulty = ?
-            """ + filterSql(filters) + " ORDER BY random() LIMIT ?";
+            """ + filterSql(filters);
         if ("WEAK_AREA".equals(mode)) {
             sql += """
                  ORDER BY COALESCE((
