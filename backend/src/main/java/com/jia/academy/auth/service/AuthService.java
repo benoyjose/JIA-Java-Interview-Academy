@@ -19,7 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final long TOKEN_DAYS = 30;
+    private static final long ACCESS_TOKEN_SECONDS = 15 * 60;
+    private static final long REFRESH_TOKEN_DAYS = 30;
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
 
@@ -267,6 +268,37 @@ public class AuthService {
                 """, UUID.randomUUID(), actor.id(), "AUTH_IDENTITY_LINKED", actor.id(), provider);
     }
 
+    @Transactional
+    public void unlinkFederatedIdentity(CurrentUser actor, String provider) {
+        String normalizedProvider = provider == null ? "" : provider.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!List.of("GOOGLE", "APPLE").contains(normalizedProvider)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only Google or Apple identities can be unlinked here");
+        }
+        var accountRows = jdbc.query("SELECT password_hash FROM users WHERE id=? FOR UPDATE",
+                (rs, row) -> rs.getString("password_hash"), actor.id());
+        if (accountRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found");
+        }
+        Integer otherIdentities = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM auth_identities
+                WHERE user_id=? AND provider<>?
+                """, Integer.class, actor.id(), normalizedProvider);
+        boolean hasPassword = accountRows.getFirst() != null && !accountRows.getFirst().isBlank();
+        if (!hasPassword && (otherIdentities == null || otherIdentities == 0)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Add another sign-in method before unlinking the only identity");
+        }
+        int deleted = jdbc.update("DELETE FROM auth_identities WHERE user_id=? AND provider=?",
+                actor.id(), normalizedProvider);
+        if (deleted == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Linked identity not found");
+        }
+        jdbc.update("""
+                INSERT INTO audit_events(id,actor_user_id,action,entity_type,entity_id,metadata_json)
+                VALUES (?,?,?,'AUTH_IDENTITY',?,jsonb_build_object('provider',?))
+                """, UUID.randomUUID(), actor.id(), "AUTH_IDENTITY_UNLINKED", actor.id(), normalizedProvider);
+    }
+
     private TokenResponse issueToken(UUID userId, String name, String email, List<String> roles, String device) {
         return issueToken(userId, name, email, roles, device, UUID.randomUUID());
     }
@@ -280,8 +312,8 @@ public class AuthService {
         String rawAccessToken = "jia_" + Base64.getUrlEncoder().withoutPadding().encodeToString(accessBytes);
         String rawRefreshToken = "jia_r_" + Base64.getUrlEncoder().withoutPadding().encodeToString(refreshBytes);
         Instant now = Instant.now();
-        Instant accessExpires = now.plusSeconds(TOKEN_DAYS * 24 * 60 * 60);
-        Instant refreshExpires = now.plusSeconds(60L * 24 * 60 * 60);
+        Instant accessExpires = now.plusSeconds(ACCESS_TOKEN_SECONDS);
+        Instant refreshExpires = now.plusSeconds(REFRESH_TOKEN_DAYS * 24 * 60 * 60);
         UUID accessTokenId = UUID.randomUUID();
         String tokenName = device.substring(0, Math.min(100, device.length()));
         jdbc.update("""
