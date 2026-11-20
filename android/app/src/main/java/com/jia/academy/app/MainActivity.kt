@@ -570,6 +570,9 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                 if (selectedMode == JiaQuizMode.DAILY_CHALLENGE) {
                     Text("A fixed challenge is shared for your account for the day. Reopening it returns the same questions and attempt.", style = MaterialTheme.typography.bodySmall)
                 }
+                if (selectedMode == JiaQuizMode.WEAK_AREA) {
+                    Text("Questions are prioritized from categories where your previous submitted answers show the lowest accuracy. Categories without history are considered after measured weak areas.", style = MaterialTheme.typography.bodySmall)
+                }
                 if (selectedMode == JiaQuizMode.TIMED_MOCK) {
                     Text("Mock duration", style = MaterialTheme.typography.titleMedium)
                     listOf(900 to "15 minutes", 1800 to "30 minutes", 3600 to "60 minutes").forEach { (seconds, label) ->
