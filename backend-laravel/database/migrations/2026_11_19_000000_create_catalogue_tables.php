@@ -21,13 +21,16 @@ return new class extends Migration
         Schema::create('categories', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('technology_id')->constrained('technologies');
-            $table->foreignUuid('parent_id')->nullable()->constrained('categories');
+            $table->uuid('parent_id')->nullable();
             $table->string('slug', 100)->unique();
             $table->string('name', 160);
             $table->integer('sort_order')->default(0);
             $table->string('status', 20);
             $table->timestampsTz();
             $table->index(['technology_id', 'status', 'sort_order'], 'idx_categories_technology_status_order');
+        });
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->foreign('parent_id')->references('id')->on('categories');
         });
         Schema::create('lessons', function (Blueprint $table): void {
             $table->uuid('id')->primary();
