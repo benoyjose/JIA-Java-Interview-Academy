@@ -126,9 +126,10 @@ class OfflineLearningStore(context: Context) :
             var mergedRevision = contentRevision
             var mergedPercent = progressPercent
             var mergedPosition = lastPositionJson
+            var updatedAt = System.currentTimeMillis()
             db.query(
                 "pending_progress",
-                arrayOf("content_revision", "progress_percent", "last_position_json"),
+                arrayOf("content_revision", "progress_percent", "last_position_json", "updated_at"),
                 "lesson_slug=?",
                 arrayOf(lessonSlug),
                 null, null, null
@@ -137,6 +138,7 @@ class OfflineLearningStore(context: Context) :
                     mergedRevision = maxOf(contentRevision, cursor.getInt(0))
                     mergedPercent = maxOf(progressPercent, cursor.getDouble(1))
                     if (mergedPosition == null) mergedPosition = cursor.getString(2)
+                    updatedAt = maxOf(updatedAt, cursor.getLong(3) + 1L)
                 }
             }
             val values = ContentValues().apply {
