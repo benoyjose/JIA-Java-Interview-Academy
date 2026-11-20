@@ -30,6 +30,7 @@ class TaxonomyAcademyIsolationPostgresIntegrationTest {
     private static TaxonomyAdminService taxonomy;
     private static UUID secondAcademyId;
     private static UUID secondTechnologyId;
+    private static UUID secondCategoryId;
     private static CurrentUser secondAcademyAdmin;
 
     @BeforeAll
@@ -50,6 +51,11 @@ class TaxonomyAcademyIsolationPostgresIntegrationTest {
                 INSERT INTO technologies(id,academy_id,slug,name,sort_order,status)
                 VALUES (?,?,'core-java','Secure Academy Java',1,'PUBLISHED')
                 """, secondTechnologyId, secondAcademyId);
+        secondCategoryId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO categories(id,technology_id,slug,name,sort_order,status)
+                VALUES (?,?,'secure-java-basics','Secure Java Basics',1,'PUBLISHED')
+                """, secondCategoryId, secondTechnologyId);
 
         UUID userId = UUID.randomUUID();
         jdbc.update("""
@@ -71,6 +77,7 @@ class TaxonomyAcademyIsolationPostgresIntegrationTest {
                 .containsExactly(secondTechnologyId);
 
         var categories = taxonomy.categories(null, secondAcademyAdmin);
+        assertThat(categories).extracting(TaxonomyAdminService.CategoryItem::id).containsExactly(secondCategoryId);
         assertThat(categories).allSatisfy(category -> assertThat(category.technologyId()).isEqualTo(secondTechnologyId));
 
         UUID jiaTechnologyId = jdbc.queryForObject(
