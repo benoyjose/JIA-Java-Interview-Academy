@@ -41,3 +41,7 @@ export type ContentRelease = {
   createdAt: string;
   items: Array<{ id: string; slug: string; title: string; contentRevision: number; checksum: string }>;
 };
+
+export type TechnologyItem = { id: string; slug: string; name: string; description: string | null; sortOrder: number; status: string };
+export type CategoryItem = { id: string; technologyId: string; technologySlug: string; parentId: string | null; parentSlug: string | null; slug: string; name: string; sortOrder: number; status: string; lessonCount: number; questionCount: number };
+export type CategoryRequest = { technologySlug: string; parentId: string | null; slug: string; name: string; sortOrder: number };
