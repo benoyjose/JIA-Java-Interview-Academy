@@ -58,7 +58,7 @@ final class LearnerLibraryController
             DB::statement(<<<'SQL'
                 INSERT INTO learner_lesson_progress
                     (user_id, lesson_id, content_revision, status, progress_percent, last_position_json, completed_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?::jsonb, CASE WHEN ? THEN ? ELSE NULL END, ?)
+                VALUES (?, ?, ?, ?, ?, ?::jsonb, CASE WHEN ? THEN ?::timestamptz ELSE NULL END, ?)
                 ON CONFLICT (user_id, lesson_id) DO UPDATE SET
                     content_revision = EXCLUDED.content_revision,
                     status = CASE WHEN learner_lesson_progress.status = 'COMPLETED' THEN 'COMPLETED' ELSE EXCLUDED.status END,
