@@ -189,22 +189,17 @@ fun JiaApp() {
 
 @Composable
 private fun TechnologyScreen(
-    repository: CatalogueRepository,
+    catalogueViewModel: CatalogueViewModel,
     signedInAccount: String?,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit,
     onSignOut: () -> Unit
 ) {
-    var items by remember { mutableStateOf<List<Technology>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val state by catalogueViewModel.technologies.collectAsStateWithLifecycle()
+    val items = state.data.orEmpty()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        runCatching { repository.getTechnologies(BuildConfig.JIA_API_BASE_URL) }
-            .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load Java topics." }
-        loading = false
-    }
+    LaunchedEffect(Unit) { catalogueViewModel.loadTechnologies(BuildConfig.JIA_API_BASE_URL) }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Java Interview Academy", style = MaterialTheme.typography.headlineMedium)
         if (signedInAccount == null) {
@@ -226,8 +221,11 @@ private fun TechnologyScreen(
         Button(onClick = { navigate(BrowseRoute.QuizSelection) }) { Text("Choose a quiz difficulty") }
         Text("Explore Java topics", style = MaterialTheme.typography.titleLarge)
         when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            state.loading -> CircularProgressIndicator()
+            state.error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(state.error ?: "Unable to load topics.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { catalogueViewModel.loadTechnologies(BuildConfig.JIA_API_BASE_URL, force = true) }) { Text("Retry") }
+            }
             items.isEmpty() -> Text("No published topics are available yet.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items, key = { it.id }) { technology ->
@@ -248,25 +246,25 @@ private fun TechnologyScreen(
 
 @Composable
 private fun CategoryScreen(
-    repository: CatalogueRepository,
+    catalogueViewModel: CatalogueViewModel,
     technology: Technology,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit
 ) {
-    var items by remember(technology.slug) { mutableStateOf<List<Category>>(emptyList()) }
-    var loading by remember(technology.slug) { mutableStateOf(true) }
-    var error by remember(technology.slug) { mutableStateOf<String?>(null) }
+    val state by catalogueViewModel.categories.collectAsStateWithLifecycle()
+    val items = state.data.orEmpty()
     LaunchedEffect(technology.slug) {
-        runCatching { repository.getCategories(BuildConfig.JIA_API_BASE_URL, technology.slug) }
-            .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load categories." }
-        loading = false
+        catalogueViewModel.loadCategories(BuildConfig.JIA_API_BASE_URL, technology.slug)
     }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(technology.name, style = MaterialTheme.typography.headlineSmall)
         Text("Choose a category")
         when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            state.loading -> CircularProgressIndicator()
+            state.error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(state.error ?: "Unable to load categories.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { catalogueViewModel.loadCategories(BuildConfig.JIA_API_BASE_URL, technology.slug, force = true) }) { Text("Retry") }
+            }
             items.isEmpty() -> Text("No published categories are available yet.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items, key = { it.id }) { category ->
@@ -283,26 +281,26 @@ private fun CategoryScreen(
 
 @Composable
 private fun LessonListScreen(
-    repository: CatalogueRepository,
+    catalogueViewModel: CatalogueViewModel,
     category: Category,
     technology: Technology,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit
 ) {
-    var items by remember(category.slug) { mutableStateOf<List<LessonSummary>>(emptyList()) }
-    var loading by remember(category.slug) { mutableStateOf(true) }
-    var error by remember(category.slug) { mutableStateOf<String?>(null) }
+    val state by catalogueViewModel.lessons.collectAsStateWithLifecycle()
+    val items = state.data.orEmpty()
     LaunchedEffect(category.slug) {
-        runCatching { repository.getLessons(BuildConfig.JIA_API_BASE_URL, category.slug) }
-            .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load lessons." }
-        loading = false
+        catalogueViewModel.loadLessons(BuildConfig.JIA_API_BASE_URL, category.slug)
     }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(technology.name, style = MaterialTheme.typography.labelLarge)
         Text(category.name, style = MaterialTheme.typography.headlineSmall)
         when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            state.loading -> CircularProgressIndicator()
+            state.error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(state.error ?: "Unable to load lessons.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { catalogueViewModel.loadLessons(BuildConfig.JIA_API_BASE_URL, category.slug, force = true) }) { Text("Retry") }
+            }
             items.isEmpty() -> Text("No published lessons are available yet.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items, key = { it.id }) { lesson ->
