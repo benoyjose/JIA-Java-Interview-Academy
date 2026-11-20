@@ -364,6 +364,46 @@ public class ContentAuthoringService {
     }
 
     @Transactional
+    public Map<String, Object> archive(CurrentUser actor, UUID lessonId) {
+        var states = jdbc.query("""
+                SELECT l.status
+                FROM lessons l
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                WHERE l.id=? AND tech.academy_id=?
+                FOR UPDATE OF l
+                """, (rs, row) -> rs.getString("status"), lessonId, primaryAcademyId(actor));
+        if (states.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
+        }
+        String status = states.getFirst();
+        if ("ARCHIVED".equals(status)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lesson is already archived");
+        }
+        if ("IN_REVIEW".equals(status)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A lesson under review cannot be archived; resolve the review task first");
+        }
+        Integer pendingReviews = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM content_review_tasks
+                WHERE lesson_id=? AND status='PENDING'
+                """, Integer.class, lessonId);
+        if (pendingReviews != null && pendingReviews > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Resolve pending review tasks before archiving this lesson");
+        }
+        int changed = jdbc.update("""
+                UPDATE lessons SET status='ARCHIVED',updated_at=now()
+                WHERE id=? AND status=? 
+                """, lessonId, status);
+        if (changed != 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Lesson archive did not complete");
+        }
+        audit(actor, "LESSON_ARCHIVED", lessonId, Map.of("previousStatus", status));
+        return Map.of("lessonId", lessonId, "previousStatus", status, "status", "ARCHIVED");
+    }
+
+    @Transactional
     public LessonDraftResponse rollback(CurrentUser actor, UUID lessonId, RollbackRequest request) {
         var states = jdbc.query("""
                 SELECT l.status, l.content_revision, l.published_revision_id, l.draft_revision_id
