@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\FederatedAuthController;
 use App\Http\Controllers\Api\V1\PhoneOtpController;
 use App\Http\Controllers\Api\V1\CatalogueController;
 use App\Http\Controllers\Api\V1\QuizController;
+use App\Http\Controllers\Api\V1\LearnerLibraryController;
 use App\Http\Controllers\Api\V1\LessonImportController;
 use App\Http\Controllers\Api\V1\QuestionImportController;
 use App\Http\Middleware\AuthenticateJiaToken;
@@ -27,7 +28,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/quiz-attempts/{attemptId}/answers', [QuizController::class, 'saveAnswers']);
         Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);
         Route::get('/me/quiz-performance', [QuizController::class, 'performance']);
-        Route::get('/me/quiz-attempts', [QuizController::class, 'history']);\n        Route::get('/me/lesson-progress', [LearnerLibraryController::class, 'progress']);\n        Route::put('/me/lesson-progress/{lessonSlug}', [LearnerLibraryController::class, 'updateProgress']);\n        Route::get('/me/bookmarks', [LearnerLibraryController::class, 'bookmarks']);\n        Route::put('/me/bookmarks/{lessonSlug}', [LearnerLibraryController::class, 'bookmark']);\n        Route::delete('/me/bookmarks/{lessonSlug}', [LearnerLibraryController::class, 'removeBookmark']);
+        Route::get('/me/quiz-attempts', [QuizController::class, 'history']);
+        Route::get('/me/lesson-progress', [LearnerLibraryController::class, 'progress']);
+        Route::put('/me/lesson-progress/{lessonSlug}', [LearnerLibraryController::class, 'updateProgress']);
+        Route::get('/me/bookmarks', [LearnerLibraryController::class, 'bookmarks']);
+        Route::put('/me/bookmarks/{lessonSlug}', [LearnerLibraryController::class, 'bookmark']);
+        Route::delete('/me/bookmarks/{lessonSlug}', [LearnerLibraryController::class, 'removeBookmark']);
     });
 
     Route::get('/technologies', [CatalogueController::class, 'technologies']);
