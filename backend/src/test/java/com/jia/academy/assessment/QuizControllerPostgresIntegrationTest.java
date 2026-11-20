@@ -36,6 +36,11 @@ class QuizControllerPostgresIntegrationTest {
     private static final UUID USER_ONE = UUID.fromString("60000000-0000-0000-0000-000000000001");
     private static final UUID USER_TWO = UUID.fromString("60000000-0000-0000-0000-000000000002");
     private static final UUID ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000002");
+    private static final UUID OTHER_TECHNOLOGY = UUID.fromString("11000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_CATEGORY = UUID.fromString("21000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_QUESTION = UUID.fromString("71000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_REVISION = UUID.fromString("72000000-0000-0000-0000-000000000001");
     private static final UUID TECHNOLOGY = UUID.fromString("10000000-0000-0000-0000-000000000001");
     private static final UUID CATEGORY = UUID.fromString("20000000-0000-0000-0000-000000000001");
     private static final UUID QUESTION_ONE = UUID.fromString("70000000-0000-0000-0000-000000000001");
@@ -55,6 +60,7 @@ class QuizControllerPostgresIntegrationTest {
     private static LearnerLibraryController learnerLibrary;
     private static CurrentUser learnerOne;
     private static CurrentUser learnerTwo;
+    private static CurrentUser learnerOtherAcademy;
 
     @BeforeAll
     static void migrateAndSeedReferenceData() {
@@ -69,7 +75,9 @@ class QuizControllerPostgresIntegrationTest {
         controller = new QuizController(jdbc, new ObjectMapper());
         learnerLibrary = new LearnerLibraryController(jdbc, new ObjectMapper());
         learnerOne = new CurrentUser(USER_ONE, "Learner One", "one@example.test", List.of("LEARNER"), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
-        learnerTwo = new CurrentUser(USER_TWO, "Learner Two", "two@example.test", List.of("LEARNER"), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
+        learnerTwo = new CurrentUser(USER_TWO, "Learner Two", "two@example.test", List.of("LEARNER"), List.of(), List.of(ACADEMY));
+        learnerOtherAcademy = new CurrentUser(USER_ONE, "Learner One", "one@example.test",
+                List.of("LEARNER"), List.of(), List.of(OTHER_ACADEMY));
 
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,?, 'ACTIVE')",
                 USER_ONE, "Learner One", "one@example.test", "test-hash");
@@ -78,11 +86,50 @@ class QuizControllerPostgresIntegrationTest {
 
         insertQuestion(QUESTION_ONE, REVISION_ONE, "Question one");
         insertQuestion(QUESTION_TWO, REVISION_TWO, "Question two");
+        jdbc.update("INSERT INTO academies(id,code,name,status) VALUES (?,?,?,'ACTIVE')",
+                OTHER_ACADEMY, "OTHER", "Other Academy");
+        jdbc.update("INSERT INTO academy_memberships(user_id,academy_id,status,is_default) VALUES (?,?,'ACTIVE',FALSE)",
+                USER_ONE, OTHER_ACADEMY);
+        jdbc.update("""
+                INSERT INTO technologies(id,academy_id,slug,name,sort_order,status)
+                VALUES (?,?,?,'Other Academy Java',1,'PUBLISHED')
+                """, OTHER_TECHNOLOGY, OTHER_ACADEMY, "other-java");
+        jdbc.update("""
+                INSERT INTO categories(id,technology_id,slug,name,sort_order,status)
+                VALUES (?,?,?,'Other Academy Basics',1,'PUBLISHED')
+                """, OTHER_CATEGORY, OTHER_TECHNOLOGY, "other-basics");
+        jdbc.update("""
+                INSERT INTO questions(id,academy_id,technology_id,category_id,question_type,difficulty,status,current_revision)
+                VALUES (?,?,?,?,'SINGLE_SELECT','BEGINNER','PUBLISHED',1)
+                """, OTHER_QUESTION, OTHER_ACADEMY, OTHER_TECHNOLOGY, OTHER_CATEGORY);
+        jdbc.update("""
+                INSERT INTO question_revisions(id,question_id,revision_number,prompt_json,options_json,answer_json,
+                    explanation,source_type)
+                VALUES (?,?,1,'{"text":"Other academy question"}'::jsonb,
+                    '[{"value":"A","label":"Option A"}]'::jsonb,'{"correctValues":["A"]}'::jsonb,
+                    'A is correct','ADMIN_AUTHORED')
+                """, OTHER_REVISION, OTHER_QUESTION);
     }
 
     @BeforeEach
     void clearAttempts() {
         jdbc.update("DELETE FROM quiz_attempts");
+    }
+
+    @Test
+    void quizSelectionAndAttemptOwnershipAreScopedToLearnersActiveAcademy() {
+        Map<String,Object> started = controller.start(learnerOtherAcademy,
+                Map.of("difficulty", "BEGINNER", "questionCount", 1));
+        UUID otherAcademyAttempt = (UUID) started.get("attemptId");
+        assertThat(jdbc.queryForObject("SELECT academy_id FROM quiz_attempts WHERE id=?",
+                UUID.class, otherAcademyAttempt)).isEqualTo(OTHER_ACADEMY);
+        assertThat(((Map<?,?>) ((List<?>) started.get("questions")).getFirst()).get("questionId"))
+                .isEqualTo(OTHER_QUESTION);
+
+        UUID jiaAttempt = startAttempt();
+        assertThatThrownBy(() -> controller.submit(learnerOtherAcademy, jiaAttempt, answers(1, 2)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
     }
 
     @Test

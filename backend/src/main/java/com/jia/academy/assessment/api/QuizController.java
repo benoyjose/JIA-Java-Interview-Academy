@@ -33,8 +33,8 @@ public class QuizController {
             @RequestParam String difficulty,
             @RequestParam(required = false) String technologySlug,
             @RequestParam(required = false) String categorySlug) {
-        Filters filters = filters(difficulty, technologySlug, categorySlug);
-        long count = jdbc.queryForObject(questionCountSql(filters), Long.class, countArgs(filters));
+        Filters filters = filters(difficulty, technologySlug, categorySlug, JIA_ACADEMY);
+        long count = jdbc.queryForObject(questionCountSql(filters), Long.class, countArgs(filters, JIA_ACADEMY));
         return Map.of("difficulty", difficulty, "availableQuestionCount", count);
     }
 
@@ -61,15 +61,16 @@ public class QuizController {
         } else if (!"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
             validateMode(mode);
         }
-        Filters filters = filters(difficulty, technologySlug, categorySlug);
+        UUID academyId = primaryAcademyId(user);
+        Filters filters = filters(difficulty, technologySlug, categorySlug, academyId);
         if ("DAILY_CHALLENGE".equals(mode)) {
             jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))",
                     rs -> {}, user.id().toString());
             List<UUID> existing = jdbc.query("""
                 SELECT id FROM quiz_attempts
                 WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
-                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), JIA_ACADEMY);
-            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst());
+                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), academyId);
+            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst(), user.id(), academyId);
         }
 
         String sql = """
@@ -97,7 +98,7 @@ public class QuizController {
             sql += " ORDER BY random()";
         }
         sql += " LIMIT ?";
-        List<QuestionRow> selected = jdbc.query(sql, this::questionRow, startArgs(filters, count, user.id(), mode));
+        List<QuestionRow> selected = jdbc.query(sql, this::questionRow, startArgs(filters, count, user.id(), mode, academyId));
         if (selected.size() < count) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Not enough published questions for selected filters. Available: " + selected.size());
@@ -110,7 +111,7 @@ public class QuizController {
             INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,
                 question_count,started_at,duration_limit_seconds,deadline_at,challenge_date)
             VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,CASE WHEN ?='DAILY_CHALLENGE' THEN (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date ELSE NULL END)
-            """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
+            """, attemptId, user.id(), academyId, filters.technologyId(), filters.categoryId(),
                 difficulty, mode, count, Timestamp.from(startedAt), durationLimitSeconds,
                 deadlineAt == null ? null : Timestamp.from(deadlineAt), mode);
 
@@ -157,9 +158,9 @@ public class QuizController {
         }
         var attempts = jdbc.query("""
             SELECT mode, status, deadline_at FROM quiz_attempts
-            WHERE id=? AND user_id=? FOR UPDATE
+            WHERE id=? AND user_id=? AND academy_id=? FOR UPDATE
             """, (rs,n) -> new Object[]{rs.getString("mode"), rs.getString("status"), rs.getTimestamp("deadline_at")},
-                attemptId, user.id());
+                attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         Object[] attempt = attempts.getFirst();
         if (!"TIMED_MOCK".equals(attempt[0])) throw badRequest("Answer autosave is only available for timed mock attempts");
@@ -204,13 +205,13 @@ public class QuizController {
         }
         var attempts = jdbc.query("""
             SELECT id, difficulty, started_at, mode, deadline_at FROM quiz_attempts
-            WHERE id = ? AND user_id = ? FOR UPDATE
+            WHERE id = ? AND user_id = ? AND academy_id = ? FOR UPDATE
             """, (rs, n) -> new AttemptRow(rs.getObject("id", UUID.class),
                 rs.getString("difficulty"), rs.getTimestamp("started_at").toInstant(),
-                rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id());
+                rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         AttemptRow attempt = attempts.getFirst();
-        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ?", String.class, attemptId);
+        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ? AND user_id=? AND academy_id=?", String.class, attemptId, user.id(), primaryAcademyId(user));
         if (!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
         boolean timedMock = "TIMED_MOCK".equals(attempt.mode());
         boolean timedOut = timedMock && (attempt.deadlineAt() == null || !Instant.now().isBefore(attempt.deadlineAt()));
@@ -336,7 +337,7 @@ public class QuizController {
                     var latest = rs.getTimestamp("latest_attempt_at");
                     item.put("latestAttemptAt", latest == null ? null : latest.toInstant().toString());
                     return item;
-                }, user.id(), JIA_ACADEMY, level);
+                }, user.id(), primaryAcademyId(user), level);
             levels.add(rows.getFirst());
         }
         List<Map<String,Object>> topics = jdbc.query("""
@@ -355,7 +356,7 @@ public class QuizController {
                 item.put("attempts", rs.getInt("attempts"));
                 item.put("accuracyPercent", rs.getBigDecimal("accuracy_percent"));
                 return item;
-            }, user.id(), JIA_ACADEMY);
+            }, user.id(), primaryAcademyId(user));
         return Map.of("byDifficulty", levels, "byTopic", topics);
     }
 
@@ -386,15 +387,15 @@ public class QuizController {
             item.put("startedAt", rs.getTimestamp("started_at").toInstant().toString());
             item.put("status", rs.getString("status"));
             return item;
-        }, user.id(), JIA_ACADEMY, difficulty, difficulty, limit);
+        }, user.id(), primaryAcademyId(user), difficulty, difficulty, limit);
     }
 
-    private Map<String,Object> dailyChallengeResponse(UUID attemptId) {
+    private Map<String,Object> dailyChallengeResponse(UUID attemptId, UUID userId, UUID academyId) {
         var attempts = jdbc.query("""
             SELECT difficulty, question_count, started_at, challenge_date
-            FROM quiz_attempts WHERE id=?
+            FROM quiz_attempts WHERE id=? AND user_id=? AND academy_id=?
             """, (rs,n) -> new Object[]{rs.getString("difficulty"), rs.getInt("question_count"),
-                rs.getTimestamp("started_at"), rs.getString("challenge_date")}, attemptId);
+                rs.getTimestamp("started_at"), rs.getString("challenge_date")}, attemptId, userId, academyId);
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily challenge not found");
         Object[] a = attempts.getFirst();
         List<Map<String,Object>> questions = jdbc.query("""
@@ -453,13 +454,13 @@ public class QuizController {
         }
     }
 
-    private Filters filters(String difficulty, String technologySlug, String categorySlug) {
+    private Filters filters(String difficulty, String technologySlug, String categorySlug, UUID academyId) {
         if (!LEVELS.contains(difficulty)) throw badRequest("Invalid difficulty");
         UUID technologyId = null;
         UUID categoryId = null;
         if (technologySlug != null) {
             var ids = jdbc.query("SELECT id FROM technologies WHERE academy_id=? AND slug=? AND status='PUBLISHED'",
-                    (rs,n) -> rs.getObject("id", UUID.class), JIA_ACADEMY, technologySlug);
+                    (rs,n) -> rs.getObject("id", UUID.class), academyId, technologySlug);
             if (ids.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found");
             technologyId = ids.getFirst();
         }
@@ -468,7 +469,7 @@ public class QuizController {
                 SELECT c.id,c.technology_id FROM categories c JOIN technologies t ON t.id=c.technology_id
                 WHERE c.slug=? AND c.status='PUBLISHED' AND t.academy_id=?
                 """, (rs,n) -> new UUID[]{rs.getObject("id", UUID.class), rs.getObject("technology_id", UUID.class)},
-                    categorySlug, JIA_ACADEMY);
+                    categorySlug, academyId);
             if (rows.isEmpty() || (technologyId != null && !technologyId.equals(rows.getFirst()[1]))) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found for selected technology");
             }
@@ -482,8 +483,8 @@ public class QuizController {
         return (f.technologyId() == null ? "" : " AND q.technology_id = ?")
                 + (f.categoryId() == null ? "" : " AND q.category_id = ?");
     }
-    private Object[] countArgs(Filters f) {
-        List<Object> args = new ArrayList<>(List.of(JIA_ACADEMY, JIA_ACADEMY, f.difficulty()));
+    private Object[] countArgs(Filters f, UUID academyId) {
+        List<Object> args = new ArrayList<>(List.of(academyId, academyId, f.difficulty()));
         if (f.technologyId() != null) args.add(f.technologyId());
         if (f.categoryId() != null) args.add(f.categoryId());
         return args.toArray();
@@ -493,8 +494,8 @@ public class QuizController {
                 + "JOIN question_revisions qr ON qr.question_id=q.id AND qr.revision_number=q.current_revision "
                 + "WHERE q.academy_id=? AND q.status='PUBLISHED' AND q.difficulty=? " + filterSql(f);
     }
-    private Object[] startArgs(Filters f, int count, UUID userId, String mode) {
-        List<Object> args = new ArrayList<>(List.of(JIA_ACADEMY, JIA_ACADEMY, f.difficulty()));
+    private Object[] startArgs(Filters f, int count, UUID userId, String mode, UUID academyId) {
+        List<Object> args = new ArrayList<>(List.of(academyId, academyId, f.difficulty()));
         if (f.technologyId() != null) args.add(f.technologyId());
         if (f.categoryId() != null) args.add(f.categoryId());
         if ("WEAK_AREA".equals(mode)) args.add(userId);
@@ -530,6 +531,13 @@ public class QuizController {
         if ("MULTI_SELECT".equals(type)) return e.equals(a);
         return e.size() == 1 && a.size() == 1 && e.equals(a);
     }
+    private static UUID primaryAcademyId(CurrentUser user) {
+        if (user == null || user.academyIds() == null || user.academyIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return user.academyIds().getFirst();
+    }
+
     private void requireUser(CurrentUser user) {
         if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated");
     }
