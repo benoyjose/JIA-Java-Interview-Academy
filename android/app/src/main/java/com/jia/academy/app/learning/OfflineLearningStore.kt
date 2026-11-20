@@ -146,7 +146,7 @@ class OfflineLearningStore(context: Context) :
                 put("content_revision", mergedRevision)
                 put("progress_percent", mergedPercent)
                 put("last_position_json", mergedPosition)
-                put("updated_at", System.currentTimeMillis())
+                put("updated_at", updatedAt)
             }
             db.insertWithOnConflict("pending_progress", null, values, SQLiteDatabase.CONFLICT_REPLACE)
             db.setTransactionSuccessful()
