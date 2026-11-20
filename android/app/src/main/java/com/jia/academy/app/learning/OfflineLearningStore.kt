@@ -7,6 +7,10 @@ import android.database.sqlite.SQLiteOpenHelper
 import com.jia.academy.app.catalogue.LessonDetail
 import java.security.MessageDigest
 
+data class PendingBookmark(val lessonSlug: String, val bookmarked: Boolean, val updatedAt: Long)
+
+data class OfflineSyncDiagnostics(val lastAttemptAt: Long?, val lastSuccessAt: Long?, val lastError: String?, val syncedProgressCount: Int, val syncedBookmarkCount: Int)
+
 data class PendingLessonProgress(
     val lessonSlug: String,
     val contentRevision: Int,
@@ -17,7 +21,7 @@ data class PendingLessonProgress(
 
 /** Small transactional cache for last-known-good lessons and queued learner progress. */
 class OfflineLearningStore(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "jia-offline-learning.db", null, 1) {
+    SQLiteOpenHelper(context.applicationContext, "jia-offline-learning.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
@@ -43,10 +47,18 @@ class OfflineLearningStore(context: Context) :
                 updated_at INTEGER NOT NULL
             )
         """.trimIndent())
+        createBookmarkTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // Schema changes must be additive and versioned; never drop learner-owned queued activity.
+        if (oldVersion < 2) createBookmarkTables(db)
+    }
+
+    private fun createBookmarkTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS offline_bookmarks (lesson_slug TEXT PRIMARY KEY NOT NULL, is_bookmarked INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS pending_bookmarks (lesson_slug TEXT PRIMARY KEY NOT NULL, is_bookmarked INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS sync_diagnostics (id INTEGER PRIMARY KEY CHECK(id=1), last_attempt_at INTEGER, last_success_at INTEGER, last_error TEXT, synced_progress_count INTEGER NOT NULL DEFAULT 0, synced_bookmark_count INTEGER NOT NULL DEFAULT 0)")
     }
 
     fun cacheLesson(lesson: LessonDetail, expectedChecksum: String? = null) {
@@ -166,6 +178,83 @@ class OfflineLearningStore(context: Context) :
         enqueueProgress(lessonSlug, contentRevision, progressPercent, lastPositionJson)
         LearnerSyncScheduler.enqueue(context, baseUrl)
     }
+
+    fun setBookmarkAndSchedule(context: Context, baseUrl: String, lessonSlug: String, bookmarked: Boolean) {
+        require(lessonSlug.isNotBlank())
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val now = System.currentTimeMillis()
+            val existing = db.rawQuery("SELECT updated_at FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
+                if (it.moveToFirst()) it.getLong(0) else 0L
+            }
+            val updatedAt = maxOf(now, existing + 1L)
+            val values = ContentValues().apply {
+                put("lesson_slug", lessonSlug)
+                put("is_bookmarked", if (bookmarked) 1 else 0)
+                put("updated_at", updatedAt)
+            }
+            db.insertWithOnConflict("offline_bookmarks", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.insertWithOnConflict("pending_bookmarks", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        LearnerSyncScheduler.enqueue(context, baseUrl)
+    }
+
+    fun isBookmarked(lessonSlug: String): Boolean =
+        readableDatabase.rawQuery("SELECT is_bookmarked FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
+            it.moveToFirst() && it.getInt(0) == 1
+        }
+
+    fun bookmarkedSlugs(): Set<String> =
+        readableDatabase.rawQuery("SELECT lesson_slug FROM offline_bookmarks WHERE is_bookmarked=1", null).use {
+            buildSet { while (it.moveToNext()) add(it.getString(0)) }
+        }
+
+    fun pendingBookmarks(): List<PendingBookmark> =
+        readableDatabase.query("pending_bookmarks", arrayOf("lesson_slug","is_bookmarked","updated_at"),
+            null,null,null,null,"updated_at ASC").use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) add(PendingBookmark(cursor.getString(0),cursor.getInt(1)==1,cursor.getLong(2)))
+            }
+        }
+
+    fun markBookmarkSynced(item: PendingBookmark) {
+        writableDatabase.delete("pending_bookmarks","lesson_slug=? AND updated_at=?",
+            arrayOf(item.lessonSlug,item.updatedAt.toString()))
+    }
+
+    fun recordSyncAttempt() {
+        val values = ContentValues().apply { put("id",1); put("last_attempt_at",System.currentTimeMillis()) }
+        writableDatabase.insertWithOnConflict("sync_diagnostics",null,values,SQLiteDatabase.CONFLICT_IGNORE)
+        writableDatabase.update("sync_diagnostics",values,"id=1",null)
+    }
+
+    fun recordSyncSuccess(progressCount: Int, bookmarkCount: Int) {
+        val values = ContentValues().apply {
+            put("id",1); put("last_success_at",System.currentTimeMillis()); putNull("last_error")
+            put("synced_progress_count",progressCount); put("synced_bookmark_count",bookmarkCount)
+        }
+        writableDatabase.insertWithOnConflict("sync_diagnostics",null,values,SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun recordSyncFailure(message: String) {
+        val values = ContentValues().apply {
+            put("id",1); put("last_attempt_at",System.currentTimeMillis())
+            put("last_error",message.take(240))
+        }
+        writableDatabase.insertWithOnConflict("sync_diagnostics",null,values,SQLiteDatabase.CONFLICT_IGNORE)
+        writableDatabase.update("sync_diagnostics",values,"id=1",null)
+    }
+
+    fun syncDiagnostics(): OfflineSyncDiagnostics? =
+        readableDatabase.query("sync_diagnostics",arrayOf("last_attempt_at","last_success_at","last_error","synced_progress_count","synced_bookmark_count"),
+            "id=1",null,null,null,null).use { cursor ->
+            if (!cursor.moveToFirst()) null else OfflineSyncDiagnostics(
+                if (cursor.isNull(0)) null else cursor.getLong(0),
+                if (cursor.isNull(1)) null else cursor.getLong(1),
+                cursor.getString(2),cursor.getInt(3),cursor.getInt(4))
+        }
 
     fun pendingProgress(): List<PendingLessonProgress> =
         readableDatabase.query(
