@@ -86,6 +86,7 @@ fun AuthScreen(
         Text(if (resetMode) "Recover your JIA account" else if (phoneMode) "Sign in with phone" else if (registering) "Create your JIA account" else "Sign in to JIA",
             style = MaterialTheme.typography.headlineSmall)
         Text("You can continue browsing public lessons without signing in.")
+        if (!resetMode && !phoneMode) {
         Button(
             enabled = !loading && !googleLoading && com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
@@ -124,6 +125,7 @@ fun AuthScreen(
         ) { Text("Continue with Google") }
         if (com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isBlank()) {
             Text("Google sign-in needs a configured OAuth Web Client ID.", style = MaterialTheme.typography.bodySmall)
+        }
         }
         if (resetMode) {
             OutlinedTextField(value = email, onValueChange = { email = it },
