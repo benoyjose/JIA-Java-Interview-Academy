@@ -3,6 +3,7 @@ package com.jia.academy.auth.api;
 import com.jia.academy.auth.api.AuthDtos.*;
 import com.jia.academy.auth.service.AuthService;
 import com.jia.academy.auth.service.AuthRateLimitService;
+import com.jia.academy.auth.service.PasswordResetService;
 import com.jia.academy.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,10 +16,12 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AuthController {
     private final AuthService auth;
     private final AuthRateLimitService rateLimits;
+    private final PasswordResetService passwordResets;
 
-    public AuthController(AuthService auth, AuthRateLimitService rateLimits) {
+    public AuthController(AuthService auth, AuthRateLimitService rateLimits, PasswordResetService passwordResets) {
         this.auth = auth;
         this.rateLimits = rateLimits;
+        this.passwordResets = passwordResets;
     }
 
     @PostMapping("/register")
@@ -39,6 +42,19 @@ public class AuthController {
     @PostMapping("/refresh")
     public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return auth.refresh(request.refreshToken());
+    }
+
+    @PostMapping("/password/reset/request")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public java.util.Map<String, String> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        passwordResets.requestReset(request.email());
+        return java.util.Map.of("message", "If an active account exists, password reset instructions will be sent.");
+    }
+
+    @PostMapping("/password/reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+        passwordResets.confirmReset(request.token(), request.newPassword());
     }
 
     @GetMapping("/me")
