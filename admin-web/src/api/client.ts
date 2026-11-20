@@ -1,4 +1,4 @@
-import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User } from "./types";
+import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 const TOKEN_KEY = "jia.admin.access-token";
@@ -61,6 +61,7 @@ export const api = {
   updateLesson: (id: string, body: LessonDraftRequest) => request<LessonDraftResponse>(`/admin/lessons/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   submitLesson: (id: string) => request<{ taskId: string }>(`/admin/lessons/${encodeURIComponent(id)}/submit`, { method: "POST" }),
   publishLesson: (id: string) => request<{ status: string }>(`/admin/lessons/${encodeURIComponent(id)}/publish`, { method: "POST" }),
+  createContentRelease: () => request<ContentRelease>("/admin/content-releases", { method: "POST" }),
   reviews: (params: { q?: string; page: number; size: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
     if (params.q) query.set("q", params.q);
