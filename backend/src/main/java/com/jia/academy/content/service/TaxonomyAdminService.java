@@ -106,7 +106,7 @@ public class TaxonomyAdminService {
         } catch (org.springframework.dao.DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A category with this slug already exists");
         }
-        audit(actor, "TAXONOMY_CATEGORY_CREATED", id);
+        audit(actor, "TAXONOMY_CATEGORY_CREATED", "CATEGORY", id);
         return categories(null).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 
@@ -137,7 +137,7 @@ public class TaxonomyAdminService {
         } catch (org.springframework.dao.DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A category with this slug already exists");
         }
-        audit(actor, "TAXONOMY_CATEGORY_UPDATED", id);
+        audit(actor, "TAXONOMY_CATEGORY_UPDATED", "CATEGORY", id);
         return categories(null).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
 
@@ -155,7 +155,7 @@ public class TaxonomyAdminService {
                     "Categories containing lessons or questions cannot be archived; move content first");
         }
         jdbc.update("UPDATE categories SET status='ARCHIVED',updated_at=now() WHERE id=?", id);
-        audit(actor, "TAXONOMY_CATEGORY_ARCHIVED", id);
+        audit(actor, "TAXONOMY_CATEGORY_ARCHIVED", "CATEGORY", id);
     }
 
     private static void validateTechnologyRequest(TechnologyRequest request) {
@@ -217,13 +217,14 @@ public class TaxonomyAdminService {
         return slug;
     }
 
-    private void audit(CurrentUser actor, String action, UUID id) {
+    private void audit(CurrentUser actor, String action, String entityType, UUID id) {
         jdbc.update("""
                 INSERT INTO audit_events(id,actor_user_id,action,entity_type,entity_id,metadata_json,occurred_at)
-                VALUES (?,?,?,'CATEGORY',?,jsonb_build_object('source','admin-taxonomy'),?)
-                """, UUID.randomUUID(), actor.id(), action, id, Timestamp.from(Instant.now()));
+                VALUES (?,?,?,?,?,jsonb_build_object('source','admin-taxonomy'),?)
+                """, UUID.randomUUID(), actor.id(), action, entityType, id, Timestamp.from(Instant.now()));
     }
 
+    public record TechnologyRequest(String slug, String name, String description, int sortOrder) {}
     public record TechnologyItem(UUID id, String slug, String name, String description,
                                  int sortOrder, String status) {}
     public record CategoryItem(UUID id, UUID technologyId, String technologySlug, UUID parentId,
