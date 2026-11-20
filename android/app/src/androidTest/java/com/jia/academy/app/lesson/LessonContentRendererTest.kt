@@ -3,9 +3,11 @@ package com.jia.academy.app.lesson
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.fetchSemanticsNode
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -37,6 +39,9 @@ class LessonContentRendererTest {
         composeRule.onNodeWithText("Learning objectives").assertExists()
         composeRule.onNodeWithText("Prerequisites").assertExists()
         composeRule.onNodeWithText("Interview answer").assertExists()
+        val answerTop = composeRule.onNodeWithText("Interview answer").fetchSemanticsNode().boundsInRoot.top
+        val overviewTop = composeRule.onNodeWithText("Overview").fetchSemanticsNode().boundsInRoot.top
+        assertTrue("Concise interview answer should appear before supporting lesson detail", answerTop < overviewTop)
         composeRule.onNodeWithText("Java example").assertExists()
         composeRule.onNodeWithText("Remember").assertExists()
         composeRule.onNodeWithText("Request flow").assertExists()
