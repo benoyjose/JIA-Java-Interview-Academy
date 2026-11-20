@@ -43,6 +43,7 @@ public class SecurityConfiguration {
                     "/api/v1/technologies/**",
                     "/api/v1/categories/**",
                     "/api/v1/lessons/**",
+                    "/api/v1/content/releases/**",
                     "/api/v1/quizzes/availability",
                     "/actuator/health",
                     "/up"
