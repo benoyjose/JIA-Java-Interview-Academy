@@ -34,6 +34,25 @@ class LessonContentParserTest {
         assertEquals(2, document.skippedBlockCount)
     }
 
+    @Test fun parsesCurriculumSectionsListsDiagramsAndSafeResourceLinks() {
+        val document = LessonContentParser.parse(
+            """{"schemaVersion":1,"blocks":[
+              {"type":"overview","title":"Overview","body":"Intro"},
+              {"type":"objectives","body":"Learn the topic"},
+              {"type":"list","title":"Prerequisites","items":["Java basics","OOP"]},
+              {"type":"diagram","language":"mermaid","source":"A-->B"},
+              {"type":"resourceLink","label":"Official docs","url":"https://docs.oracle.com"},
+              {"type":"resourceLink","label":"Unsafe","url":"javascript:alert(1)"}
+            ]}"""
+        )
+        assertEquals(5, document.blocks.size)
+        assertEquals(1, document.skippedBlockCount)
+        assertTrue(document.blocks[0] is LessonBlock.Section)
+        assertTrue(document.blocks[2] is LessonBlock.BulletList)
+        assertTrue(document.blocks[3] is LessonBlock.Diagram)
+        assertTrue(document.blocks[4] is LessonBlock.ResourceLink)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnsupportedSchemaVersion() {
         LessonContentParser.parse("""{"schemaVersion":2,"blocks":[]}""")
