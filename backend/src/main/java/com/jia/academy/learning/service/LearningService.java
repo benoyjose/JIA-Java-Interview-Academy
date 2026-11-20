@@ -33,7 +33,6 @@ public class LearningService {
                 JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
                 LEFT JOIN LATERAL (SELECT revision_number AS content_revision FROM lesson_revisions
                     WHERE id=l.published_revision_id) r ON TRUE
-                JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
                 WHERE p.user_id=? AND tech.academy_id=? ORDER BY p.updated_at DESC LIMIT 200
                 """, (rs, row) -> new ProgressItem(rs.getString("slug"),
                 rs.getInt("content_revision"), rs.getString("status"),
@@ -127,13 +126,24 @@ public class LearningService {
 
     @Transactional(readOnly = true)
     public SyncDiagnostics diagnostics(CurrentUser user) {
-        Integer progressCount = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM learner_lesson_progress WHERE user_id=?", Integer.class, user.id());
-        Integer bookmarkCount = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM learner_bookmarks WHERE user_id=?", Integer.class, user.id());
+        Integer progressCount = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM learner_lesson_progress p
+                JOIN lessons l ON l.id=p.lesson_id JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                WHERE p.user_id=? AND tech.academy_id=?
+                """, Integer.class, user.id(), primaryAcademyId(user));
+        Integer bookmarkCount = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM learner_bookmarks b
+                JOIN lessons l ON l.id=b.lesson_id JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                WHERE b.user_id=? AND tech.academy_id=?
+                """, Integer.class, user.id(), primaryAcademyId(user));
         Timestamp latest = jdbc.query("""
-                SELECT MAX(updated_at) FROM learner_lesson_progress WHERE user_id=?
-                """, rs -> rs.next() ? rs.getTimestamp(1) : null, user.id());
+                SELECT MAX(p.updated_at) FROM learner_lesson_progress p
+                JOIN lessons l ON l.id=p.lesson_id JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                WHERE p.user_id=? AND tech.academy_id=?
+                """, rs -> rs.next() ? rs.getTimestamp(1) : null, user.id(), primaryAcademyId(user));
         return new SyncDiagnostics(progressCount == null ? 0 : progressCount,
                 bookmarkCount == null ? 0 : bookmarkCount,
                 latest == null ? null : latest.toInstant(), Instant.now());
