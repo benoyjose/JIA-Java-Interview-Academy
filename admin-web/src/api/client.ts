@@ -57,6 +57,8 @@ export const api = {
     return request<PageResult<AdminLesson>>(`/admin/lessons?${query.toString()}`, { signal });
   },
   lesson: (id: string, signal?: AbortSignal) => request<LessonDetail>(`/admin/lessons/${encodeURIComponent(id)}`, { signal }),
+  lessonHistory: (id: string, signal?: AbortSignal) => request<RevisionHistoryItem[]>(`/admin/lessons/${encodeURIComponent(id)}/history`, { signal }),
+  rollbackLesson: (id: string, revisionNumber: number, changeNote?: string) => request<LessonDraftResponse>(`/admin/lessons/${encodeURIComponent(id)}/rollback`, { method: "POST", body: JSON.stringify({ revisionNumber, changeNote: changeNote ?? null }) }),
   createLesson: (body: LessonDraftRequest) => request<LessonDraftResponse>("/admin/lessons", { method: "POST", body: JSON.stringify(body) }),
   updateLesson: (id: string, body: LessonDraftRequest) => request<LessonDraftResponse>(`/admin/lessons/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   submitLesson: (id: string) => request<{ taskId: string }>(`/admin/lessons/${encodeURIComponent(id)}/submit`, { method: "POST" }),
