@@ -48,6 +48,7 @@ data class JiaLessonBookmark(val lessonSlug: String, val title: String, val crea
 
 
 class QuizRepository(private val context: Context? = null) {
+    private val refreshLock = Any()
     private fun endpoint(baseUrl: String, path: String) = baseUrl.trimEnd('/') + "/api/v1" + path
     private fun request(baseUrl: String, path: String, token: String, method: String, body: JSONObject? = null,
                         allowRefresh: Boolean = true): String {
@@ -68,7 +69,7 @@ class QuizRepository(private val context: Context? = null) {
             val response = (if (status in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             if (status == 401 && allowRefresh && context != null) {
-                val rotatedToken = rotateAccessToken(baseUrl)
+                val rotatedToken = rotateAccessToken(baseUrl, token)
                 if (!rotatedToken.isNullOrBlank()) {
                     return request(baseUrl, path, rotatedToken, method, body, allowRefresh = false)
                 }
@@ -80,10 +81,15 @@ class QuizRepository(private val context: Context? = null) {
         } finally { connection.disconnect() }
     }
 
-    private fun rotateAccessToken(baseUrl: String): String? {
-        val appContext = context ?: return null
+    private fun rotateAccessToken(baseUrl: String, rejectedAccessToken: String): String? =
+        synchronized(refreshLock) {
+        val appContext = context ?: return@synchronized null
         val store = SecureSessionStore(appContext)
-        val refreshToken = store.refreshToken() ?: return null
+        val currentAccessToken = store.accessToken()
+        if (!currentAccessToken.isNullOrBlank() && currentAccessToken != rejectedAccessToken) {
+            return@synchronized currentAccessToken
+        }
+        val refreshToken = store.refreshToken() ?: return@synchronized null
         val connection = (URL(endpoint(baseUrl, "/auth/refresh")).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 10_000
