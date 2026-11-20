@@ -106,7 +106,7 @@ public class AdminOperationsService {
     }
 
     @Transactional(readOnly = true)
-    public PageResult<QuestionItem> questions(String query, String status, String difficulty, int page, int size) {
+    public PageResult<QuestionItem> questions(CurrentUser actor, String query, String status, String difficulty, int page, int size) {
         validatePage(page, size);
         String normalizedStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase();
         String normalizedDifficulty = difficulty == null || difficulty.isBlank() ? null : difficulty.trim().toUpperCase();
@@ -114,6 +114,7 @@ public class AdminOperationsService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported question status");
         if (normalizedDifficulty != null && !Set.of("BEGINNER","NOVICE","PROFESSIONAL","EXPERT").contains(normalizedDifficulty))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported difficulty");
+        UUID academyId = primaryAcademyId(actor);
         String search = normalize(query);
         String pattern = search == null ? null : "%" + search + "%";
         long total = jdbc.queryForObject("""
@@ -121,10 +122,10 @@ public class AdminOperationsService {
                 JOIN technologies t ON t.id=q.technology_id
                 LEFT JOIN LATERAL (SELECT prompt_json FROM question_revisions qr
                     WHERE qr.question_id=q.id ORDER BY qr.revision_number DESC LIMIT 1) rev ON TRUE
-                WHERE (CAST(? AS text) IS NULL OR q.status=?) AND (CAST(? AS text) IS NULL OR q.difficulty=?)
+                WHERE q.academy_id=? AND (CAST(? AS text) IS NULL OR q.status=?) AND (CAST(? AS text) IS NULL OR q.difficulty=?)
                   AND (CAST(? AS text) IS NULL OR lower(q.slug) LIKE lower(?) OR lower(c.name) LIKE lower(?)
                        OR lower(t.name) LIKE lower(?) OR lower(rev.prompt_json->>'text') LIKE lower(?))
-                """, Long.class, normalizedStatus, normalizedStatus, normalizedDifficulty, normalizedDifficulty,
+                """, Long.class, academyId, normalizedStatus, normalizedStatus, normalizedDifficulty, normalizedDifficulty,
                 search, pattern, pattern, pattern, pattern);
         List<QuestionItem> items = jdbc.query("""
                 SELECT q.id,q.slug,q.question_type,q.difficulty,q.status,q.current_revision,
@@ -134,7 +135,7 @@ public class AdminOperationsService {
                 JOIN technologies t ON t.id=q.technology_id
                 LEFT JOIN LATERAL (SELECT prompt_json FROM question_revisions qr
                     WHERE qr.question_id=q.id ORDER BY qr.revision_number DESC LIMIT 1) rev ON TRUE
-                WHERE (CAST(? AS text) IS NULL OR q.status=?) AND (CAST(? AS text) IS NULL OR q.difficulty=?)
+                WHERE q.academy_id=? AND (CAST(? AS text) IS NULL OR q.status=?) AND (CAST(? AS text) IS NULL OR q.difficulty=?)
                   AND (CAST(? AS text) IS NULL OR lower(q.slug) LIKE lower(?) OR lower(c.name) LIKE lower(?)
                        OR lower(t.name) LIKE lower(?) OR lower(rev.prompt_json->>'text') LIKE lower(?))
                 ORDER BY q.updated_at DESC,q.id LIMIT ? OFFSET ?
@@ -142,7 +143,7 @@ public class AdminOperationsService {
                 rs.getString("question_type"), rs.getString("difficulty"), rs.getString("status"),
                 rs.getInt("current_revision"), rs.getString("category_name"), rs.getString("category_slug"),
                 rs.getString("technology_name"), rs.getString("prompt_text"), rs.getTimestamp("updated_at").toInstant()),
-                normalizedStatus, normalizedStatus, normalizedDifficulty, normalizedDifficulty,
+                academyId, normalizedStatus, normalizedStatus, normalizedDifficulty, normalizedDifficulty,
                 search, pattern, pattern, pattern, pattern, size, (long) page * size);
         return new PageResult<>(items, page, size, total, totalPages(total, size));
     }
@@ -152,9 +153,9 @@ public class AdminOperationsService {
         String target = nextStatus == null ? "" : nextStatus.trim().toUpperCase();
         var rows = jdbc.query("""
                 SELECT q.status,q.current_revision,q.academy_id
-                FROM questions q WHERE q.id=? FOR UPDATE
+                FROM questions q WHERE q.id=? AND q.academy_id=? FOR UPDATE
                 """, (rs, row) -> new QuestionState(rs.getString("status"), rs.getInt("current_revision"),
-                rs.getObject("academy_id", UUID.class)), questionId);
+                rs.getObject("academy_id", UUID.class)), questionId, primaryAcademyId(actor));
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found");
         QuestionState state = rows.getFirst();
         String requiredPermission = "APPROVED".equals(target)
@@ -181,8 +182,22 @@ public class AdminOperationsService {
                 VALUES (?,?,?,?,?, ?,jsonb_build_object('from',?,'to',?))
                 """, UUID.randomUUID(), actor.id(), state.academyId(), "QUESTION_STATUS_CHANGED",
                 "QUESTION", questionId, state.status(), target);
-        return questions(null, null, null, 0, 100).items().stream().filter(item -> item.id().equals(questionId)).findFirst()
+        return questions(actor, null, null, null, 0, 100).items().stream().filter(item -> item.id().equals(questionId)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
+    }
+
+    private UUID primaryAcademyId(CurrentUser actor) {
+        if (actor == null || actor.id() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return jdbc.query("""
+                SELECT am.academy_id
+                FROM academy_memberships am
+                JOIN academies a ON a.id=am.academy_id
+                WHERE am.user_id=? AND am.status='ACTIVE' AND am.is_default=TRUE AND a.status='ACTIVE'
+                """, (rs, row) -> rs.getObject("academy_id", UUID.class), actor.id())
+                .stream().findFirst().orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.FORBIDDEN, "An active default academy membership is required"));
     }
 
     private void audit(CurrentUser actor, String action, String entityType, UUID id) {
