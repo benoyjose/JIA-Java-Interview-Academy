@@ -12,9 +12,13 @@ security:
   - bearerAuth: []
 tags:
   - name: Authentication
+    description: Account registration, sign-in and session management.
   - name: Catalogue
+    description: Public technology, category and lesson catalogue.
   - name: Content Admin
+    description: Controlled content authoring, review and publication.
   - name: Learning
+    description: Authenticated learner progress and saved lessons.
 paths:
   /auth/register:
     post:
@@ -293,7 +297,7 @@ paths:
                     contentRevision: { type: integer, minimum: 1 }
                     status: { type: string, enum: [IN_PROGRESS, COMPLETED] }
                     progressPercent: { type: number, minimum: 0, maximum: 100 }
-                    lastPosition: { type: object, nullable: true, additionalProperties: true }
+                    lastPosition: { type: [object, 'null'], additionalProperties: true }
                     updatedAt: { type: string, format: date-time }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /me/lesson-progress/{lessonSlug}:
