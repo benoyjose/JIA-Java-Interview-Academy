@@ -127,7 +127,7 @@ private fun highlightCode(source: String): AnnotatedString {
     val literalColor = MaterialTheme.colorScheme.secondary
     val commentColor = MaterialTheme.colorScheme.tertiary
     val tokenPattern = remember {
-        Regex("""//[^\\n]*|/\\*[\\s\\S]*?\\*/|"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|\\b\\d+(?:\\.\\d+)?\\b|\\b(?:public|private|protected|static|final|class|interface|enum|record|void|new|return|if|else|for|while|try|catch|throw|throws|extends|implements|import|package|var|val|fun|suspend|override|data|object|when|true|false|null|this|super|static|const|async|await)\\b""")
+        Regex("""//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b\d+(?:\.\d+)?\b|\b(?:public|private|protected|static|final|class|interface|enum|record|void|new|return|if|else|for|while|try|catch|throw|throws|extends|implements|import|package|var|val|fun|suspend|override|data|object|when|true|false|null|this|super|const|async|await)\b""")
     }
     return buildAnnotatedString {
         var cursor = 0
