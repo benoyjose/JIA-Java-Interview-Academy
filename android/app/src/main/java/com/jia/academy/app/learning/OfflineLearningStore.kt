@@ -94,6 +94,22 @@ class OfflineLearningStore(context: Context) :
             )
         }
 
+    fun hasCachedLesson(slug: String, expectedChecksum: String): Boolean =
+        readableDatabase.query(
+            "cached_lessons",
+            arrayOf("content_json", "checksum"),
+            "slug=?",
+            arrayOf(slug),
+            null, null, null
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) false
+            else {
+                val content = cursor.getString(0)
+                sha256(content).equals(cursor.getString(1), ignoreCase = true) &&
+                    cursor.getString(1).equals(expectedChecksum, ignoreCase = true)
+            }
+        }
+
     fun enqueueProgress(
         lessonSlug: String,
         contentRevision: Int,
