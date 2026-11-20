@@ -32,8 +32,9 @@ public class AuthRateLimitService {
     public void clear(String remoteAddress, String email) {
         if (remoteAddress == null || remoteAddress.isBlank()) remoteAddress = "unknown";
         String normalizedEmail = email == null ? "" : email.trim().toLowerCase(java.util.Locale.ROOT);
-        jdbc.update("DELETE FROM auth_login_rate_limits WHERE key_hash IN (?,?)",
-                hash("ip|" + remoteAddress), hash("account|" + remoteAddress + "|" + normalizedEmail));
+        // Preserve the shared IP window; a successful login by another account must not reset it.
+        jdbc.update("DELETE FROM auth_login_rate_limits WHERE key_hash=?",
+                hash("account|" + remoteAddress + "|" + normalizedEmail));
     }
 
     private int record(String keyHash) {
