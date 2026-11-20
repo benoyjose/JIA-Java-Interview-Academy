@@ -62,8 +62,10 @@ public class ContentAuthoringService {
 
     @Transactional
     public LessonDraftResponse updateDraft(CurrentUser actor, UUID lessonId, LessonDraftRequest request) {
+        // Serialize edits to the same lesson so concurrent editors cannot
+        // allocate the same next revision number or overwrite each other's draft.
         String currentStatus = jdbc.query(
-                "SELECT status FROM lessons WHERE id=?",
+                "SELECT status FROM lessons WHERE id=? FOR UPDATE",
                 (rs, row) -> rs.getString(1), lessonId).stream().findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
         if ("PUBLISHED".equals(currentStatus)) {
