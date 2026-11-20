@@ -38,7 +38,7 @@ public class LearnerLibraryController {
                 row.put("contentRevision",rs.getInt("content_revision"));
                 row.put("status",rs.getString("status"));
                 row.put("progressPercent",rs.getBigDecimal("progress_percent"));
-                row.put("lastPosition",rs.getString("last_position_json"));
+                row.put("lastPosition",readPosition(rs.getString("last_position_json")));
                 row.put("updatedAt",rs.getTimestamp("updated_at").toInstant().toString());
                 return row;
             }, user.id());
@@ -111,6 +111,12 @@ public class LearnerLibraryController {
             WHERE b.lesson_id=l.id AND b.user_id=? AND l.slug=?
             """,user.id(),lessonSlug);
         return Map.of("lessonSlug",lessonSlug,"bookmarked",false);
+    }
+
+    private Object readPosition(String value) {
+        if (value == null) return null;
+        try { return mapper.readValue(value, Object.class); }
+        catch (Exception ex) { throw new IllegalStateException("Stored learner position is invalid JSON", ex); }
     }
 
     private String jsonPosition(Object value) {
