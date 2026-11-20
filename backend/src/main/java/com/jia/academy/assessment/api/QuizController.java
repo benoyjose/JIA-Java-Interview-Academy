@@ -111,7 +111,7 @@ public class QuizController {
             INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,category_id,difficulty,mode,status,
                 question_count,started_at,duration_limit_seconds,deadline_at,challenge_date)
             VALUES (?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,CASE WHEN ?='DAILY_CHALLENGE' THEN (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date ELSE NULL END)
-            """, attemptId, user.id(), JIA_ACADEMY, filters.technologyId(), filters.categoryId(),
+            """, attemptId, user.id(), academyId, filters.technologyId(), filters.categoryId(),
                 difficulty, mode, count, Timestamp.from(startedAt), durationLimitSeconds,
                 deadlineAt == null ? null : Timestamp.from(deadlineAt), mode);
 
@@ -208,10 +208,10 @@ public class QuizController {
             WHERE id = ? AND user_id = ? FOR UPDATE
             """, (rs, n) -> new AttemptRow(rs.getObject("id", UUID.class),
                 rs.getString("difficulty"), rs.getTimestamp("started_at").toInstant(),
-                rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id());
+                rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         AttemptRow attempt = attempts.getFirst();
-        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ?", String.class, attemptId);
+        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ? AND user_id=? AND academy_id=?", String.class, attemptId, user.id(), primaryAcademyId(user));
         if (!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
         boolean timedMock = "TIMED_MOCK".equals(attempt.mode());
         boolean timedOut = timedMock && (attempt.deadlineAt() == null || !Instant.now().isBefore(attempt.deadlineAt()));
