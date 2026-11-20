@@ -85,6 +85,10 @@ public class FederatedAuthService {
         auth.linkFederatedIdentity(actor, "APPLE", subject, jwt.getClaimAsString("email"), true);
     }
 
+    public void unlinkIdentity(CurrentUser actor, String provider) {
+        auth.unlinkFederatedIdentity(actor, provider);
+    }
+
     private Jwt decode(JwtDecoder decoder, String token) {
         if (token == null || token.isBlank() || token.length() > 12000) {
             throw unauthorized();
