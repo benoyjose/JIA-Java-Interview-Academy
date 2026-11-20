@@ -1284,12 +1284,13 @@ components:
           items: { type: string }
     TokenResponse:
       type: object
+      description: Access tokens expire after 15 minutes. Refresh tokens are single-use, rotate on refresh, and expire after 30 days.
       required: [accessToken, refreshToken, tokenType, expiresAt, user]
       properties:
-        accessToken: { type: string }
-        refreshToken: { type: string }
+        accessToken: { type: string, description: Short-lived bearer token; expires after 15 minutes }
+        refreshToken: { type: string, description: Single-use rotating refresh token; valid for up to 30 days }
         tokenType: { type: string, const: Bearer }
-        expiresAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: Access-token expiration timestamp }
         user: { $ref: '#/components/schemas/User' }
     Technology:
       type: object
