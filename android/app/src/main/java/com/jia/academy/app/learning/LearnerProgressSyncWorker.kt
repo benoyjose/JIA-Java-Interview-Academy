@@ -1,6 +1,7 @@
 package com.jia.academy.app.learning
 
 import android.content.Context
+import android.net.ConnectivityManager
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -48,6 +49,8 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
     }
 
     private fun downloadReleaseLessons(baseUrl: String, token: String, store: OfflineLearningStore) {
+        val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        if (connectivity.isActiveNetworkMetered && !store.downloadsOnMeteredNetwork()) return
         val manifestResponse = request(baseUrl, "/content/releases/latest", null, "GET")
         if (manifestResponse.first == 404) return
         if (manifestResponse.first !in 200..299) throw IOException("Content manifest request failed")
