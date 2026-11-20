@@ -33,7 +33,7 @@ public class QuizController {
             @RequestParam String difficulty,
             @RequestParam(required = false) String technologySlug,
             @RequestParam(required = false) String categorySlug) {
-        Filters filters = filters(difficulty, technologySlug, categorySlug, academyId);
+        Filters filters = filters(difficulty, technologySlug, categorySlug, JIA_ACADEMY);
         long count = jdbc.queryForObject(questionCountSql(filters), Long.class, countArgs(filters, JIA_ACADEMY));
         return Map.of("difficulty", difficulty, "availableQuestionCount", count);
     }
@@ -211,7 +211,7 @@ public class QuizController {
                 rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         AttemptRow attempt = attempts.getFirst();
-        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ? AND user_id=? AND academy_id=? AND user_id=? AND academy_id=?", String.class, attemptId, user.id(), primaryAcademyId(user));
+        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ? AND user_id=? AND academy_id=?", String.class, attemptId, user.id(), primaryAcademyId(user));
         if (!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
         boolean timedMock = "TIMED_MOCK".equals(attempt.mode());
         boolean timedOut = timedMock && (attempt.deadlineAt() == null || !Instant.now().isBefore(attempt.deadlineAt()));
