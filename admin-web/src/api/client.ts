@@ -1,4 +1,4 @@
-import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease, TechnologyItem, CategoryItem, CategoryRequest, RevisionHistoryItem } from "./types";
+import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease, TechnologyItem, CategoryItem, CategoryRequest, RevisionHistoryItem, UserAdminItem, UserAdminUpdate, QuestionAdminItem } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 const TOKEN_KEY = "jia.admin.access-token";
@@ -69,6 +69,21 @@ export const api = {
   createCategory: (body: CategoryRequest) => request<CategoryItem>("/admin/taxonomy/categories", { method: "POST", body: JSON.stringify(body) }),
   updateCategory: (id: string, body: CategoryRequest) => request<CategoryItem>(`/admin/taxonomy/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   archiveCategory: (id: string) => request<void>(`/admin/taxonomy/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  adminUsers: (params: { q?: string; page: number; size: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
+    if (params.q) query.set("q", params.q);
+    return request<PageResult<UserAdminItem>>("/admin/users?" + query.toString(), { signal });
+  },
+  updateAdminUser: (id: string, body: UserAdminUpdate) => request<UserAdminItem>("/admin/users/" + encodeURIComponent(id), { method: "PUT", body: JSON.stringify(body) }),
+  adminQuestions: (params: { q?: string; status?: string; difficulty?: string; page: number; size: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
+    if (params.q) query.set("q", params.q);
+    if (params.status) query.set("status", params.status);
+    if (params.difficulty) query.set("difficulty", params.difficulty);
+    return request<PageResult<QuestionAdminItem>>("/admin/questions?" + query.toString(), { signal });
+  },
+  transitionQuestion: (id: string, status: string) => request<QuestionAdminItem>("/admin/questions/" + encodeURIComponent(id) + "/status", { method: "PATCH", body: JSON.stringify({ status }) }),
+  importQuestions: (payload: unknown) => request<Record<string, unknown>>("/admin/questions/import", { method: "POST", body: JSON.stringify(payload) }),
   reviews: (params: { q?: string; page: number; size: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
     if (params.q) query.set("q", params.q);
