@@ -3,6 +3,7 @@ package com.jia.academy.app.lesson
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -174,28 +175,46 @@ private fun InterviewAnswerCard(block: LessonBlock.InterviewAnswer) {
 
 @Composable
 private fun LessonDiagramRenderer(block: LessonBlock.Diagram) {
-    val nodePattern = remember { Regex("""([A-Za-z0-9_]+)\s*[\[\(]([^\]\)]+)[\]\)]""") }
-    val nodes = remember(block.source) {
-        nodePattern.findAll(block.source).associate { it.groupValues[1] to it.groupValues[2].trim() }.toList()
-    }
-    val description = nodes.joinToString(", ") { it.second }.ifBlank { block.source.take(300) }
+    val diagram = remember(block.source) { MermaidDiagramParser.parse(block.source) }
+    val labels = diagram.nodes.associate { it.id to it.label }
+    val description = buildString {
+        append(diagram.nodes.joinToString(", ") { it.label })
+        if (diagram.edges.isNotEmpty()) {
+            append(". Connections: ")
+            append(diagram.edges.joinToString("; ") { edge ->
+                "${labels[edge.from] ?: edge.from} to ${labels[edge.to] ?: edge.to}"
+            })
+        }
+    }.ifBlank { block.source.take(300) }
     Card(Modifier.fillMaxWidth().semantics { contentDescription = "Flow diagram: " + description }) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(block.title ?: "Diagram", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() })
-            if (nodes.isEmpty()) {
+            if (diagram.nodes.isEmpty()) {
                 Text("Diagram source (" + block.language + ")", style = MaterialTheme.typography.labelSmall)
-                Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                SelectionContainer {
+                    Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                }
             } else {
-                nodes.forEachIndexed { index, node ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Text(node.second, Modifier.fillMaxWidth().padding(12.dp),
-                            style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    diagram.nodes.forEach { node ->
+                        Card {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(node.label, style = MaterialTheme.typography.bodyMedium)
+                                Text(node.id, style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
-                    if (index < nodes.lastIndex) {
-                        Text("↓", Modifier.fillMaxWidth().semantics { contentDescription = "Leads to next step" },
-                            style = MaterialTheme.typography.titleLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                if (diagram.edges.isNotEmpty()) {
+                    Text("Connections", style = MaterialTheme.typography.labelLarge)
+                    diagram.edges.forEach { edge ->
+                        val connection = "${labels[edge.from] ?: edge.from} → ${labels[edge.to] ?: edge.to}"
+                        Text(if (edge.label.isNullOrBlank()) connection else "$connection · ${edge.label}",
+                            style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
