@@ -68,6 +68,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TokenResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
   /auth/federated/google:
     post:
       summary: Sign in with Google
