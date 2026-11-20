@@ -55,7 +55,7 @@ public class LearnerLibraryController {
         int revision=body.get("contentRevision") instanceof Number revisionNumber ? revisionNumber.intValue() : -1;
         if(revision<1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"contentRevision must be positive");
         var lessons=jdbc.query("SELECT id, published_revision_id FROM lessons WHERE slug=? AND status='PUBLISHED'",
-            (rs,n)->new Object[]{rs.getObject("id",UUID.class),rs.getObject("published_revision_id",UUID.class)},lessonSlug);
+            (rs,rowNum)->new Object[]{rs.getObject("id",UUID.class),rs.getObject("published_revision_id",UUID.class)},lessonSlug);
         if(lessons.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Lesson not found");
         UUID lessonId=(UUID)lessons.getFirst()[0];
         Integer currentRevision=jdbc.queryForObject("SELECT revision_number FROM lesson_revisions WHERE id=?",Integer.class,lessons.getFirst()[1]);
