@@ -67,6 +67,20 @@ class LessonContentParserTest {
         assertTrue(document.blocks.all { it is LessonBlock.Media })
     }
 
+    @Test fun parsesMermaidFlowchartNodesAndLabeledEdges() {
+        val diagram = MermaidDiagramParser.parse(
+            """flowchart TD
+              A[Client] -->|HTTP| B[API]
+              B --> C[Database]
+            """
+        )
+        assertEquals(listOf("Client", "API", "Database"), diagram.nodes.map { it.label })
+        assertEquals(2, diagram.edges.size)
+        assertEquals("A", diagram.edges[0].from)
+        assertEquals("B", diagram.edges[0].to)
+        assertEquals("HTTP", diagram.edges[0].label)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnsupportedSchemaVersion() {
         LessonContentParser.parse("""{"schemaVersion":2,"blocks":[]}""")
