@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(20);
+        assertThat(result.migrationsExecuted).isEqualTo(21);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
@@ -141,6 +141,19 @@ class PostgresMigrationIntegrationTest {
                     """)) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt("index_count")).isEqualTo(7);
+            }
+
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='academy_memberships'")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public' AND trigger_name='trg_users_default_academy_membership'")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname IN ('idx_academy_memberships_academy_status_user','idx_academy_memberships_user_status')")) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(2);
             }
         } catch (Exception ex) {
             throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
