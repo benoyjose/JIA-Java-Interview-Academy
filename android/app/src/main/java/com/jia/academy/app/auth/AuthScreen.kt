@@ -92,7 +92,7 @@ fun AuthScreen(
                             val userJson = org.json.JSONObject().put("id", session.account.id)
                                 .put("name", session.account.name).put("email", session.account.email)
                                 .put("roles", org.json.JSONArray(session.account.roles)).toString()
-                            SecureSessionStore(context).save(session.accessToken, session.expiresAt, userJson)
+                            SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
                         }.onSuccess { onAuthenticated(session) }
                             .onFailure { error = "Could not securely save this session." }
                     }.onFailure { error = it.message ?: "Google sign-in failed." }
@@ -126,7 +126,7 @@ fun AuthScreen(
                                 val userJson = org.json.JSONObject().put("id", session.account.id)
                                     .put("name", session.account.name).put("email", session.account.email)
                                     .put("roles", org.json.JSONArray(session.account.roles)).toString()
-                                SecureSessionStore(context).save(session.accessToken, session.expiresAt, userJson)
+                                SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
                             }.onSuccess { onAuthenticated(session) }
                                 .onFailure { error = "Could not securely save this session." }
                         }
@@ -169,7 +169,7 @@ fun AuthScreen(
                                 .put("email", session.account.email)
                                 .put("roles", org.json.JSONArray(session.account.roles))
                                 .toString()
-                            SecureSessionStore(context).save(session.accessToken, session.expiresAt, userJson)
+                            SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
                         }.onSuccess { onAuthenticated(session) }
                             .onFailure { error = "Could not securely save this session." }
                     }.onFailure { error = it.message ?: "Authentication failed." }
