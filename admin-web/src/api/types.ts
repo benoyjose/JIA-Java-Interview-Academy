@@ -1,5 +1,5 @@
 export type User = { id: string; name: string; email: string | null; roles: string[] };
-export type TokenResponse = { accessToken: string; tokenType: "Bearer"; expiresAt: string; user: User };
+export type TokenResponse = { accessToken: string; refreshToken: string; tokenType: "Bearer"; expiresAt: string; user: User };
 export type LessonStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "ARCHIVED";
 export type AdminLesson = {
   id: string; slug: string; title: string; categorySlug: string; status: LessonStatus;
