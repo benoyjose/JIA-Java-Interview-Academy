@@ -20,6 +20,46 @@ public class TaxonomyAdminService {
     }
 
     @Transactional(readOnly = true)
+    @Transactional
+    public TechnologyItem createTechnology(CurrentUser actor, TechnologyRequest request) {
+        validateTechnologyRequest(request);
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO technologies(id,slug,name,description,sort_order,status,created_at,updated_at)
+                VALUES (?,?,?,?,?,'DRAFT',now(),now())
+                """, id, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
+                request.description(), request.sortOrder());
+        audit(actor, "TAXONOMY_TECHNOLOGY_CREATED", "TECHNOLOGY", id);
+        return technologies().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    @Transactional
+    public TechnologyItem updateTechnology(CurrentUser actor, UUID id, TechnologyRequest request) {
+        validateTechnologyRequest(request);
+        TechnologyItem current = technologies().stream().filter(item -> item.id().equals(id)).findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found"));
+        jdbc.update("""
+                UPDATE technologies SET slug=?,name=?,description=?,sort_order=?,updated_at=now() WHERE id=?
+                """, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
+                request.description(), request.sortOrder(), id);
+        audit(actor, "TAXONOMY_TECHNOLOGY_UPDATED", "TECHNOLOGY", id);
+        return technologies().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    @Transactional
+    public void archiveTechnology(CurrentUser actor, UUID id) {
+        TechnologyItem current = technologies().stream().filter(item -> item.id().equals(id)).findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found"));
+        Integer categories = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE technology_id=?",
+                Integer.class, id);
+        if (categories != null && categories > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Archive or move all categories before archiving this technology");
+        }
+        jdbc.update("UPDATE technologies SET status='ARCHIVED',updated_at=now() WHERE id=?", id);
+        audit(actor, "TAXONOMY_TECHNOLOGY_ARCHIVED", "TECHNOLOGY", id);
+    }
+
     public List<TechnologyItem> technologies() {
         return jdbc.query("""
                 SELECT id, slug, name, description, sort_order, status
@@ -115,6 +155,15 @@ public class TaxonomyAdminService {
         }
         jdbc.update("UPDATE categories SET status='ARCHIVED',updated_at=now() WHERE id=?", id);
         audit(actor, "TAXONOMY_CATEGORY_ARCHIVED", id);
+    }
+
+    private static void validateTechnologyRequest(TechnologyRequest request) {
+        if (request == null || request.slug() == null || !request.slug().matches("[a-z0-9]+(?:-[a-z0-9]+)*")
+                || request.slug().length() > 80 || request.name() == null || request.name().isBlank()
+                || request.name().trim().length() > 140 || request.sortOrder() < 0
+                || (request.description() != null && request.description().length() > 500)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid technology payload");
+        }
     }
 
     private static void validateRequest(CategoryRequest request) {
