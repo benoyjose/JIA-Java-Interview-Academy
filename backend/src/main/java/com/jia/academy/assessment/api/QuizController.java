@@ -33,8 +33,8 @@ public class QuizController {
             @RequestParam String difficulty,
             @RequestParam(required = false) String technologySlug,
             @RequestParam(required = false) String categorySlug) {
-        Filters filters = filters(difficulty, technologySlug, categorySlug);
-        long count = jdbc.queryForObject(questionCountSql(filters), Long.class, countArgs(filters));
+        Filters filters = filters(difficulty, technologySlug, categorySlug, academyId);
+        long count = jdbc.queryForObject(questionCountSql(filters), Long.class, countArgs(filters, JIA_ACADEMY));
         return Map.of("difficulty", difficulty, "availableQuestionCount", count);
     }
 
@@ -61,15 +61,16 @@ public class QuizController {
         } else if (!"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
             validateMode(mode);
         }
-        Filters filters = filters(difficulty, technologySlug, categorySlug);
+        UUID academyId = primaryAcademyId(user);
+        Filters filters = filters(difficulty, technologySlug, categorySlug, academyId);
         if ("DAILY_CHALLENGE".equals(mode)) {
             jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))",
                     rs -> {}, user.id().toString());
             List<UUID> existing = jdbc.query("""
                 SELECT id FROM quiz_attempts
                 WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
-                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), JIA_ACADEMY);
-            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst());
+                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), academyId);
+            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst(), user.id(), academyId);
         }
 
         String sql = """
@@ -97,7 +98,7 @@ public class QuizController {
             sql += " ORDER BY random()";
         }
         sql += " LIMIT ?";
-        List<QuestionRow> selected = jdbc.query(sql, this::questionRow, startArgs(filters, count, user.id(), mode));
+        List<QuestionRow> selected = jdbc.query(sql, this::questionRow, startArgs(filters, count, user.id(), mode, academyId));
         if (selected.size() < count) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Not enough published questions for selected filters. Available: " + selected.size());
@@ -336,7 +337,7 @@ public class QuizController {
                     var latest = rs.getTimestamp("latest_attempt_at");
                     item.put("latestAttemptAt", latest == null ? null : latest.toInstant().toString());
                     return item;
-                }, user.id(), JIA_ACADEMY, level);
+                }, user.id(), primaryAcademyId(user), level);
             levels.add(rows.getFirst());
         }
         List<Map<String,Object>> topics = jdbc.query("""
@@ -355,7 +356,7 @@ public class QuizController {
                 item.put("attempts", rs.getInt("attempts"));
                 item.put("accuracyPercent", rs.getBigDecimal("accuracy_percent"));
                 return item;
-            }, user.id(), JIA_ACADEMY);
+            }, user.id(), primaryAcademyId(user));
         return Map.of("byDifficulty", levels, "byTopic", topics);
     }
 
@@ -386,10 +387,10 @@ public class QuizController {
             item.put("startedAt", rs.getTimestamp("started_at").toInstant().toString());
             item.put("status", rs.getString("status"));
             return item;
-        }, user.id(), JIA_ACADEMY, difficulty, difficulty, limit);
+        }, user.id(), primaryAcademyId(user), difficulty, difficulty, limit);
     }
 
-    private Map<String,Object> dailyChallengeResponse(UUID attemptId) {
+    private Map<String,Object> dailyChallengeResponse(UUID attemptId, UUID userId, UUID academyId) {
         var attempts = jdbc.query("""
             SELECT difficulty, question_count, started_at, challenge_date
             FROM quiz_attempts WHERE id=?
@@ -453,13 +454,13 @@ public class QuizController {
         }
     }
 
-    private Filters filters(String difficulty, String technologySlug, String categorySlug) {
+    private Filters filters(String difficulty, String technologySlug, String categorySlug, UUID academyId) {
         if (!LEVELS.contains(difficulty)) throw badRequest("Invalid difficulty");
         UUID technologyId = null;
         UUID categoryId = null;
         if (technologySlug != null) {
             var ids = jdbc.query("SELECT id FROM technologies WHERE academy_id=? AND slug=? AND status='PUBLISHED'",
-                    (rs,n) -> rs.getObject("id", UUID.class), JIA_ACADEMY, technologySlug);
+                    (rs,n) -> rs.getObject("id", UUID.class), academyId, technologySlug);
             if (ids.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found");
             technologyId = ids.getFirst();
         }
@@ -530,6 +531,13 @@ public class QuizController {
         if ("MULTI_SELECT".equals(type)) return e.equals(a);
         return e.size() == 1 && a.size() == 1 && e.equals(a);
     }
+    private static UUID primaryAcademyId(CurrentUser user) {
+        if (user == null || user.academyIds() == null || user.academyIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return user.academyIds().getFirst();
+    }
+
     private void requireUser(CurrentUser user) {
         if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated");
     }
