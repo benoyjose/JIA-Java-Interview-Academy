@@ -5,7 +5,6 @@ import com.jia.academy.app.learning.OfflineLearningStore
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -40,6 +39,12 @@ import com.jia.academy.app.assessment.JiaQuizResult
 import com.jia.academy.app.assessment.JiaQuizHistoryItem
 import com.jia.academy.app.assessment.JiaQuizPerformance
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,10 +88,15 @@ class MainActivity : ComponentActivity() {
 fun JiaApp() {
     val context = LocalContext.current
     val repository = remember(context) { CatalogueRepository(OfflineLearningStore(context)) }
-    var route by remember { mutableStateOf<BrowseRoute>(BrowseRoute.Home) }
-    var backStack by remember { mutableStateOf(listOf<BrowseRoute>()) }
+    val catalogueViewModel: CatalogueViewModel = viewModel(factory = CatalogueViewModelFactory(repository))
+    val navController = rememberNavController()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    var selectedTechnology by remember { mutableStateOf<Technology?>(null) }
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    var selectedLesson by remember { mutableStateOf<Pair<String, String>?>(null) }
     var signedInAccount by remember { mutableStateOf<String?>(null) }
     val authRepository = remember { AuthRepository() }
+
     LaunchedEffect(Unit) {
         val sessionStore = com.jia.academy.app.auth.SecureSessionStore(context)
         val token = sessionStore.accessToken()
@@ -114,36 +124,65 @@ fun JiaApp() {
             signedInAccount = account?.name
         }
     }
+
     fun navigate(next: BrowseRoute) {
-        backStack = backStack + route
-        route = next
+        when (next) {
+            BrowseRoute.Home -> navController.navigate("home")
+            BrowseRoute.QuizSelection -> navController.navigate("quiz")
+            BrowseRoute.Authentication -> navController.navigate("auth")
+            is BrowseRoute.Categories -> {
+                selectedTechnology = next.technology
+                navController.navigate("categories")
+            }
+            is BrowseRoute.Lessons -> {
+                selectedTechnology = next.technology
+                selectedCategory = next.category
+                navController.navigate("lessons")
+            }
+            is BrowseRoute.Lesson -> {
+                selectedLesson = next.slug to next.title
+                navController.navigate("lesson")
+            }
+        }
     }
-    fun goBack() {
-        if (backStack.isNotEmpty()) {
-            route = backStack.last()
-            backStack = backStack.dropLast(1)
-        } else route = BrowseRoute.Home
-    }
-    BackHandler(enabled = route !is BrowseRoute.Home) { goBack() }
 
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("JIA") },
             navigationIcon = {
-                if (route !is BrowseRoute.Home) TextButton(onClick = ::goBack) { Text("Back") }
+                if (currentEntry?.destination?.route != "home") {
+                    TextButton(onClick = { navController.popBackStack() }) { Text("Back") }
+                }
             }
         )
     }) { padding ->
-        when (val current = route) {
-            BrowseRoute.Home -> TechnologyScreen(repository, signedInAccount, Modifier.padding(padding), ::navigate, onSignOut = { signedInAccount = null })
-            BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, signedInAccount != null, Modifier.padding(padding))
-            BrowseRoute.Authentication -> AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
-                signedInAccount = session.account.name
-                goBack()
-            }, modifier = Modifier.padding(padding))
-            is BrowseRoute.Categories -> CategoryScreen(repository, current.technology, Modifier.padding(padding), ::navigate)
-            is BrowseRoute.Lessons -> LessonListScreen(repository, current.category, current.technology, Modifier.padding(padding), ::navigate)
-            is BrowseRoute.Lesson -> LessonScreen(repository, current.slug, current.title, Modifier.padding(padding))
+        NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(padding)) {
+            composable("home") {
+                TechnologyScreen(catalogueViewModel, signedInAccount, Modifier.fillMaxSize(), ::navigate,
+                    onSignOut = { signedInAccount = null })
+            }
+            composable("quiz") {
+                QuizSelectionScreen(repository, signedInAccount != null, Modifier.fillMaxSize())
+            }
+            composable("auth") {
+                AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
+                    signedInAccount = session.account.name
+                    navController.popBackStack()
+                }, modifier = Modifier.fillMaxSize())
+            }
+            composable("categories") {
+                selectedTechnology?.let { CategoryScreen(catalogueViewModel, it, Modifier.fillMaxSize(), ::navigate) }
+            }
+            composable("lessons") {
+                val technology = selectedTechnology
+                val category = selectedCategory
+                if (technology != null && category != null) {
+                    LessonListScreen(catalogueViewModel, category, technology, Modifier.fillMaxSize(), ::navigate)
+                }
+            }
+            composable("lesson") {
+                selectedLesson?.let { (slug, title) -> LessonScreen(repository, slug, title, Modifier.fillMaxSize()) }
+            }
         }
     }
 }
