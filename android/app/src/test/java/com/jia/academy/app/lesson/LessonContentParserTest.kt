@@ -53,6 +53,20 @@ class LessonContentParserTest {
         assertTrue(document.blocks[4] is LessonBlock.ResourceLink)
     }
 
+    @Test fun parsesAccessibleHttpsMediaAndRejectsUnsafeOrUnlabelledMedia() {
+        val document = LessonContentParser.parse(
+            """{"schemaVersion":1,"blocks":[
+              {"type":"image","url":"https://cdn.example.com/architecture.png","alt":"Request flow diagram","caption":"Service interaction"},
+              {"type":"video","url":"https://cdn.example.com/demo.mp4","alt":"Spring transaction walkthrough"},
+              {"type":"image","url":"http://cdn.example.com/insecure.png","alt":"Insecure image"},
+              {"type":"image","url":"https://cdn.example.com/no-alt.png","alt":""}
+            ]}"""
+        )
+        assertEquals(2, document.blocks.size)
+        assertEquals(2, document.skippedBlockCount)
+        assertTrue(document.blocks.all { it is LessonBlock.Media })
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnsupportedSchemaVersion() {
         LessonContentParser.parse("""{"schemaVersion":2,"blocks":[]}""")
