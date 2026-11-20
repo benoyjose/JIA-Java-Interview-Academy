@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jia.academy.app.auth.SecureSessionStore
+import com.jia.academy.app.auth.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -24,17 +25,24 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val baseUrl = inputData.getString(KEY_BASE_URL)?.trimEnd('/')
             ?.takeIf(String::isNotBlank) ?: return@withContext Result.failure()
-        val token = SecureSessionStore(applicationContext).accessToken()
-            ?: return@withContext Result.failure()
+        val sessionStore = SecureSessionStore(applicationContext)
         val store = OfflineLearningStore(applicationContext)
-
+        store.recordSyncAttempt()
         try {
+            val token = ensureAccessToken(baseUrl, sessionStore)
             downloadReleaseLessons(baseUrl, token, store)
-            syncPendingProgress(baseUrl, token, store)
+            val progressCount = syncPendingProgress(baseUrl, token, store)
+            val bookmarkCount = syncPendingBookmarks(baseUrl, token, store)
+            store.recordSyncSuccess(progressCount, bookmarkCount)
             Result.success()
-        } catch (_: IOException) {
+        } catch (error: IOException) {
+            store.recordSyncFailure(error.message ?: "Network synchronization failed")
             Result.retry()
-        } catch (_: RuntimeException) {
+        } catch (error: IllegalStateException) {
+            store.recordSyncFailure(error.message ?: "Synchronization was rejected")
+            Result.failure()
+        } catch (error: RuntimeException) {
+            store.recordSyncFailure(error.message ?: "Synchronization failed")
             Result.retry()
         }
     }
@@ -66,9 +74,11 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         }
     }
 
-    private fun syncPendingProgress(baseUrl: String, token: String, store: OfflineLearningStore) {
+    private fun syncPendingProgress(baseUrl: String, token: String, store: OfflineLearningStore): Int {
+        var synced = 0
         for (item in store.pendingProgress()) {
-            val path = "/me/lesson-progress/" + URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
+            val encodedSlug = URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
+            val path = "/me/lesson-progress/" + encodedSlug
             val body = JSONObject()
                 .put("contentRevision", item.contentRevision)
                 .put("progressPercent", item.progressPercent)
@@ -76,12 +86,58 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             val (status, _) = request(baseUrl, path, token, "PUT", body)
             if (status in 200..299) {
                 store.markProgressSynced(item)
+                synced++
+            } else if (status == 409) {
+                val (lessonStatus, lessonJson) = request(baseUrl, "/lessons/" + encodedSlug, null, "GET")
+                if (lessonStatus in 200..299) {
+                    val currentRevision = JSONObject(lessonJson).optInt("contentRevision", 0)
+                    if (currentRevision > 0) {
+                        store.enqueueProgress(item.lessonSlug, currentRevision, item.progressPercent, item.lastPositionJson)
+                        throw IOException("Progress revision rebased; retrying synchronization")
+                    }
+                }
+                throw IllegalStateException("Progress conflict could not be reconciled")
             } else if (status == 408 || status == 429 || status >= 500) {
                 throw IOException("Progress sync should be retried")
             } else {
                 throw IllegalStateException("Progress sync rejected with HTTP $status")
             }
         }
+        return synced
+    }
+
+    private fun syncPendingBookmarks(baseUrl: String, token: String, store: OfflineLearningStore): Int {
+        var synced = 0
+        for (item in store.pendingBookmarks()) {
+            val path = "/me/bookmarks/" + URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
+            val (status, _) = request(baseUrl, path, token, if (item.bookmarked) "PUT" else "DELETE")
+            if (status in 200..299 || (!item.bookmarked && status == 404)) {
+                store.markBookmarkSynced(item)
+                synced++
+            } else if (status == 408 || status == 429 || status >= 500) {
+                throw IOException("Bookmark sync should be retried")
+            } else {
+                throw IllegalStateException("Bookmark sync rejected with HTTP $status")
+            }
+        }
+        return synced
+    }
+
+    private suspend fun ensureAccessToken(baseUrl: String, store: SecureSessionStore): String {
+        val accessToken = store.accessToken() ?: throw IllegalStateException("Sign in to synchronize learning activity")
+        val auth = AuthRepository()
+        if (runCatching { auth.currentUser(baseUrl, accessToken) }.isSuccess) return accessToken
+        val refreshToken = store.refreshToken()
+            ?: throw IllegalStateException("Your session expired. Sign in again to synchronize learning activity.")
+        val session = auth.refresh(baseUrl, refreshToken)
+        val userJson = JSONObject()
+            .put("id", session.account.id)
+            .put("name", session.account.name)
+            .put("email", session.account.email)
+            .put("roles", org.json.JSONArray(session.account.roles))
+            .toString()
+        store.save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
+        return session.accessToken
     }
 
     private fun request(
@@ -122,7 +178,7 @@ object LearnerSyncScheduler {
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
             LearnerProgressSyncWorker.UNIQUE_WORK_NAME,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
     }
