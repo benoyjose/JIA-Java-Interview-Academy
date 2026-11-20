@@ -36,6 +36,11 @@ class QuizControllerPostgresIntegrationTest {
     private static final UUID USER_ONE = UUID.fromString("60000000-0000-0000-0000-000000000001");
     private static final UUID USER_TWO = UUID.fromString("60000000-0000-0000-0000-000000000002");
     private static final UUID ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000002");
+    private static final UUID OTHER_TECHNOLOGY = UUID.fromString("11000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_CATEGORY = UUID.fromString("21000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_QUESTION = UUID.fromString("71000000-0000-0000-0000-000000000001");
+    private static final UUID OTHER_REVISION = UUID.fromString("72000000-0000-0000-0000-000000000001");
     private static final UUID TECHNOLOGY = UUID.fromString("10000000-0000-0000-0000-000000000001");
     private static final UUID CATEGORY = UUID.fromString("20000000-0000-0000-0000-000000000001");
     private static final UUID QUESTION_ONE = UUID.fromString("70000000-0000-0000-0000-000000000001");
@@ -54,7 +59,7 @@ class QuizControllerPostgresIntegrationTest {
     private static QuizController controller;
     private static LearnerLibraryController learnerLibrary;
     private static CurrentUser learnerOne;
-    private static CurrentUser learnerTwo;
+    private static CurrentUser learnerTwo;\n    private static CurrentUser learnerOtherAcademy;
 
     @BeforeAll
     static void migrateAndSeedReferenceData() {
