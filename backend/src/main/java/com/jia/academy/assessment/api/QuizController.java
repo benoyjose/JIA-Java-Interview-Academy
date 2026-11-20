@@ -158,9 +158,9 @@ public class QuizController {
         }
         var attempts = jdbc.query("""
             SELECT mode, status, deadline_at FROM quiz_attempts
-            WHERE id=? AND user_id=? FOR UPDATE
+            WHERE id=? AND user_id=? AND academy_id=? FOR UPDATE
             """, (rs,n) -> new Object[]{rs.getString("mode"), rs.getString("status"), rs.getTimestamp("deadline_at")},
-                attemptId, user.id());
+                attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         Object[] attempt = attempts.getFirst();
         if (!"TIMED_MOCK".equals(attempt[0])) throw badRequest("Answer autosave is only available for timed mock attempts");
@@ -205,13 +205,13 @@ public class QuizController {
         }
         var attempts = jdbc.query("""
             SELECT id, difficulty, started_at, mode, deadline_at FROM quiz_attempts
-            WHERE id = ? AND user_id = ? FOR UPDATE
+            WHERE id = ? AND user_id = ? AND academy_id = ? FOR UPDATE
             """, (rs, n) -> new AttemptRow(rs.getObject("id", UUID.class),
                 rs.getString("difficulty"), rs.getTimestamp("started_at").toInstant(),
                 rs.getString("mode"), rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant()), attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         AttemptRow attempt = attempts.getFirst();
-        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ? AND user_id=? AND academy_id=?", String.class, attemptId, user.id(), primaryAcademyId(user));
+        String status = jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id = ? AND user_id=? AND academy_id=? AND user_id=? AND academy_id=?", String.class, attemptId, user.id(), primaryAcademyId(user));
         if (!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
         boolean timedMock = "TIMED_MOCK".equals(attempt.mode());
         boolean timedOut = timedMock && (attempt.deadlineAt() == null || !Instant.now().isBefore(attempt.deadlineAt()));
@@ -469,7 +469,7 @@ public class QuizController {
                 SELECT c.id,c.technology_id FROM categories c JOIN technologies t ON t.id=c.technology_id
                 WHERE c.slug=? AND c.status='PUBLISHED' AND t.academy_id=?
                 """, (rs,n) -> new UUID[]{rs.getObject("id", UUID.class), rs.getObject("technology_id", UUID.class)},
-                    categorySlug, JIA_ACADEMY);
+                    categorySlug, academyId);
             if (rows.isEmpty() || (technologyId != null && !technologyId.equals(rows.getFirst()[1]))) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found for selected technology");
             }
@@ -483,8 +483,8 @@ public class QuizController {
         return (f.technologyId() == null ? "" : " AND q.technology_id = ?")
                 + (f.categoryId() == null ? "" : " AND q.category_id = ?");
     }
-    private Object[] countArgs(Filters f) {
-        List<Object> args = new ArrayList<>(List.of(JIA_ACADEMY, JIA_ACADEMY, f.difficulty()));
+    private Object[] countArgs(Filters f, UUID academyId) {
+        List<Object> args = new ArrayList<>(List.of(academyId, academyId, f.difficulty()));
         if (f.technologyId() != null) args.add(f.technologyId());
         if (f.categoryId() != null) args.add(f.categoryId());
         return args.toArray();
@@ -494,8 +494,8 @@ public class QuizController {
                 + "JOIN question_revisions qr ON qr.question_id=q.id AND qr.revision_number=q.current_revision "
                 + "WHERE q.academy_id=? AND q.status='PUBLISHED' AND q.difficulty=? " + filterSql(f);
     }
-    private Object[] startArgs(Filters f, int count, UUID userId, String mode) {
-        List<Object> args = new ArrayList<>(List.of(JIA_ACADEMY, JIA_ACADEMY, f.difficulty()));
+    private Object[] startArgs(Filters f, int count, UUID userId, String mode, UUID academyId) {
+        List<Object> args = new ArrayList<>(List.of(academyId, academyId, f.difficulty()));
         if (f.technologyId() != null) args.add(f.technologyId());
         if (f.categoryId() != null) args.add(f.categoryId());
         if ("WEAK_AREA".equals(mode)) args.add(userId);
