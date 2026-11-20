@@ -1,6 +1,7 @@
 package com.jia.academy.app
 
 import com.jia.academy.app.catalogue.*
+import com.jia.academy.app.learning.OfflineLearningStore
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
