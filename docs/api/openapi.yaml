@@ -742,6 +742,39 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /admin/lessons/{lessonId}/rollback:
+    post:
+      summary: Create a new draft by copying a selected historical lesson revision
+      description: A published revision remains live; the rollback copy must pass the normal review and publication workflow.
+      tags: [Content Admin]
+      operationId: rollbackLessonRevision
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revisionNumber]
+              properties:
+                revisionNumber: { type: integer, minimum: 1 }
+                changeNote: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '200':
+          description: A new draft revision created from the selected historical revision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonDraft' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/lessons/{lessonId}/publish:
     post:
       summary: Publish an approved lesson
