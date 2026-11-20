@@ -17,8 +17,14 @@ class QuizSubmissionValidationTest {
     }
 
     @Test
+    void acceptsDailyChallengeMode() {
+        assertThatCode(() -> QuizController.validateMode("DAILY_CHALLENGE"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void rejectsModesUntilTheirWorkflowsAreImplemented() {
-        for (String mode : Set.of("TIMED_MOCK", "DAILY_CHALLENGE", "WEAK_AREA", "UNKNOWN")) {
+        for (String mode : Set.of("TIMED_MOCK", "WEAK_AREA", "UNKNOWN")) {
             assertThatThrownBy(() -> QuizController.validateMode(mode))
                     .isInstanceOf(ResponseStatusException.class)
                     .hasMessageContaining("Quiz mode is not available yet");
