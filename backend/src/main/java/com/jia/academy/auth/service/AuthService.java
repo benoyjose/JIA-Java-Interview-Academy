@@ -172,6 +172,87 @@ public class AuthService {
         return new UserResponse(user.id(), user.name(), user.email(), user.roles());
     }
 
+    @Transactional(noRollbackFor = ResponseStatusException.class)
+    public TokenResponse refresh(String rawRefreshToken) {
+        if (rawRefreshToken == null || rawRefreshToken.isBlank() || rawRefreshToken.length() > 180) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
+        String hash = sha256(rawRefreshToken);
+        Timestamp now = Timestamp.from(Instant.now());
+        var rows = jdbc.query("""
+                SELECT id,user_id,family_id,token_name,expires_at,consumed_at,revoked_at
+                FROM auth_refresh_tokens WHERE token_hash=? FOR UPDATE
+                """, (rs, row) -> new RefreshTokenState(rs.getObject("id", UUID.class),
+                rs.getObject("user_id", UUID.class), rs.getObject("family_id", UUID.class),
+                rs.getString("token_name"), rs.getTimestamp("expires_at").toInstant(),
+                rs.getTimestamp("consumed_at") == null ? null : rs.getTimestamp("consumed_at").toInstant(),
+                rs.getTimestamp("revoked_at") == null ? null : rs.getTimestamp("revoked_at").toInstant()), hash);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        RefreshTokenState token = rows.getFirst();
+        if (token.consumedAt() != null) {
+            jdbc.update("UPDATE auth_refresh_tokens SET revoked_at=? WHERE family_id=? AND revoked_at IS NULL",
+                    now, token.familyId());
+            jdbc.update("""
+                    UPDATE api_tokens SET revoked_at=?
+                    WHERE id IN (SELECT access_token_id FROM auth_refresh_tokens WHERE family_id=?)
+                      AND revoked_at IS NULL
+                    """, now, token.familyId());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token reuse detected; sign in again");
+        }
+        if (token.revokedAt() != null || !token.expiresAt().isAfter(Instant.now())) {
+            jdbc.update("UPDATE auth_refresh_tokens SET revoked_at=? WHERE id=? AND revoked_at IS NULL", now, token.id());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired or revoked");
+        }
+        jdbc.update("UPDATE auth_refresh_tokens SET consumed_at=? WHERE id=? AND consumed_at IS NULL", now, token.id());
+        var users = jdbc.query("SELECT id,name,email,status FROM users WHERE id=?",
+                (rs, row) -> new FederatedUser(rs.getObject("id", UUID.class), rs.getString("name"),
+                        rs.getString("email"), rs.getString("status")), token.userId());
+        if (users.isEmpty() || !"ACTIVE".equals(users.getFirst().status())) {
+            jdbc.update("UPDATE auth_refresh_tokens SET revoked_at=? WHERE family_id=?", now, token.familyId());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account is not active");
+        }
+        FederatedUser user = users.getFirst();
+        List<String> roles = jdbc.queryForList("""
+                SELECT r.code FROM roles r JOIN user_roles ur ON ur.role_id=r.id
+                WHERE ur.user_id=? ORDER BY r.code
+                """, String.class, user.id());
+        return issueToken(user.id(), user.name(), user.email(), roles, token.tokenName(), token.familyId());
+    }
+
+    @Transactional
+    public void linkFederatedIdentity(CurrentUser actor, String provider, String subject,
+                                      String providerEmail, boolean emailVerified) {
+        if (!List.of("GOOGLE", "APPLE").contains(provider) || subject == null || subject.isBlank()
+                || !emailVerified) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "A verified provider identity is required");
+        }
+        var current = jdbc.query("""
+                SELECT user_id FROM auth_identities WHERE provider=? AND provider_subject=? FOR UPDATE
+                """, (rs, row) -> rs.getObject(1, UUID.class), provider, subject);
+        if (!current.isEmpty()) {
+            if (current.getFirst().equals(actor.id())) return;
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This provider identity is linked to another account");
+        }
+        String normalizedEmail = providerEmail == null || providerEmail.isBlank()
+                ? null : providerEmail.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalizedEmail != null && Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM users WHERE lower(email)=? AND id<>?)",
+                Boolean.class, normalizedEmail, actor.id()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Provider email belongs to another account; identities are never linked by email alone");
+        }
+        jdbc.update("""
+                INSERT INTO auth_identities(id,user_id,provider,provider_subject,provider_email,email_verified,
+                    created_at,last_authenticated_at)
+                VALUES (?,?,?,?,?,TRUE,?,?)
+                """, UUID.randomUUID(), actor.id(), provider, subject, normalizedEmail,
+                Timestamp.from(Instant.now()), Timestamp.from(Instant.now()));
+        jdbc.update("""
+                INSERT INTO audit_events(id,actor_user_id,action,entity_type,entity_id,metadata_json)
+                VALUES (?,?,?,'AUTH_IDENTITY',?,jsonb_build_object('provider',?))
+                """, UUID.randomUUID(), actor.id(), "AUTH_IDENTITY_LINKED", actor.id(), provider);
+    }
+
     private TokenResponse issueToken(UUID userId, String name, String email, List<String> roles, String device) {
         return issueToken(userId, name, email, roles, device, UUID.randomUUID());
     }
@@ -212,6 +293,7 @@ public class AuthService {
     }
 
     private record FederatedUser(UUID id, String name, String email, String status) {}
+    private record RefreshTokenState(UUID id, UUID userId, UUID familyId, String tokenName, Instant expiresAt, Instant consumedAt, Instant revokedAt) {}
 
     private record UserCredential(UUID id, String name, String email, String passwordHash, String status) {}
 }
