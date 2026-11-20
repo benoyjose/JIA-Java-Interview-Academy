@@ -228,9 +228,10 @@ public class TaxonomyAdminService {
 
     private void audit(CurrentUser actor, String action, String entityType, UUID id) {
         jdbc.update("""
-                INSERT INTO audit_events(id,actor_user_id,action,entity_type,entity_id,metadata_json,occurred_at)
-                VALUES (?,?,?,?,?,jsonb_build_object('source','admin-taxonomy'),?)
-                """, UUID.randomUUID(), actor.id(), action, entityType, id, Timestamp.from(Instant.now()));
+                INSERT INTO audit_events(id,actor_user_id,academy_id,action,entity_type,entity_id,metadata_json,occurred_at)
+                VALUES (?,?,?,?,?,?,jsonb_build_object('source','admin-taxonomy'),?)
+                """, UUID.randomUUID(), actor.id(), primaryAcademyId(actor), action, entityType, id,
+                Timestamp.from(Instant.now()));
     }
 
     public record TechnologyRequest(String slug, String name, String description, int sortOrder) {}
