@@ -119,11 +119,16 @@ public class PasswordResetService {
         if (sender == null) return;
         jdbc.update("UPDATE auth_email_outbox SET status='PENDING',processing_at=NULL WHERE status='PROCESSING' AND processing_at < now() - interval '5 minutes'");
         List<OutboxMessage> messages = jdbc.query("""
-                UPDATE auth_email_outbox SET status='PROCESSING',processing_at=now(),attempts=attempts+1
-                WHERE id=(SELECT id FROM auth_email_outbox
+                WITH candidate AS (
+                    SELECT id FROM auth_email_outbox
                     WHERE status='PENDING' AND available_at<=now()
-                    ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
-                RETURNING id,recipient,template_key,encrypted_payload,attempts
+                    ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED
+                )
+                UPDATE auth_email_outbox o
+                SET status='PROCESSING',processing_at=now(),attempts=o.attempts+1
+                FROM candidate
+                WHERE o.id=candidate.id
+                RETURNING o.id,o.recipient,o.template_key,o.encrypted_payload,o.attempts
                 """, (rs, row) -> new OutboxMessage(rs.getObject("id", UUID.class),
                 rs.getString("recipient"), rs.getString("template_key"),
                 rs.getString("encrypted_payload"), rs.getInt("attempts")));
