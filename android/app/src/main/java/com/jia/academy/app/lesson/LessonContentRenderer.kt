@@ -4,6 +4,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
@@ -17,6 +18,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -40,12 +46,22 @@ fun LessonContentRenderer(raw: String) {
                         block.items.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
-                is LessonBlock.Diagram -> Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(block.title ?: "Diagram", style = MaterialTheme.typography.titleMedium)
-                        Text(block.language.uppercase(), style = MaterialTheme.typography.labelSmall)
-                        Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
-                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                is LessonBlock.Diagram -> LessonDiagramRenderer(block)
+                is LessonBlock.Media -> {
+                    val uriHandler = LocalUriHandler.current
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(block.title ?: if (block.kind == "image") "Illustration" else "Video",
+                                style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                            if (block.kind == "image") {
+                                AsyncImage(model = block.url, contentDescription = block.altText,
+                                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp))
+                            } else {
+                                Text(block.altText, style = MaterialTheme.typography.bodyMedium)
+                                TextButton(onClick = { uriHandler.openUri(block.url) }) { Text("Open video") }
+                            }
+                            block.caption?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                        }
                     }
                 }
                 is LessonBlock.ResourceLink -> Card(Modifier.fillMaxWidth()) {
@@ -96,7 +112,7 @@ fun LessonContentRenderer(raw: String) {
 @Composable
 private fun LessonTextBlock(title: String?, body: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        title?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
+        title?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
         Text(markdownToAnnotatedString(body), style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -113,6 +129,37 @@ private fun InterviewAnswerCard(block: LessonBlock.InterviewAnswer) {
                     Text(if (expanded) "Hide detailed explanation" else "Show detailed explanation")
                 }
                 if (expanded) Text(it, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LessonDiagramRenderer(block: LessonBlock.Diagram) {
+    val nodePattern = remember { Regex("""([A-Za-z0-9_]+)\s*[\[\(]([^\]\)]+)[\]\)]""") }
+    val nodes = remember(block.source) {
+        nodePattern.findAll(block.source).associate { it.groupValues[1] to it.groupValues[2].trim() }.toList()
+    }
+    val description = nodes.joinToString(", ") { it.second }.ifBlank { block.source.take(300) }
+    Card(Modifier.fillMaxWidth().semantics { contentDescription = "Flow diagram: " + description }) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(block.title ?: "Diagram", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() })
+            if (nodes.isEmpty()) {
+                Text("Diagram source (" + block.language + ")", style = MaterialTheme.typography.labelSmall)
+                Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+            } else {
+                nodes.forEachIndexed { index, node ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Text(node.second, Modifier.fillMaxWidth().padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (index < nodes.lastIndex) {
+                        Text("↓", Modifier.fillMaxWidth().semantics { contentDescription = "Leads to next step" },
+                            style = MaterialTheme.typography.titleLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
             }
         }
     }
