@@ -87,11 +87,30 @@ fun JiaApp() {
     var signedInAccount by remember { mutableStateOf<String?>(null) }
     val authRepository = remember { AuthRepository() }
     LaunchedEffect(Unit) {
-        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+        val sessionStore = com.jia.academy.app.auth.SecureSessionStore(context)
+        val token = sessionStore.accessToken()
         if (!token.isNullOrBlank()) {
-            runCatching { authRepository.currentUser(BuildConfig.JIA_API_BASE_URL, token) }
-                .onSuccess { signedInAccount = it.name }
-                .onFailure { com.jia.academy.app.auth.SecureSessionStore(context).clear() }
+            val account = runCatching { authRepository.currentUser(BuildConfig.JIA_API_BASE_URL, token) }
+                .getOrElse {
+                    val refresh = sessionStore.refreshToken()
+                    if (refresh.isNullOrBlank()) {
+                        sessionStore.clear()
+                        null
+                    } else {
+                        runCatching { authRepository.refresh(BuildConfig.JIA_API_BASE_URL, refresh) }
+                            .onSuccess { session ->
+                                val userJson = org.json.JSONObject()
+                                    .put("id", session.account.id)
+                                    .put("name", session.account.name)
+                                    .put("email", session.account.email)
+                                    .put("roles", org.json.JSONArray(session.account.roles))
+                                    .toString()
+                                sessionStore.save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
+                            }
+                            .getOrNull()?.account
+                    }
+                }
+            signedInAccount = account?.name
         }
     }
     fun navigate(next: BrowseRoute) {
