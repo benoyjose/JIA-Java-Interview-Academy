@@ -269,9 +269,11 @@ private fun LessonScreen(
     fallbackTitle: String,
     modifier: Modifier
 ) {
+    val context = LocalContext.current
     var lesson by remember(slug) { mutableStateOf<LessonDetail?>(null) }
     var loading by remember(slug) { mutableStateOf(true) }
     var error by remember(slug) { mutableStateOf<String?>(null) }
+    var progressMessage by remember(slug) { mutableStateOf<String?>(null) }
     LaunchedEffect(slug) {
         runCatching { repository.getLesson(BuildConfig.JIA_API_BASE_URL, slug) }
             .onSuccess { lesson = it }.onFailure { error = it.message ?: "Unable to load lesson." }
@@ -286,6 +288,24 @@ private fun LessonScreen(
                 Text("Difficulty: ${lesson!!.difficulty} · Source: ${lesson!!.sourceType}",
                     style = MaterialTheme.typography.labelMedium)
                 lesson!!.summary?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                Button(onClick = {
+                    val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                    if (token.isNullOrBlank()) {
+                        progressMessage = "Sign in to save your learning progress."
+                    } else {
+                        runCatching {
+                            OfflineLearningStore(context).enqueueProgressAndSchedule(
+                                context, BuildConfig.JIA_API_BASE_URL, slug,
+                                lesson!!.contentRevision, 100.0
+                            )
+                        }.onSuccess {
+                            progressMessage = "Completion saved. It will sync when a connection is available."
+                        }.onFailure {
+                            progressMessage = it.message ?: "Could not save progress."
+                        }
+                    }
+                }) { Text("Mark lesson complete") }
+                progressMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 Spacer(Modifier.padding(top = 4.dp))
                 Text("Lesson content", style = MaterialTheme.typography.titleLarge)
                 val raw = lesson!!.contentJson
