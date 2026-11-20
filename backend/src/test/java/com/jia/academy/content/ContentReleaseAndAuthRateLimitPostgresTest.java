@@ -120,6 +120,14 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         assertThat(taxonomy.categories("core-java").stream()
                 .filter(item -> item.id().equals(created.id())).findFirst().orElseThrow().status())
                 .isEqualTo("ARCHIVED");
+
+        String technologySlug = "test-tech-" + UUID.randomUUID().toString().substring(0, 8);
+        var technology = taxonomy.createTechnology(editor, new TaxonomyAdminService.TechnologyRequest(
+                technologySlug, "Test Technology", "Created by integration test", 999));
+        assertThat(technology.status()).isEqualTo("PUBLISHED");
+        taxonomy.archiveTechnology(editor, technology.id());
+        assertThat(taxonomy.technologies().stream().filter(item -> item.id().equals(technology.id()))
+                .findFirst().orElseThrow().status()).isEqualTo("ARCHIVED");
     }
 
     @Test
