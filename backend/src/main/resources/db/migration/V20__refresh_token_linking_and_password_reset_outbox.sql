@@ -11,6 +11,7 @@ CREATE TABLE auth_email_outbox (
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     attempts INTEGER NOT NULL DEFAULT 0,
     available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processing_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     sent_at TIMESTAMPTZ,
     last_error VARCHAR(500),
