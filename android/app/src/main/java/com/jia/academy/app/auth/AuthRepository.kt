@@ -74,6 +74,34 @@ class AuthRepository {
     suspend fun verifyPhoneOtp(baseUrl: String, phoneNumber: String, code: String): JiaSession =
         post(baseUrl, "/auth/phone/verify", JSONObject().put("phoneNumber", phoneNumber).put("code", code))
 
+    suspend fun requestPasswordReset(baseUrl: String, email: String) =
+        postWithoutSession(baseUrl, "/auth/password/reset/request", JSONObject().put("email", email))
+
+    suspend fun confirmPasswordReset(baseUrl: String, token: String, newPassword: String) =
+        postWithoutSession(baseUrl, "/auth/password/reset/confirm",
+            JSONObject().put("token", token).put("newPassword", newPassword))
+
+    private suspend fun postWithoutSession(baseUrl: String, path: String, body: JSONObject) =
+        withContext(Dispatchers.IO) {
+            val connection = (URL(url(baseUrl, path)).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 10_000
+                readTimeout = 15_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body.toString()) }
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (status !in 200..299) {
+                    error(ApiErrorMessage.from(response, "Password recovery failed", status))
+                }
+            } finally { connection.disconnect() }
+        }
+
     suspend fun currentUser(baseUrl: String, token: String): JiaAccount = withContext(Dispatchers.IO) {
         val connection = (URL(url(baseUrl, "/auth/me")).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
