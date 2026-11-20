@@ -79,11 +79,11 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JiaApp() {
-    val repository = remember { CatalogueRepository() }
+    val context = LocalContext.current
+    val repository = remember(context) { CatalogueRepository(OfflineLearningStore(context)) }
     var route by remember { mutableStateOf<BrowseRoute>(BrowseRoute.Home) }
     var backStack by remember { mutableStateOf(listOf<BrowseRoute>()) }
     var signedInAccount by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
     val authRepository = remember { AuthRepository() }
     LaunchedEffect(Unit) {
         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
