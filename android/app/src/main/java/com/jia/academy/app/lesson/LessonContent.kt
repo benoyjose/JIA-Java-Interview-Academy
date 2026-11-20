@@ -17,6 +17,7 @@ sealed interface LessonBlock {
     data class BulletList(override val key: String, override val title: String?, val items: List<String>) : LessonBlock
     data class Diagram(override val key: String, override val title: String?, val language: String, val source: String) : LessonBlock
     data class ResourceLink(override val key: String, override val title: String?, val label: String, val url: String) : LessonBlock
+    data class Media(override val key: String, override val title: String?, val kind: String, val url: String, val altText: String, val caption: String?) : LessonBlock
     data class InterviewAnswer(
         override val key: String, override val title: String?, val mode: String,
         val points: List<String>, val expandedExplanation: String?
@@ -64,6 +65,14 @@ object LessonContentParser {
                 ?.takeIf { it.isNotEmpty() }?.let { LessonBlock.BulletList(key, title, it) }
             "diagram" -> item.optString("source").takeIf(String::isNotBlank)?.let {
                 LessonBlock.Diagram(key, title, item.optString("language", "mermaid"), it)
+            }
+            "image", "video" -> {
+                val url = item.optString("url")
+                val alt = item.optString("alt").trim()
+                val scheme = runCatching { java.net.URI(url).scheme?.lowercase() }.getOrNull()
+                if (scheme != "https" || alt.isBlank() || url.length > 2048) null
+                else LessonBlock.Media(key, title, type, url, alt,
+                    item.optString("caption").takeIf(String::isNotBlank))
             }
             "resourceLink" -> {
                 val url = item.optString("url")
