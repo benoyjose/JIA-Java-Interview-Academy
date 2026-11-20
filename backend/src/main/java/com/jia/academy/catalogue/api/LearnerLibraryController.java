@@ -52,7 +52,7 @@ public class LearnerLibraryController {
         Object rawPercent=body.get("progressPercent");
         if (!(rawPercent instanceof Number n) || n.doubleValue()<0 || n.doubleValue()>100)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"progressPercent must be between 0 and 100");
-        int revision=body.get("contentRevision") instanceof Number n ? n.intValue() : -1;
+        int revision=body.get("contentRevision") instanceof Number revisionNumber ? revisionNumber.intValue() : -1;
         if(revision<1) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"contentRevision must be positive");
         var lessons=jdbc.query("SELECT id, published_revision_id FROM lessons WHERE slug=? AND status='PUBLISHED'",
             (rs,n)->new Object[]{rs.getObject("id",UUID.class),rs.getObject("published_revision_id",UUID.class)},lessonSlug);
