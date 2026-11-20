@@ -43,6 +43,13 @@ public class FederatedAuthController {
         federated.linkApple(actor, request.identityToken(), request.nonce());
     }
 
+    @DeleteMapping("/link/{provider}")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void unlinkIdentity(@AuthenticationPrincipal CurrentUser actor, @PathVariable String provider) {
+        federated.unlinkIdentity(actor, provider);
+    }
+
     public record ProviderTokenRequest(@NotBlank @Size(max=12000) String idToken,
                                        @NotBlank @Size(max=256) String nonce,
                                        @Size(max=100) String deviceName) {}
