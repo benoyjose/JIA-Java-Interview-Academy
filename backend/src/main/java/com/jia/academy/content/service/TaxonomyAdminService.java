@@ -24,10 +24,13 @@ public class TaxonomyAdminService {
     public TechnologyItem createTechnology(CurrentUser actor, TechnologyRequest request) {
         validateTechnologyRequest(request);
         UUID id = UUID.randomUUID();
+        UUID academyId = jdbc.query("SELECT id FROM academies WHERE code='JIA' AND status='ACTIVE'",
+                (rs, row) -> rs.getObject(1, UUID.class)).stream().findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Default JIA academy is not configured"));
         jdbc.update("""
-                INSERT INTO technologies(id,slug,name,description,sort_order,status,created_at,updated_at)
-                VALUES (?,?,?,?,?,'PUBLISHED',now(),now())
-                """, id, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
+                INSERT INTO technologies(id,academy_id,slug,name,description,sort_order,status,created_at,updated_at)
+                VALUES (?,?,?,?,?,?,'PUBLISHED',now(),now())
+                """, id, academyId, request.slug().trim().toLowerCase(Locale.ROOT), request.name().trim(),
                 request.description(), request.sortOrder());
         audit(actor, "TAXONOMY_TECHNOLOGY_CREATED", "TECHNOLOGY", id);
         return technologies().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
