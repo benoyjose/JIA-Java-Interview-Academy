@@ -195,6 +195,52 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void authorizedPreviewCanReadDraftWithoutMakingItPublic() {
+        String slug = "private-preview-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Private draft preview"));
+
+        var preview = service.preview(editor, draft.id());
+
+        assertThat(preview.preview()).isTrue();
+        assertThat(preview.lifecycleStatus()).isEqualTo("DRAFT");
+        assertThat(preview.title()).isEqualTo("Private draft preview");
+        assertThat(preview.revisionNumber()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM lessons WHERE id=? AND status='PUBLISHED'",
+                Integer.class, draft.id())).isZero();
+
+        CurrentUser otherAcademy = new CurrentUser(editor.id(), editor.name(), editor.email(),
+                editor.roles(), editor.permissions(), List.of(UUID.randomUUID()));
+        assertThatThrownBy(() -> service.preview(otherAcademy, draft.id()))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(404));
+    }
+
+    @Test
+    void previewUsesPendingDraftRevisionWhilePublicRevisionRemainsUnchanged() {
+        String slug = "preview-pending-" + UUID.randomUUID();
+        var initial = service.createDraft(editor, request(slug, "Public version"));
+        UUID taskId = (UUID) service.submitForReview(editor, initial.id()).get("taskId");
+        service.decideReview(reviewer, taskId, new ReviewDecisionRequest("APPROVE", "Approved"));
+        service.publish(admin, initial.id());
+        UUID publishedRevision = jdbc.queryForObject(
+                "SELECT published_revision_id FROM lessons WHERE id=?", UUID.class, initial.id());
+
+        service.updateDraft(editor, initial.id(), request(slug, "Pending draft version"));
+        var preview = service.preview(editor, initial.id());
+
+        assertThat(preview.title()).isEqualTo("Pending draft version");
+        assertThat(preview.lifecycleStatus()).isEqualTo("PUBLISHED");
+        assertThat(preview.revisionNumber()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, initial.id())).isEqualTo(publishedRevision);
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM lesson_revisions WHERE id=(SELECT published_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Public version");
+    }
+
+    @Test
     void lessonCannotBePublishedBeforeApproval() {
         var draft = service.createDraft(editor,
                 request("unapproved-" + UUID.randomUUID(), "Not approved"));
