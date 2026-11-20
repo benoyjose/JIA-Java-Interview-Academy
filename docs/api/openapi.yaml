@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: JIA API
-  version: 1.4.0
+  version: 1.5.0
   description: >-
-    Normative contract for the production Spring Boot API and supported Laravel
-    compatibility routes. Laravel remains secondary and may not yet expose every
-    Spring-first administration capability.
+    Normative contract for the production Spring Boot API. Laravel compatibility
+    is limited to the explicitly documented shared routes; Spring-first capabilities
+    are not a Laravel release blocker.
 servers:
   - url: /api/v1
 security:
@@ -653,6 +653,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ContentRelease' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /content/releases/{version}:
+    get:
+      summary: Get an immutable published-content manifest by version
+      tags: [Learning]
+      operationId: getContentRelease
+      security: []
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Immutable published content release and per-lesson SHA-256 checksums
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentRelease' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /content/releases/{version}/lessons/{slug}:
     get:
       summary: Download a lesson at the exact revision captured by a content release
@@ -965,6 +983,43 @@ paths:
             schema: { $ref: '../schemas/question-import-v1.schema.json' }
       responses:
         '201': { description: Questions imported as immutable draft revisions }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/import:
+    post:
+      summary: Import a batch of lesson drafts
+      description: Validates schema and provenance; imports create drafts and never auto-publish content.
+      tags: [Content Admin]
+      operationId: importLessonDrafts
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/lesson-import-v1.schema.json' }
+      responses:
+        '201':
+          description: Lessons imported as draft revisions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [formatVersion, importedCount, lessons]
+                properties:
+                  formatVersion: { type: integer }
+                  importedCount: { type: integer, minimum: 0 }
+                  lessons:
+                    type: array
+                    items:
+                      type: object
+                      required: [slug, status, revisionNumber]
+                      properties:
+                        slug: { type: string }
+                        status: { type: string, const: DRAFT }
+                        revisionNumber: { type: integer, minimum: 1 }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
