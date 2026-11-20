@@ -58,10 +58,11 @@ class PostgresMigrationIntegrationTest {
                     FROM information_schema.tables
                     WHERE table_schema = 'public'
                       AND table_name IN ('questions', 'question_revisions', 'quiz_attempts',
-                                         'quiz_attempt_questions', 'quiz_attempt_answers')
+                                         'quiz_attempt_questions', 'quiz_attempt_answers',
+                                         'auth_login_rate_limits', 'content_releases')
                     """)) {
                 assertThat(rows.next()).isTrue();
-                assertThat(rows.getInt("table_count")).isEqualTo(5);
+                assertThat(rows.getInt("table_count")).isEqualTo(7);
             }
             try (var rows = statement.executeQuery("""
                     SELECT COUNT(*) AS column_count
