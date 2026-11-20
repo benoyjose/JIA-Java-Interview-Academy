@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.content.api.ContentReleaseResponse;
 import com.jia.academy.content.api.ContentReleaseResponse.Item;
+import com.jia.academy.catalogue.api.CatalogueDtos.LessonDetailResponse;
 import com.jia.academy.security.CurrentUser;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -78,6 +79,25 @@ public class ContentReleaseService {
                 rs.getTimestamp("created_at").toInstant()), version)
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Content release not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public LessonDetailResponse lesson(long version, String slug) {
+        return jdbc.query("""
+                SELECT l.id,l.slug,r.title,r.summary,r.difficulty,r.revision_number,
+                       r.source_type,r.content_json::text AS content_json
+                FROM content_releases cr
+                CROSS JOIN LATERAL jsonb_array_elements(cr.manifest_json->'items') AS item(value)
+                JOIN lessons l ON l.id=(item.value->>'id')::uuid
+                JOIN lesson_revisions r ON r.lesson_id=l.id
+                    AND r.revision_number=(item.value->>'contentRevision')::integer
+                WHERE cr.version=? AND l.slug=? AND l.status='PUBLISHED'
+                """, (rs, row) -> new LessonDetailResponse(
+                rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
+                rs.getString("summary"), rs.getString("difficulty"), rs.getInt("revision_number"),
+                rs.getString("source_type"), rs.getString("content_json")), version, slug)
+                .stream().findFirst().orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson is not part of this content release"));
     }
 
     private ContentReleaseResponse response(long version, String json, Instant createdAt) {
