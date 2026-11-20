@@ -1328,6 +1328,81 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /admin/media/uploads:
+    post:
+      summary: Create a short-lived direct-to-object-storage upload
+      description: Requires content.create. Creates academy-scoped PENDING metadata and returns a presigned S3-compatible PUT URL. Allowed types are JPEG, PNG, WebP, PDF and MP4.
+      tags: [Content Admin]
+      operationId: createMediaUpload
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, contentType, sizeBytes]
+              properties:
+                lessonId: { type: [string, 'null'], format: uuid }
+                fileName: { type: string, maxLength: 255 }
+                contentType: { type: string, enum: [image/jpeg, image/png, image/webp, application/pdf, video/mp4] }
+                sizeBytes: { type: integer, minimum: 1, maximum: 262144000 }
+      responses:
+        '201':
+          description: Upload URL and required request headers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status, method, uploadUrl, expiresAt, requiredHeaders]
+                properties:
+                  id: { type: string, format: uuid }
+                  status: { type: string, const: PENDING }
+                  method: { type: string, const: PUT }
+                  uploadUrl: { type: string, format: uri }
+                  expiresAt: { type: string, format: date-time }
+                  requiredHeaders: { type: object, additionalProperties: { type: string } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { description: File exceeds the media-type size limit }
+        '503': { description: S3-compatible object storage is not configured }
+  /admin/media/{mediaId}/complete:
+    post:
+      summary: Verify an uploaded object and mark its metadata READY
+      tags: [Content Admin]
+      operationId: completeMediaUpload
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Upload verified and metadata marked READY }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Object is missing or its size/content type does not match the declaration }
+        '503': { description: S3-compatible object storage is not configured }
+  /admin/media/{mediaId}:
+    get:
+      summary: Read academy-scoped media metadata
+      tags: [Content Admin]
+      operationId: getMediaAsset
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Media metadata; PENDING assets are not learner-ready }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
