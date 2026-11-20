@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { PropsWithChildren } from "react";
-import { api, clearStoredToken, getStoredToken, storeToken } from "../api/client";
+import { api, clearStoredToken, getStoredToken, storeSession } from "../api/client";
 import type { User } from "../api/types";
 
 type AuthValue = { user: User | null; loading: boolean; login: (email: string, password: string) => Promise<void>; logout: () => Promise<void> };
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
   const login = useCallback(async (email: string, password: string) => {
     const result = await api.login(email, password);
-    storeToken(result.accessToken); setUser(result.user);
+    storeSession(result.accessToken, result.refreshToken); setUser(result.user);
   }, []);
   const logout = useCallback(async () => {
     try { await api.logout(); } finally { clearStoredToken(); setUser(null); }
