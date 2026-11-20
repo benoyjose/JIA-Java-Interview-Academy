@@ -3,6 +3,7 @@ package com.jia.academy.content.api;
 import com.jia.academy.content.service.TaxonomyAdminService;
 import com.jia.academy.content.service.TaxonomyAdminService.CategoryItem;
 import com.jia.academy.content.service.TaxonomyAdminService.CategoryRequest;
+import com.jia.academy.content.service.TaxonomyAdminService.TechnologyRequest;
 import com.jia.academy.content.service.TaxonomyAdminService.TechnologyItem;
 import com.jia.academy.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -26,6 +27,25 @@ public class TaxonomyAdminController {
     @GetMapping("/technologies")
     public List<TechnologyItem> technologies() {
         return taxonomy.technologies();
+    }
+
+    @PostMapping("/technologies")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TechnologyItem createTechnology(@AuthenticationPrincipal CurrentUser actor,
+                                           @Valid @RequestBody TechnologyRequest request) {
+        return taxonomy.createTechnology(actor, request);
+    }
+
+    @PutMapping("/technologies/{technologyId}")
+    public TechnologyItem updateTechnology(@AuthenticationPrincipal CurrentUser actor,
+            @PathVariable UUID technologyId, @Valid @RequestBody TechnologyRequest request) {
+        return taxonomy.updateTechnology(actor, technologyId, request);
+    }
+
+    @DeleteMapping("/technologies/{technologyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void archiveTechnology(@AuthenticationPrincipal CurrentUser actor, @PathVariable UUID technologyId) {
+        taxonomy.archiveTechnology(actor, technologyId);
     }
 
     @GetMapping("/categories")
