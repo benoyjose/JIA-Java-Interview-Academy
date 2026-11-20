@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -30,8 +30,8 @@ return new class extends Migration
             $table->primary(['user_id', 'lesson_id']);
             $table->index(['user_id', 'created_at'], 'idx_learner_bookmarks_user_created');
         });
-        \\Illuminate\\Support\\Facades\\DB::statement("ALTER TABLE learner_lesson_progress ADD CONSTRAINT chk_lesson_progress_status CHECK (status IN ('IN_PROGRESS','COMPLETED'))");
-        \\Illuminate\\Support\\Facades\\DB::statement('ALTER TABLE learner_lesson_progress ADD CONSTRAINT chk_lesson_progress_percent CHECK (progress_percent BETWEEN 0 AND 100)');
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE learner_lesson_progress ADD CONSTRAINT chk_lesson_progress_status CHECK (status IN ('IN_PROGRESS','COMPLETED'))");
+        \Illuminate\Support\Facades\DB::statement('ALTER TABLE learner_lesson_progress ADD CONSTRAINT chk_lesson_progress_percent CHECK (progress_percent BETWEEN 0 AND 100)');
     }
 
     public function down(): void
