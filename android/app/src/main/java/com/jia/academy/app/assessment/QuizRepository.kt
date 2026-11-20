@@ -81,36 +81,37 @@ class QuizRepository(private val context: Context? = null) {
         } finally { connection.disconnect() }
     }
 
-    private fun rotateAccessToken(baseUrl: String, rejectedAccessToken: String): String? =
-        synchronized(refreshLock) {
-        val appContext = context ?: return@synchronized null
-        val store = SecureSessionStore(appContext)
-        val currentAccessToken = store.accessToken()
-        if (!currentAccessToken.isNullOrBlank() && currentAccessToken != rejectedAccessToken) {
-            return@synchronized currentAccessToken
-        }
-        val refreshToken = store.refreshToken() ?: return@synchronized null
-        val connection = (URL(endpoint(baseUrl, "/auth/refresh")).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = 10_000
-            readTimeout = 15_000
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Accept", "application/json")
-        }
-        return try {
-            connection.outputStream.bufferedWriter(Charsets.UTF_8).use {
-                it.write(JSONObject().put("refreshToken", refreshToken).toString())
+    private fun rotateAccessToken(baseUrl: String, rejectedAccessToken: String): String? {
+        return synchronized(refreshLock) {
+            val appContext = context ?: return@synchronized null
+            val store = SecureSessionStore(appContext)
+            val currentAccessToken = store.accessToken()
+            if (!currentAccessToken.isNullOrBlank() && currentAccessToken != rejectedAccessToken) {
+                return@synchronized currentAccessToken
             }
-            if (connection.responseCode !in 200..299) return null
-            val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            val user = json.getJSONObject("user")
-            val accessToken = json.getString("accessToken")
-            store.save(accessToken, json.getString("refreshToken"), json.getString("expiresAt"), user.toString())
-            accessToken
-        } catch (_: Exception) {
-            null
-        } finally { connection.disconnect() }
+            val refreshToken = store.refreshToken() ?: return@synchronized null
+            val connection = (URL(endpoint(baseUrl, "/auth/refresh")).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 10_000
+                readTimeout = 15_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use {
+                    it.write(JSONObject().put("refreshToken", refreshToken).toString())
+                }
+                if (connection.responseCode !in 200..299) return@synchronized null
+                val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                val user = json.getJSONObject("user")
+                val accessToken = json.getString("accessToken")
+                store.save(accessToken, json.getString("refreshToken"), json.getString("expiresAt"), user.toString())
+                accessToken
+            } catch (_: Exception) {
+                null
+            } finally { connection.disconnect() }
+        }
     }
 
     suspend fun start(baseUrl: String, token: String, difficulty: String, count: Int = 10,
