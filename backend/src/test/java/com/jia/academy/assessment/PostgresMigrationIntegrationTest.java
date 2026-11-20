@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(15);
+        assertThat(result.migrationsExecuted).isEqualTo(16);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
@@ -100,6 +100,24 @@ class PostgresMigrationIntegrationTest {
                     """)) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt("index_count")).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS table_count
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name IN ('learner_lesson_progress', 'learner_bookmarks')
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("table_count")).isEqualTo(2);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS index_count
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND indexname IN ('idx_lesson_progress_user_updated', 'idx_learner_bookmarks_user_created')
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("index_count")).isEqualTo(2);
             }
             try (var rows = statement.executeQuery(
                     "SELECT COUNT(*) AS role_count FROM roles WHERE code IN ('LEARNER','EDITOR','REVIEWER','ADMIN')")) {
