@@ -157,7 +157,9 @@ public class AdminOperationsService {
                 rs.getObject("academy_id", UUID.class)), questionId);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found");
         QuestionState state = rows.getFirst();
-        String requiredPermission = "APPROVED".equals(target) ? "content.review"
+        String requiredPermission = "APPROVED".equals(target)
+                || ("DRAFT".equals(target) && "IN_REVIEW".equals(state.status()))
+                ? "content.review"
                 : ("PUBLISHED".equals(target) || ("ARCHIVED".equals(target) && "PUBLISHED".equals(state.status()))
                 ? "content.publish" : "content.create");
         if (!actor.permissions().contains(requiredPermission)) {
