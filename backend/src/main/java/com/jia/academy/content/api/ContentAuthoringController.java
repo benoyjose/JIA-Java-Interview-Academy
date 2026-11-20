@@ -46,6 +46,13 @@ public class ContentAuthoringController {
         return content.authoringDetail(actor, lessonId);
     }
 
+    @GetMapping("/lessons/{lessonId}/preview")
+    @PreAuthorize("hasAuthority('content.create') or hasAuthority('content.review')")
+    public LessonPreviewResponse preview(@AuthenticationPrincipal CurrentUser actor,
+                                         @PathVariable UUID lessonId) {
+        return content.preview(actor, lessonId);
+    }
+
     @PostMapping("/lessons/import")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('content.create')")
