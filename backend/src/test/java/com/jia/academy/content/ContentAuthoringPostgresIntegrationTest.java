@@ -277,6 +277,38 @@ class ContentAuthoringPostgresIntegrationTest {
                 .isInstanceOf(ResponseStatusException.class);
     }
 
+    @Test
+    void rollbackCreatesANewRevisionAndNeverOverwritesPublishedContent() {
+        String slug = "rollback-" + UUID.randomUUID();
+        var initial = service.createDraft(editor, request(slug, "Version one"));
+        UUID firstTask = (UUID) service.submitForReview(editor, initial.id()).get("taskId");
+        service.decideReview(reviewer, firstTask, new ReviewDecisionRequest("APPROVE", "Approved"));
+        service.publish(admin, initial.id());
+        UUID originalPublished = jdbc.queryForObject(
+                "SELECT published_revision_id FROM lessons WHERE id=?", UUID.class, initial.id());
+
+        var update = service.updateDraft(editor, initial.id(), request(slug, "Version two"));
+        UUID secondTask = (UUID) service.submitForReview(editor, initial.id()).get("taskId");
+        service.decideReview(reviewer, secondTask, new ReviewDecisionRequest("APPROVE", "Approved v2"));
+        service.publish(admin, initial.id());
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM lesson_revisions WHERE id=(SELECT published_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Version two");
+
+        var rolledBack = service.rollback(editor, initial.id(),
+                new com.jia.academy.content.api.ContentAuthoringDtos.RollbackRequest(1, "Restore reviewed baseline"));
+        assertThat(rolledBack.revisionNumber()).isGreaterThan(update.revisionNumber());
+        assertThat(rolledBack.status()).isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, initial.id())).isNotEqualTo(originalPublished);
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM lesson_revisions WHERE id=(SELECT published_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Version two");
+        assertThat(jdbc.queryForObject(
+                "SELECT title FROM lesson_revisions WHERE id=(SELECT draft_revision_id FROM lessons WHERE id=?)",
+                String.class, initial.id())).isEqualTo("Version one");
+    }
+
     private static CurrentUser user(String name, String email, String role) {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,'test-hash','ACTIVE')",
