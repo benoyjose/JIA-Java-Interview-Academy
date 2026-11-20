@@ -1,6 +1,8 @@
 package com.jia.academy.app.assessment
 
 import com.jia.academy.app.api.ApiErrorMessage
+import android.content.Context
+import com.jia.academy.app.auth.SecureSessionStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -45,9 +47,10 @@ data class JiaLessonProgress(
 data class JiaLessonBookmark(val lessonSlug: String, val title: String, val createdAt: String)
 
 
-class QuizRepository {
+class QuizRepository(private val context: Context? = null) {
     private fun endpoint(baseUrl: String, path: String) = baseUrl.trimEnd('/') + "/api/v1" + path
-    private fun request(baseUrl: String, path: String, token: String, method: String, body: JSONObject? = null): String {
+    private fun request(baseUrl: String, path: String, token: String, method: String, body: JSONObject? = null,
+                        allowRefresh: Boolean = true): String {
         val connection = (URL(endpoint(baseUrl, path)).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 10000
@@ -64,10 +67,43 @@ class QuizRepository {
             val status = connection.responseCode
             val response = (if (status in 200..299) connection.inputStream else connection.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status == 401 && allowRefresh && context != null) {
+                val rotatedToken = rotateAccessToken(baseUrl)
+                if (!rotatedToken.isNullOrBlank()) {
+                    return request(baseUrl, path, rotatedToken, method, body, allowRefresh = false)
+                }
+            }
             if (status !in 200..299) {
                 error(ApiErrorMessage.from(response, "Quiz request failed", status))
             }
             return response
+        } finally { connection.disconnect() }
+    }
+
+    private fun rotateAccessToken(baseUrl: String): String? {
+        val appContext = context ?: return null
+        val store = SecureSessionStore(appContext)
+        val refreshToken = store.refreshToken() ?: return null
+        val connection = (URL(endpoint(baseUrl, "/auth/refresh")).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10_000
+            readTimeout = 15_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+        }
+        return try {
+            connection.outputStream.bufferedWriter(Charsets.UTF_8).use {
+                it.write(JSONObject().put("refreshToken", refreshToken).toString())
+            }
+            if (connection.responseCode !in 200..299) return null
+            val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+            val user = json.getJSONObject("user")
+            val accessToken = json.getString("accessToken")
+            store.save(accessToken, json.getString("refreshToken"), json.getString("expiresAt"), user.toString())
+            accessToken
+        } catch (_: Exception) {
+            null
         } finally { connection.disconnect() }
     }
 
