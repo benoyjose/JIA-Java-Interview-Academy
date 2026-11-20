@@ -141,6 +141,19 @@ class QuizControllerPostgresIntegrationTest {
     }
 
     @Test
+    void dailyChallengeReturnsSameAttemptAndQuestionSnapshotForTheWholeDatabaseDay() {
+        Map<String,Object> first = controller.start(learnerOne,
+                Map.of("difficulty", "BEGINNER", "questionCount", 2, "mode", "DAILY_CHALLENGE"));
+        Map<String,Object> repeated = controller.start(learnerOne,
+                Map.of("difficulty", "EXPERT", "questionCount", 1, "mode", "DAILY_CHALLENGE"));
+
+        assertThat(repeated.get("attemptId")).isEqualTo(first.get("attemptId"));
+        assertThat(repeated.get("challengeDate")).isEqualTo(first.get("challengeDate"));
+        assertThat(repeated.get("questions")).isEqualTo(first.get("questions"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempts WHERE user_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=CURRENT_DATE", Integer.class, USER_ONE)).isEqualTo(1);
+    }
+
+    @Test
     void rejectsTimedMockDurationOutsideSupportedRange() {
         assertThatThrownBy(() -> controller.start(learnerOne,
                 Map.of("difficulty", "BEGINNER", "questionCount", 2, "mode", "TIMED_MOCK", "durationSeconds", 30)))

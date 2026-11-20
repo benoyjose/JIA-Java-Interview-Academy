@@ -14,9 +14,9 @@ final class QuizSubmissionValidationTest extends TestCase
         $this->assertTrue(true);
     }
 
-    public function test_rejects_modes_until_their_workflows_are_implemented(): void
+    public function test_rejects_modes_without_a_completed_workflow(): void
     {
-        foreach (['TIMED_MOCK', 'DAILY_CHALLENGE', 'WEAK_AREA', 'UNKNOWN'] as $mode) {
+        foreach (['TIMED_MOCK', 'WEAK_AREA', 'UNKNOWN'] as $mode) {
             try {
                 QuizController::assertAvailableMode($mode);
                 $this->fail("Expected mode {$mode} to be unavailable.");

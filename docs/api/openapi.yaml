@@ -319,7 +319,7 @@ paths:
                   type: integer
                   minimum: 60
                   maximum: 21600
-                  description: Required for TIMED_MOCK; server sets deadlineAt from this duration.
+                  description: Required for TIMED_MOCK; server sets deadlineAt from this duration. Ignored for DAILY_CHALLENGE.
       responses:
         '201':
           description: Quiz attempt created; answer keys are withheld
@@ -791,7 +791,7 @@ components:
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
     QuizAttemptStart:
       type: object
-      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt]
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt, challengeDate]
       properties:
         attemptId: { type: string, format: uuid }
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
@@ -799,6 +799,7 @@ components:
         questionCount: { type: integer }
         durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
         deadlineAt: { type: [string, 'null'], format: date-time }
+        challengeDate: { type: [string, 'null'], format: date, description: UTC calendar date for DAILY_CHALLENGE; the same attempt and question snapshot is returned on repeat starts that day. }
         questions:
           type: array
           items: { $ref: '#/components/schemas/QuizQuestion' }

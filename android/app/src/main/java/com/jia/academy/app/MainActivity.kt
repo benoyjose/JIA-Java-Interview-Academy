@@ -494,6 +494,9 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
             }
             activeAttempt != null -> {
                 Text("${levels.first { it.first == activeAttempt.difficulty }.second} · ${activeAttempt.mode.displayName} · ${activeAttempt.questions.size} questions")
+                if (activeAttempt.mode == JiaQuizMode.DAILY_CHALLENGE) {
+                    Text("Daily challenge · ${activeAttempt.challengeDate ?: "Today"} · one challenge per day")
+                }
                 if (activeAttempt.mode == JiaQuizMode.TIMED_MOCK) {
                     val seconds = remainingSeconds ?: activeAttempt.durationLimitSeconds ?: 0
                     Text("Time remaining: ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
@@ -563,6 +566,9 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
                         onClick = { selectedMode = mode },
                         label = { Text(mode.displayName) }
                     )
+                }
+                if (selectedMode == JiaQuizMode.DAILY_CHALLENGE) {
+                    Text("A fixed challenge is shared for your account for the day. Reopening it returns the same questions and attempt.", style = MaterialTheme.typography.bodySmall)
                 }
                 if (selectedMode == JiaQuizMode.TIMED_MOCK) {
                     Text("Mock duration", style = MaterialTheme.typography.titleMedium)

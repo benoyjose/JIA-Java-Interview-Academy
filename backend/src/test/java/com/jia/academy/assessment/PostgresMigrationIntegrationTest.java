@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(14);
+        assertThat(result.migrationsExecuted).isEqualTo(15);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
@@ -72,6 +72,25 @@ class PostgresMigrationIntegrationTest {
                     """)) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt("column_count")).isEqualTo(2);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS column_count
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'quiz_attempts'
+                      AND column_name = 'challenge_date'
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("column_count")).isEqualTo(1);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) AS index_count
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND indexname = 'uq_quiz_attempts_daily_challenge'
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt("index_count")).isEqualTo(1);
             }
             try (var rows = statement.executeQuery("""
                     SELECT COUNT(*) AS index_count
