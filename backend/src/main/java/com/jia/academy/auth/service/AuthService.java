@@ -164,8 +164,22 @@ public class AuthService {
 
     @Transactional
     public void logout(String rawToken) {
-        jdbc.update("UPDATE api_tokens SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
-                Timestamp.from(Instant.now()), sha256(rawToken));
+        Timestamp now = Timestamp.from(Instant.now());
+        String hash = sha256(rawToken);
+        jdbc.update("UPDATE api_tokens SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL", now, hash);
+        jdbc.update("""
+                UPDATE auth_refresh_tokens SET revoked_at=?
+                WHERE family_id IN (SELECT family_id FROM auth_refresh_tokens
+                    WHERE access_token_id=(SELECT id FROM api_tokens WHERE token_hash=?))
+                  AND revoked_at IS NULL
+                """, now, hash);
+        jdbc.update("""
+                UPDATE api_tokens SET revoked_at=?
+                WHERE id IN (SELECT access_token_id FROM auth_refresh_tokens
+                    WHERE family_id IN (SELECT family_id FROM auth_refresh_tokens
+                        WHERE access_token_id=(SELECT id FROM api_tokens WHERE token_hash=?)))
+                  AND revoked_at IS NULL
+                """, now, hash);
     }
 
     public UserResponse currentUser(CurrentUser user) {
