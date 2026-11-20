@@ -109,7 +109,7 @@ public class ContentAuthoringService {
     @Transactional
     public Map<String, Object> submitForReview(CurrentUser actor, UUID lessonId) {
         var lessons = jdbc.query("""
-                SELECT status, content_revision, draft_revision_id
+                SELECT l.status, l.content_revision, l.draft_revision_id
                 FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id
                 WHERE l.id=? AND t.academy_id=? FOR UPDATE OF l
                 """, (rs, row) -> new LessonReviewState(rs.getString("status"),
@@ -260,9 +260,11 @@ public class ContentAuthoringService {
                        u.name AS submitted_by,t.status,t.submitted_at
                 FROM content_review_tasks t
                 JOIN lessons l ON l.id=t.lesson_id
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
                 JOIN lesson_revisions r ON r.id=t.revision_id
                 JOIN users u ON u.id=t.submitted_by
-                WHERE t.status='PENDING'
+                WHERE tech.academy_id=? AND t.status='PENDING'
                   AND (CAST(? AS text) IS NULL OR lower(l.slug) LIKE lower(?) OR lower(r.title) LIKE lower(?) OR lower(u.name) LIKE lower(?))
                 ORDER BY t.submitted_at ASC,t.id ASC
                 LIMIT ? OFFSET ?
@@ -364,7 +366,7 @@ public class ContentAuthoringService {
     @Transactional
     public LessonDraftResponse rollback(CurrentUser actor, UUID lessonId, RollbackRequest request) {
         var states = jdbc.query("""
-                SELECT status, content_revision, published_revision_id, draft_revision_id
+                SELECT l.status, l.content_revision, l.published_revision_id, l.draft_revision_id
                 FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
                 WHERE l.id=? AND tech.academy_id=? FOR UPDATE OF l
                 """, (rs, row) -> new RollbackLessonState(
