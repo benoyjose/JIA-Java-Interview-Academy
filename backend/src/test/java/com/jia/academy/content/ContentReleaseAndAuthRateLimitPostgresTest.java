@@ -135,12 +135,12 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         String slug = "revision-history-" + UUID.randomUUID();
         var draft = authoring.createDraft(editor, request(slug, "History lesson"));
         UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
-        var beforeDecision = history.history(draft.id());
+        var beforeDecision = history.history(editor, draft.id());
         assertThat(beforeDecision).hasSize(1);
         assertThat(beforeDecision.getFirst().reviewStatus()).isEqualTo("PENDING");
         authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "History approved"));
         authoring.publish(admin, draft.id());
-        assertThat(history.history(draft.id()).getFirst().published()).isTrue();
+        assertThat(history.history(editor, draft.id()).getFirst().published()).isTrue();
     }
 
     @Test
