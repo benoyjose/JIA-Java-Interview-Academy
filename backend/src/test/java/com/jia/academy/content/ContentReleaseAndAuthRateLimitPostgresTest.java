@@ -55,7 +55,8 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     private static LearningService learning;
     private static CurrentUser editor;
     private static CurrentUser reviewer;
-    private static CurrentUser admin;\n    private static CurrentUser otherAcademyAdmin;
+    private static CurrentUser admin;
+    private static CurrentUser otherAcademyAdmin;
 
     @BeforeAll
     static void migrate() {
@@ -122,6 +123,24 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         var immutableDownload = releases.lesson(release.version(), slug);
         assertThat(immutableDownload.title()).isEqualTo("Version one");
         assertThat(immutableDownload.contentRevision()).isEqualTo(1);
+    }
+
+    @Test
+    void contentReleaseManifestsAndVersionsAreIsolatedByAcademy() {
+        var otherRelease = releases.create(otherAcademyAdmin);
+        assertThat(otherRelease.version()).isEqualTo(1);
+        assertThat(otherRelease.items()).extracting(item -> item.slug())
+                .containsExactly("other-academy-release-lesson");
+        assertThat(releases.latest(otherAcademyAdmin).items()).extracting(item -> item.slug())
+                .containsExactly("other-academy-release-lesson");
+        assertThat(releases.latest().items()).extracting(item -> item.slug())
+                .doesNotContain("other-academy-release-lesson");
+        assertThatThrownBy(() -> releases.get(otherRelease.version(), admin))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(releases.lesson(otherRelease.version(), "other-academy-release-lesson", otherAcademyAdmin)
+                .title()).isEqualTo("Other Academy Lesson");
+        assertThatThrownBy(() -> releases.lesson(otherRelease.version(),
+                "other-academy-release-lesson", admin)).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
