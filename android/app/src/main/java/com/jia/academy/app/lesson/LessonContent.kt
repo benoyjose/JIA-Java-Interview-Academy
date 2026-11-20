@@ -13,6 +13,10 @@ sealed interface LessonBlock {
         val source: String, val javaVersion: String?, val explanation: String?
     ) : LessonBlock
     data class Callout(override val key: String, override val title: String?, val tone: String, val body: String) : LessonBlock
+    data class Section(override val key: String, override val title: String?, val body: String) : LessonBlock
+    data class BulletList(override val key: String, override val title: String?, val items: List<String>) : LessonBlock
+    data class Diagram(override val key: String, override val title: String?, val language: String, val source: String) : LessonBlock
+    data class ResourceLink(override val key: String, override val title: String?, val label: String, val url: String) : LessonBlock
     data class InterviewAnswer(
         override val key: String, override val title: String?, val mode: String,
         val points: List<String>, val expandedExplanation: String?
@@ -52,6 +56,20 @@ object LessonContentParser {
             }
             "callout" -> item.optString("body").takeIf(String::isNotBlank)?.let {
                 LessonBlock.Callout(key, title, item.optString("tone", "info"), it)
+            }
+            "section", "overview", "objectives", "prerequisites", "explanation",
+            "tradeoffs", "commonMistakes", "troubleshooting", "followUps" ->
+                item.optString("body").takeIf(String::isNotBlank)?.let { LessonBlock.Section(key, title, it) }
+            "list" -> item.optJSONArray("items")?.strings()?.filter(String::isNotBlank)
+                ?.takeIf(List<String>::isNotEmpty)?.let { LessonBlock.BulletList(key, title, it) }
+            "diagram" -> item.optString("source").takeIf(String::isNotBlank)?.let {
+                LessonBlock.Diagram(key, title, item.optString("language", "mermaid"), it)
+            }
+            "resourceLink" -> {
+                val url = item.optString("url")
+                val scheme = runCatching { java.net.URI(url).scheme?.lowercase() }.getOrNull()
+                if (scheme !in setOf("https", "http")) null
+                else LessonBlock.ResourceLink(key, title, item.optString("label").ifBlank { url }, url)
             }
             "interviewAnswer" -> {
                 val points = item.optJSONArray("body")?.strings().orEmpty().filter(String::isNotBlank)
