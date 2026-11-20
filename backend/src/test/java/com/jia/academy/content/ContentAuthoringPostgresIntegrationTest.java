@@ -314,7 +314,7 @@ class ContentAuthoringPostgresIntegrationTest {
         jdbc.update("INSERT INTO users(id,name,email,password_hash,status) VALUES (?,?,?,'test-hash','ACTIVE')",
                 id, name, email);
         jdbc.update("INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles WHERE code=?", id, role);
-        return new CurrentUser(id, name, email, List.of(role), List.of());
+        return new CurrentUser(id, name, email, List.of(role), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
     }
 
     private static LessonDraftRequest request(String slug, String title) {
