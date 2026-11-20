@@ -1,4 +1,4 @@
-import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease } from "./types";
+import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease, TechnologyItem, CategoryItem, CategoryRequest } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 const TOKEN_KEY = "jia.admin.access-token";
@@ -62,6 +62,11 @@ export const api = {
   submitLesson: (id: string) => request<{ taskId: string }>(`/admin/lessons/${encodeURIComponent(id)}/submit`, { method: "POST" }),
   publishLesson: (id: string) => request<{ status: string }>(`/admin/lessons/${encodeURIComponent(id)}/publish`, { method: "POST" }),
   createContentRelease: () => request<ContentRelease>("/admin/content-releases", { method: "POST" }),
+  taxonomyTechnologies: () => request<TechnologyItem[]>("/admin/taxonomy/technologies"),
+  taxonomyCategories: (technology?: string) => request<CategoryItem[]>(`/admin/taxonomy/categories${technology ? `?technology=${encodeURIComponent(technology)}` : ""}`),
+  createCategory: (body: CategoryRequest) => request<CategoryItem>("/admin/taxonomy/categories", { method: "POST", body: JSON.stringify(body) }),
+  updateCategory: (id: string, body: CategoryRequest) => request<CategoryItem>(`/admin/taxonomy/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+  archiveCategory: (id: string) => request<void>(`/admin/taxonomy/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
   reviews: (params: { q?: string; page: number; size: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
     if (params.q) query.set("q", params.q);
