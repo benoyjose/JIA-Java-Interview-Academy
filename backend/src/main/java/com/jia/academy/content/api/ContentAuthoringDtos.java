@@ -24,6 +24,11 @@ public final class ContentAuthoringDtos {
     public record LessonDraftResponse(
             UUID id, String slug, String title, String status, int revisionNumber) {}
 
+    public record LessonPreviewResponse(
+            UUID id, String slug, String title, String summary, String difficulty,
+            int revisionNumber, String sourceType, String contentJson,
+            boolean preview, String lifecycleStatus) {}
+
     public record RollbackRequest(@NotNull @Min(1) Integer revisionNumber,
                                  @Size(max = 500) String changeNote) {}
 
