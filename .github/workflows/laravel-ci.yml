@@ -61,8 +61,13 @@ jobs:
         working-directory: backend-laravel
         run: php artisan route:list --except-vendor
 
+      - name: Create isolated PostgreSQL database for migration validation
+        run: php -r '$pdo = new PDO("pgsql:host=127.0.0.1;port=5432;dbname=postgres", "jia", "jia_test_only"); $pdo->exec("CREATE DATABASE jia_migration_test");'
+
       - name: Apply all Laravel PostgreSQL migrations
         working-directory: backend-laravel
+        env:
+          DB_DATABASE: jia_migration_test
         run: php artisan migrate --force
 
       - name: Audit Composer dependencies
