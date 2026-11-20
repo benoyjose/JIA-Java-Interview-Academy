@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.unit.dp
 import com.jia.academy.app.BuildConfig
 import com.jia.academy.app.catalogue.CatalogueRepository
+import com.jia.academy.app.catalogue.QuizAvailability
 import com.jia.academy.app.auth.SecureSessionStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
