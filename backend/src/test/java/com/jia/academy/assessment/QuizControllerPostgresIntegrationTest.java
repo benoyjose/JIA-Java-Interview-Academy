@@ -59,7 +59,8 @@ class QuizControllerPostgresIntegrationTest {
     private static QuizController controller;
     private static LearnerLibraryController learnerLibrary;
     private static CurrentUser learnerOne;
-    private static CurrentUser learnerTwo;\n    private static CurrentUser learnerOtherAcademy;
+    private static CurrentUser learnerTwo;
+    private static CurrentUser learnerOtherAcademy;
 
     @BeforeAll
     static void migrateAndSeedReferenceData() {
