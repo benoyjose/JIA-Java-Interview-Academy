@@ -35,7 +35,7 @@ public class LearningService {
                 WHERE p.user_id=? ORDER BY p.updated_at DESC LIMIT 200
                 """, (rs, row) -> new ProgressItem(rs.getString("slug"),
                 rs.getInt("content_revision"), rs.getString("status"),
-                rs.getBigDecimal("progress_percent"), rs.getString("last_position_json"),
+                rs.getBigDecimal("progress_percent"), parsePosition(rs.getString("last_position_json")),
                 rs.getTimestamp("updated_at").toInstant()), user.id());
     }
 
@@ -88,7 +88,7 @@ public class LearningService {
                 WHERE p.user_id=? AND p.lesson_id=?
                 """, (rs, row) -> new ProgressItem(rs.getString("slug"), rs.getInt("content_revision"),
                 rs.getString("status"), rs.getBigDecimal("progress_percent"),
-                rs.getString("last_position_json"), rs.getTimestamp("updated_at").toInstant()),
+                parsePosition(rs.getString("last_position_json")), rs.getTimestamp("updated_at").toInstant()),
                 user.id(), lesson.id()).getFirst();
     }
 
@@ -133,6 +133,12 @@ public class LearningService {
                 latest == null ? null : latest.toInstant(), Instant.now());
     }
 
+    private JsonNode parsePosition(String value) {
+        if (value == null) return null;
+        try { return mapper.readTree(value); }
+        catch (Exception ex) { throw new IllegalStateException("Stored progress position is invalid JSON", ex); }
+    }
+
     private UUID publishedLessonId(String slug) {
         return jdbc.query("""
                 SELECT id FROM lessons WHERE slug=? AND status='PUBLISHED'
@@ -142,7 +148,7 @@ public class LearningService {
 
     public record ProgressRequest(Integer contentRevision, BigDecimal progressPercent, JsonNode lastPosition) {}
     public record ProgressItem(String lessonSlug, int contentRevision, String status, BigDecimal progressPercent,
-                               String lastPosition, Instant updatedAt) {}
+                               JsonNode lastPosition, Instant updatedAt) {}
     public record BookmarkItem(String lessonSlug, String title, Instant createdAt) {}
     public record SyncDiagnostics(int progressItems, int bookmarkItems, Instant latestProgressAt, Instant serverTime) {}
     private record PublishedLesson(UUID id, int revision) {}
