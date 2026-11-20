@@ -61,6 +61,10 @@ jobs:
         working-directory: backend-laravel
         run: php artisan route:list --except-vendor
 
+      - name: Apply all Laravel PostgreSQL migrations
+        working-directory: backend-laravel
+        run: php artisan migrate --force
+
       - name: Audit Composer dependencies
         run: composer audit --working-dir backend-laravel
 
