@@ -4,7 +4,7 @@ import path from "node:path";
 const sourceRoot = "backend/src/main/java";
 const specPath = "docs/api/openapi.yaml";
 const apiPrefix = "/api/v1";
-const mappingPattern = /@(Get|Post|Put|Patch|Delete)Mapping\\s*(?:\\(\\s*(?:value\\s*=\\s*)?"([^"]*)"\\s*\\))?/g;
+const mappingPattern = /@(Get|Post|Put|Patch|Delete)Mapping\s*(?:\(\s*(?:value\s*=\s*)?"([^"]*)"\s*\))?/g;
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -24,7 +24,7 @@ function normalizeRoute(route) {
 const springRoutes = new Set();
 for (const file of walk(sourceRoot).filter((name) => name.endsWith("Controller.java"))) {
   const source = fs.readFileSync(file, "utf8");
-  const classMapping = source.match(/@RequestMapping\\s*\\(\\s*(?:value\\s*=\\s*)?"([^"]*)"\\s*\\)[\\s\\S]*?public class/);
+  const classMapping = source.match(/@RequestMapping\s*\(\s*(?:value\s*=\s*)?"([^"]*)"\s*\)[\s\S]*?public class/);
   const classPrefix = classMapping?.[1] ?? "";
   for (const match of source.matchAll(mappingPattern)) {
     const method = match[1].toLowerCase();
@@ -34,13 +34,13 @@ for (const file of walk(sourceRoot).filter((name) => name.endsWith("Controller.j
 }
 
 const documentedRoutes = new Set();
-const lines = fs.readFileSync(specPath, "utf8").split(/\\r?\\n/);
+const lines = fs.readFileSync(specPath, "utf8").split(/\r?\n/);
 for (let index = 0; index < lines.length; index += 1) {
-  const pathMatch = lines[index].match(/^  (\\/[^:]+):\\s*$/);
+  const pathMatch = lines[index].match(/^  (\/[^:]+):\s*$/);
   if (!pathMatch) continue;
   for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-    if (/^  \\//.test(lines[cursor]) || /^components:/.test(lines[cursor])) break;
-    const methodMatch = lines[cursor].match(/^    (get|post|put|patch|delete):\\s*$/);
+    if (/^  \//.test(lines[cursor]) || /^components:/.test(lines[cursor])) break;
+    const methodMatch = lines[cursor].match(/^    (get|post|put|patch|delete):\s*$/);
     if (methodMatch) documentedRoutes.add(methodMatch[1] + " " + pathMatch[1]);
   }
 }
