@@ -14,6 +14,7 @@ tags:
   - name: Authentication
   - name: Catalogue
   - name: Content Admin
+  - name: Learning
 paths:
   /auth/register:
     post:
@@ -270,6 +271,105 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Lesson' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /me/lesson-progress:
+    get:
+      summary: List the authenticated learner's recent lesson progress
+      tags: [Learning]
+      operationId: listLessonProgress
+      responses:
+        '200':
+          description: Progress entries ordered by most recent update
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  required: [lessonSlug, contentRevision, status, progressPercent, updatedAt]
+                  properties:
+                    lessonSlug: { type: string }
+                    contentRevision: { type: integer, minimum: 1 }
+                    status: { type: string, enum: [IN_PROGRESS, COMPLETED] }
+                    progressPercent: { type: number, minimum: 0, maximum: 100 }
+                    lastPosition: { type: object, nullable: true, additionalProperties: true }
+                    updatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/lesson-progress/{lessonSlug}:
+    put:
+      summary: Upsert progress for a published lesson
+      tags: [Learning]
+      operationId: updateLessonProgress
+      parameters:
+        - name: lessonSlug
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentRevision, progressPercent]
+              properties:
+                contentRevision: { type: integer, minimum: 1 }
+                progressPercent: { type: number, minimum: 0, maximum: 100 }
+                lastPosition: { type: object, nullable: true, additionalProperties: true }
+      responses:
+        '200': { description: Progress updated; completion is monotonic and duplicate writes are safe }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Requested lesson revision is not available }
+  /me/bookmarks:
+    get:
+      summary: List the authenticated learner's bookmarked lessons
+      tags: [Learning]
+      operationId: listBookmarks
+      responses:
+        '200':
+          description: Bookmarks ordered by creation time
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  required: [lessonSlug, title, createdAt]
+                  properties:
+                    lessonSlug: { type: string }
+                    title: { type: string }
+                    createdAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/bookmarks/{lessonSlug}:
+    put:
+      summary: Bookmark a published lesson (idempotent)
+      tags: [Learning]
+      operationId: createBookmark
+      parameters:
+        - name: lessonSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Bookmark exists }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Remove a lesson bookmark (idempotent)
+      tags: [Learning]
+      operationId: deleteBookmark
+      parameters:
+        - name: lessonSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Bookmark removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
   /quizzes/availability:
     get:
