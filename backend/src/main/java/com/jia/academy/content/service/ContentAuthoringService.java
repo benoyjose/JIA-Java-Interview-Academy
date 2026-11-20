@@ -32,8 +32,8 @@ public class ContentAuthoringService {
         validateContent(request.contentJson());
         validateTaxonomy(request.difficulty(), request.sourceType());
         UUID categoryId = jdbc.query(
-                "SELECT id FROM categories WHERE slug=?",
-                (rs, row) -> rs.getObject("id", UUID.class), request.categorySlug())
+                "SELECT c.id FROM categories c JOIN technologies t ON t.id=c.technology_id WHERE c.slug=? AND t.academy_id=?",
+                (rs, row) -> rs.getObject("id", UUID.class), request.categorySlug(), primaryAcademyId(actor))
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         UUID lessonId = UUID.randomUUID();
@@ -65,8 +65,8 @@ public class ContentAuthoringService {
         // Serialize edits to the same lesson so concurrent editors cannot
         // allocate the same next revision number or overwrite each other's draft.
         String currentStatus = jdbc.query(
-                "SELECT status FROM lessons WHERE id=? FOR UPDATE",
-                (rs, row) -> rs.getString(1), lessonId).stream().findFirst()
+                "SELECT l.status FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id WHERE l.id=? AND t.academy_id=? FOR UPDATE OF l",
+                (rs, row) -> rs.getString(1), lessonId, primaryAcademyId(actor)).stream().findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
         if ("PUBLISHED".equals(currentStatus)) {
             return updatePublishedDraft(actor, lessonId, request);
@@ -74,13 +74,13 @@ public class ContentAuthoringService {
         validateContent(request.contentJson());
         validateTaxonomy(request.difficulty(), request.sourceType());
         Integer currentRevision = jdbc.query(
-                "SELECT content_revision FROM lessons WHERE id=? AND status='DRAFT'",
-                (rs, row) -> rs.getInt(1), lessonId).stream().findFirst()
+                "SELECT l.content_revision FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id WHERE l.id=? AND l.status='DRAFT' AND t.academy_id=?",
+                (rs, row) -> rs.getInt(1), lessonId, primaryAcademyId(actor)).stream().findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
                         "Only draft lessons can be edited in this workflow"));
         UUID categoryId = jdbc.query(
-                "SELECT id FROM categories WHERE slug=?",
-                (rs, row) -> rs.getObject("id", UUID.class), request.categorySlug())
+                "SELECT c.id FROM categories c JOIN technologies t ON t.id=c.technology_id WHERE c.slug=? AND t.academy_id=?",
+                (rs, row) -> rs.getObject("id", UUID.class), request.categorySlug(), primaryAcademyId(actor))
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         int nextRevision = currentRevision + 1;
@@ -110,9 +110,10 @@ public class ContentAuthoringService {
     public Map<String, Object> submitForReview(CurrentUser actor, UUID lessonId) {
         var lessons = jdbc.query("""
                 SELECT status, content_revision, draft_revision_id
-                FROM lessons WHERE id=? FOR UPDATE
+                FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id
+                WHERE l.id=? AND t.academy_id=? FOR UPDATE OF l
                 """, (rs, row) -> new LessonReviewState(rs.getString("status"),
-                        rs.getInt("content_revision"), rs.getObject("draft_revision_id", UUID.class)), lessonId);
+                        rs.getInt("content_revision"), rs.getObject("draft_revision_id", UUID.class)), lessonId, primaryAcademyId(actor));
         if (lessons.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
         }
@@ -150,7 +151,7 @@ public class ContentAuthoringService {
     }
 
     @Transactional(readOnly = true)
-    public PageResult<LessonAdminListItem> adminLessons(String status, String query, int page, int size) {
+    public PageResult<LessonAdminListItem> adminLessons(CurrentUser actor, String status, String query, int page, int size) {
         validatePage(query, page, size);
         if (status != null && !List.of("DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED").contains(status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported lesson status filter");
@@ -159,18 +160,18 @@ public class ContentAuthoringService {
         String pattern = search == null ? null : search + "%";
         long totalItems = jdbc.queryForObject("""
                 SELECT COUNT(*)
-                FROM lessons l JOIN categories c ON c.id=l.category_id
-                WHERE (CAST(? AS text) IS NULL OR l.status=?)
+                FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE tech.academy_id=? AND (CAST(? AS text) IS NULL OR l.status=?)
                   AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
-                """, Long.class, status, status, search, pattern, pattern, pattern);
+                """, Long.class, primaryAcademyId(actor), status, status, search, pattern, pattern, pattern);
         long offset = (long) page * size;
         List<LessonAdminListItem> items = jdbc.query("""
                 SELECT l.id,l.slug,l.title,c.slug AS category_slug,l.status,l.content_revision,
                        (SELECT revision_number FROM lesson_revisions WHERE id=l.published_revision_id) AS published_revision,
                        (SELECT revision_number FROM lesson_revisions WHERE id=l.draft_revision_id) AS draft_revision,
                        l.updated_at
-                FROM lessons l JOIN categories c ON c.id=l.category_id
-                WHERE (CAST(? AS text) IS NULL OR l.status=?)
+                FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE tech.academy_id=? AND (CAST(? AS text) IS NULL OR l.status=?)
                   AND (CAST(? AS text) IS NULL OR lower(l.title) LIKE lower(?) OR lower(l.slug) LIKE lower(?) OR lower(c.slug) LIKE lower(?))
                 ORDER BY l.updated_at DESC,l.id DESC
                 LIMIT ? OFFSET ?
@@ -179,12 +180,12 @@ public class ContentAuthoringService {
                 rs.getString("category_slug"), rs.getString("status"), rs.getInt("content_revision"),
                 (Integer) rs.getObject("published_revision"), (Integer) rs.getObject("draft_revision"),
                 rs.getTimestamp("updated_at").toInstant()),
-                status, status, search, pattern, pattern, pattern, size, offset);
+                primaryAcademyId(actor), status, status, search, pattern, pattern, pattern, size, offset);
         return new PageResult<>(items, page, size, totalItems, totalPages(totalItems, size));
     }
 
     @Transactional(readOnly = true)
-    public LessonAuthoringDetail authoringDetail(UUID lessonId) {
+    public LessonAuthoringDetail authoringDetail(CurrentUser actor, UUID lessonId) {
         return jdbc.query("""
                 SELECT l.id,l.slug,l.status,l.updated_at,c.slug AS category_slug,
                        r.title,r.summary,r.difficulty,r.source_type,r.content_json::text,
@@ -193,26 +194,27 @@ public class ContentAuthoringService {
                        (l.status <> 'PUBLISHED' OR l.draft_revision_id IS NOT NULL) AS editing_draft
                 FROM lessons l
                 JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
                 JOIN lesson_revisions r ON r.id=CASE
                     WHEN l.status='PUBLISHED' AND l.draft_revision_id IS NOT NULL THEN l.draft_revision_id
                     WHEN l.status='PUBLISHED' THEN l.published_revision_id
                     ELSE (SELECT id FROM lesson_revisions
                           WHERE lesson_id=l.id AND revision_number=l.content_revision)
                 END
-                WHERE l.id=?
+                WHERE l.id=? AND tech.academy_id=?
                 """, (rs, row) -> new LessonAuthoringDetail(
                 rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"),
                 rs.getString("summary"), rs.getString("category_slug"), rs.getString("difficulty"),
                 rs.getString("source_type"), rs.getString("content_json"), rs.getString("status"),
                 rs.getInt("revision_number"), (Integer) rs.getObject("published_revision"),
                 rs.getBoolean("editing_draft"), rs.getString("change_note"),
-                rs.getTimestamp("updated_at").toInstant()), lessonId)
+                rs.getTimestamp("updated_at").toInstant()), lessonId, primaryAcademyId(actor))
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found"));
     }
 
     @Transactional(readOnly = true)
-    public ReviewDetail reviewDetail(UUID taskId) {
+    public ReviewDetail reviewDetail(CurrentUser actor, UUID taskId) {
         return jdbc.query("""
                 SELECT t.id AS task_id,l.id AS lesson_id,r.id AS revision_id,l.slug,
                        r.title,r.summary,r.difficulty,r.source_type,r.content_json::text,
@@ -220,22 +222,24 @@ public class ContentAuthoringService {
                        t.submitted_at,l.status AS lesson_status
                 FROM content_review_tasks t
                 JOIN lessons l ON l.id=t.lesson_id
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
                 JOIN lesson_revisions r ON r.id=t.revision_id
                 JOIN users u ON u.id=t.submitted_by
-                WHERE t.id=? AND t.status='PENDING'
+                WHERE t.id=? AND t.status='PENDING' AND tech.academy_id=?
                 """, (rs, row) -> new ReviewDetail(
                 rs.getObject("task_id", UUID.class), rs.getObject("lesson_id", UUID.class),
                 rs.getObject("revision_id", UUID.class), rs.getString("slug"), rs.getString("title"),
                 rs.getString("summary"), rs.getString("difficulty"), rs.getString("source_type"),
                 rs.getString("content_json"), rs.getInt("revision_number"), rs.getString("change_note"),
                 rs.getString("submitted_by"), rs.getTimestamp("submitted_at").toInstant(),
-                rs.getString("lesson_status")), taskId)
+                rs.getString("lesson_status")), taskId, primaryAcademyId(actor))
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending review task not found"));
     }
 
     @Transactional(readOnly = true)
-    public PageResult<ReviewQueueItem> reviewQueue(String query, int page, int size) {
+    public PageResult<ReviewQueueItem> reviewQueue(CurrentUser actor, String query, int page, int size) {
         validatePage(query, page, size);
         String search = normalizeSearch(query);
         String pattern = search == null ? null : search + "%";
@@ -243,11 +247,13 @@ public class ContentAuthoringService {
                 SELECT COUNT(*)
                 FROM content_review_tasks t
                 JOIN lessons l ON l.id=t.lesson_id
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
                 JOIN lesson_revisions r ON r.id=t.revision_id
                 JOIN users u ON u.id=t.submitted_by
-                WHERE t.status='PENDING'
+                WHERE tech.academy_id=? AND t.status='PENDING'
                   AND (CAST(? AS text) IS NULL OR lower(l.slug) LIKE lower(?) OR lower(r.title) LIKE lower(?) OR lower(u.name) LIKE lower(?))
-                """, Long.class, search, pattern, pattern, pattern);
+                """, Long.class, primaryAcademyId(actor), search, pattern, pattern, pattern);
         long offset = (long) page * size;
         List<ReviewQueueItem> items = jdbc.query("""
                 SELECT t.id AS task_id,l.id AS lesson_id,r.id AS revision_id,l.slug,r.title,
@@ -264,7 +270,7 @@ public class ContentAuthoringService {
                 rs.getObject("task_id", UUID.class), rs.getObject("lesson_id", UUID.class),
                 rs.getObject("revision_id", UUID.class), rs.getString("slug"), rs.getString("title"),
                 rs.getString("submitted_by"), rs.getString("status"),
-                rs.getTimestamp("submitted_at").toInstant()), search, pattern, pattern, pattern, size, offset);
+                rs.getTimestamp("submitted_at").toInstant()), primaryAcademyId(actor), search, pattern, pattern, pattern, size, offset);
         return new PageResult<>(items, page, size, totalItems, totalPages(totalItems, size));
     }
 
@@ -278,11 +284,11 @@ public class ContentAuthoringService {
         var tasks = jdbc.query("""
                 SELECT t.lesson_id,t.submitted_by,t.revision_id,l.status
                 FROM content_review_tasks t JOIN lessons l ON l.id=t.lesson_id
-                WHERE t.id=? AND t.status='PENDING'
+                WHERE t.id=? AND t.status='PENDING' AND t.lesson_id IN (SELECT l2.id FROM lessons l2 JOIN categories c2 ON c2.id=l2.category_id JOIN technologies tech2 ON tech2.id=c2.technology_id WHERE tech2.academy_id=?)
                 FOR UPDATE OF t,l
                 """, (rs, row) -> new ReviewTaskOwner(
                         rs.getObject("lesson_id", UUID.class), rs.getObject("submitted_by", UUID.class),
-                        rs.getObject("revision_id", UUID.class), rs.getString("status")), taskId);
+                        rs.getObject("revision_id", UUID.class), rs.getString("status")), taskId, primaryAcademyId(actor));
         if (tasks.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending review task not found");
         }
@@ -315,9 +321,9 @@ public class ContentAuthoringService {
 
     @Transactional
     public Map<String, Object> publish(CurrentUser actor, UUID lessonId) {
-        var states = jdbc.query("SELECT status,draft_revision_id FROM lessons WHERE id=? FOR UPDATE",
+        var states = jdbc.query("SELECT l.status,l.draft_revision_id FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id WHERE l.id=? AND tech.academy_id=? FOR UPDATE OF l",
                 (rs, row) -> new PublishState(rs.getString("status"),
-                        rs.getObject("draft_revision_id", UUID.class)), lessonId);
+                        rs.getObject("draft_revision_id", UUID.class)), lessonId, primaryAcademyId(actor));
         if (states.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
         }
@@ -359,11 +365,12 @@ public class ContentAuthoringService {
     public LessonDraftResponse rollback(CurrentUser actor, UUID lessonId, RollbackRequest request) {
         var states = jdbc.query("""
                 SELECT status, content_revision, published_revision_id, draft_revision_id
-                FROM lessons WHERE id=? FOR UPDATE
+                FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE l.id=? AND tech.academy_id=? FOR UPDATE OF l
                 """, (rs, row) -> new RollbackLessonState(
                 rs.getString("status"), rs.getInt("content_revision"),
                 rs.getObject("published_revision_id", UUID.class),
-                rs.getObject("draft_revision_id", UUID.class)), lessonId);
+                rs.getObject("draft_revision_id", UUID.class)), lessonId, primaryAcademyId(actor));
         if (states.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
         }
@@ -472,6 +479,14 @@ public class ContentAuthoringService {
     private record ReviewTaskOwner(UUID lessonId, UUID submittedBy, UUID revisionId, String lessonStatus) {}
     private record PublishState(String status, UUID draftRevisionId) {}
     private record PublishedLessonState(String slug, int contentRevision, UUID draftRevisionId, String categorySlug) {}
+
+
+    private static UUID primaryAcademyId(CurrentUser actor) {
+        if (actor == null || actor.academyIds() == null || actor.academyIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return actor.academyIds().getFirst();
+    }
 
     private static void validatePage(String query, int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
