@@ -33,7 +33,7 @@ data class MermaidDiagram(val nodes: List<DiagramNode>, val edges: List<DiagramE
 /** Parses the common Mermaid flowchart subset into an accessible node/edge model. */
 object MermaidDiagramParser {
     private val nodePattern = Regex("""([A-Za-z0-9_]+)\s*(?:\[([^\]]+)\]|\(([^)]+)\)|\{([^}]+)\})""")
-    private val edgePattern = Regex("""([A-Za-z0-9_]+)\s*(?:-->|---|-.->|==>)\s*(?:\|([^|]+)\|\s*)?([A-Za-z0-9_]+)""")
+    private val edgePattern = Regex("""([A-Za-z0-9_]+)(?:\s*(?:\[[^\]]+\]|\([^)]+\)|\{[^}]+\}))?\s*(?:-->|---|-.->|==>)\s*(?:\|([^|]+)\|\s*)?([A-Za-z0-9_]+)""")
 
     fun parse(source: String): MermaidDiagram {
         val nodes = linkedMapOf<String, String>()
