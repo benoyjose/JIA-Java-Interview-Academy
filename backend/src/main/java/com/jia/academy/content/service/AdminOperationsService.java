@@ -157,6 +157,12 @@ public class AdminOperationsService {
                 rs.getObject("academy_id", UUID.class)), questionId);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found");
         QuestionState state = rows.getFirst();
+        String requiredPermission = "APPROVED".equals(target) ? "content.review"
+                : ("PUBLISHED".equals(target) || ("ARCHIVED".equals(target) && "PUBLISHED".equals(state.status()))
+                ? "content.publish" : "content.create");
+        if (!actor.permissions().contains(requiredPermission)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Missing permission: " + requiredPermission);
+        }
         if (!QUESTION_TRANSITIONS.getOrDefault(state.status(), Set.of()).contains(target)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Question cannot transition from " + state.status() + " to " + target);
