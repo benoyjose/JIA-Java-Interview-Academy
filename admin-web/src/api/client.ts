@@ -3,6 +3,7 @@ import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 const TOKEN_KEY = "jia.admin.access-token";
 const REFRESH_TOKEN_KEY = "jia.admin.refresh-token";
+let refreshInFlight: Promise<string | null> | null = null;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -34,17 +35,21 @@ async function send(path: string, init: RequestInit, token: string | null): Prom
 }
 
 async function rotateStoredToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
   const refreshToken = window.sessionStorage.getItem(REFRESH_TOKEN_KEY);
   if (!refreshToken) return null;
-  try {
-    const response = await send("/auth/refresh", {
-      method: "POST", body: JSON.stringify({ refreshToken }),
-    }, null);
-    if (!response.ok) return null;
-    const session = await response.json() as TokenResponse;
-    storeSession(session.accessToken, session.refreshToken);
-    return session.accessToken;
-  } catch { return null; }
+  refreshInFlight = (async () => {
+    try {
+      const response = await send("/auth/refresh", {
+        method: "POST", body: JSON.stringify({ refreshToken }),
+      }, null);
+      if (!response.ok) return null;
+      const session = await response.json() as TokenResponse;
+      storeSession(session.accessToken, session.refreshToken);
+      return session.accessToken;
+    } catch { return null; }
+  })().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -53,7 +58,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await send(path, init, originalToken);
     if (response.status === 401 && originalToken && path !== "/auth/refresh") {
-      const rotatedToken = await rotateStoredToken();
+      // Another request may already have rotated the shared session while this
+      // request was in flight. Reuse that access token instead of rotating twice.
+      const currentToken = getStoredToken();
+      const rotatedToken = currentToken && currentToken !== originalToken
+        ? currentToken : await rotateStoredToken();
       if (rotatedToken) response = await send(path, init, rotatedToken);
     }
   } catch {
