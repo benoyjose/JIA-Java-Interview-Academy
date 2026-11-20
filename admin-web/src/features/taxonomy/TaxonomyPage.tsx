@@ -14,6 +14,9 @@ export function TaxonomyPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [technologyForm, setTechnologyForm] = useState({ slug: "", name: "", description: "", sortOrder: "0" });
+  const [editingTechnologyId, setEditingTechnologyId] = useState<string | null>(null);
+  const [technologySaving, setTechnologySaving] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -62,11 +65,59 @@ export function TaxonomyPage() {
     catch (reason) { setError(reason instanceof Error ? reason.message : "Could not archive category."); }
   }
 
+  function editTechnology(item: TechnologyItem) {
+    setEditingTechnologyId(item.id);
+    setTechnologyForm({ slug: item.slug, name: item.name, description: item.description ?? "", sortOrder: String(item.sortOrder) });
+  }
+  function resetTechnology() {
+    setEditingTechnologyId(null);
+    setTechnologyForm({ slug: "", name: "", description: "", sortOrder: "0" });
+  }
+  async function saveTechnology(event: React.FormEvent) {
+    event.preventDefault();
+    setTechnologySaving(true); setError(""); setNotice("");
+    const payload = { slug: technologyForm.slug.trim(), name: technologyForm.name.trim(),
+      description: technologyForm.description.trim() || null, sortOrder: Number(technologyForm.sortOrder) };
+    try {
+      if (editingTechnologyId) await api.updateTechnology(editingTechnologyId, payload);
+      else await api.createTechnology(payload);
+      setNotice(editingTechnologyId ? "Technology updated." : "Technology created.");
+      resetTechnology();
+      await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save technology."); }
+    finally { setTechnologySaving(false); }
+  }
+  async function archiveTechnology(item: TechnologyItem) {
+    if (!window.confirm("Archive technology " + item.name + "? All categories must be archived or moved first.")) return;
+    setError(""); setNotice("");
+    try { await api.archiveTechnology(item.id); setNotice("Technology archived."); await load(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not archive technology."); }
+  }
+
   return <section>
     <div className="page-heading"><div><p className="eyebrow">CONTENT GOVERNANCE</p><h1>Taxonomy</h1>
       <p className="muted">Manage technologies and the category hierarchy used by lessons and assessments.</p></div></div>
     {error && <div className="notice error" role="alert">{error}</div>}
     {notice && <div className="notice success" role="status">{notice}</div>}
+    <div className="panel technology-admin">
+      <div className="panel-heading"><h2>Technologies</h2><span className="muted">{technologies.length} records</span></div>
+      <div className="technology-list">{technologies.map(item => <div className="technology-item" key={item.id}>
+        <div><strong>{item.name}</strong><small>{item.slug} · {item.status}</small></div>
+        <div><button className="text-button" onClick={() => editTechnology(item)} disabled={item.status === "ARCHIVED"}>Edit</button>
+          <button className="text-button danger-text" onClick={() => void archiveTechnology(item)} disabled={item.status === "ARCHIVED"}>Archive</button></div>
+      </div>)}</div>
+      <form className="technology-form" onSubmit={event => void saveTechnology(event)}>
+        <h3>{editingTechnologyId ? "Edit technology" : "Add technology"}</h3>
+        <div className="technology-fields">
+          <label>Name<input required maxLength={140} value={technologyForm.name} onChange={event => setTechnologyForm(v => ({ ...v, name: event.target.value }))} /></label>
+          <label>Slug<input required maxLength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={technologyForm.slug} onChange={event => setTechnologyForm(v => ({ ...v, slug: event.target.value }))} /></label>
+          <label>Description<input maxLength={500} value={technologyForm.description} onChange={event => setTechnologyForm(v => ({ ...v, description: event.target.value }))} /></label>
+          <label>Sort order<input type="number" min="0" max="10000" value={technologyForm.sortOrder} onChange={event => setTechnologyForm(v => ({ ...v, sortOrder: event.target.value }))} /></label>
+        </div>
+        <div className="row-actions"><button className="button button-primary" disabled={technologySaving}>{technologySaving ? "Saving…" : editingTechnologyId ? "Save technology" : "Create technology"}</button>
+          {editingTechnologyId && <button type="button" className="button button-secondary" onClick={resetTechnology}>Cancel</button>}</div>
+      </form>
+    </div>
     <div className="editor-layout">
       <div className="panel">
         <div className="panel-heading"><h2>Categories</h2><span className="muted">{visible.length} in selected technology</span></div>
