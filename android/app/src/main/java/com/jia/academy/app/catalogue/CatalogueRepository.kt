@@ -87,13 +87,15 @@ class CatalogueRepository(private val offlineStore: com.jia.academy.app.learning
     suspend fun getLesson(baseUrl: String, slug: String): LessonDetail {
         return try {
             val item = JSONObject(get(baseUrl, "/lessons/${segment(slug)}"))
-            LessonDetail(item.getString("id"), item.getString("slug"), item.getString("title"),
+            val lesson = LessonDetail(item.getString("id"), item.getString("slug"), item.getString("title"),
                 item.optString("summary").takeIf(String::isNotBlank),
                 item.optString("difficulty", "Not specified"), item.optInt("contentRevision", 1),
                 item.optString("sourceType", "Unknown"),
-                item.optString("contentJson").takeIf(String::isNotBlank)).also { offlineStore?.cacheLesson(it) }
+                item.optString("contentJson").takeIf(String::isNotBlank))
+            withContext(Dispatchers.IO) { offlineStore?.cacheLesson(lesson) }
+            lesson
         } catch (error: Exception) {
-            offlineStore?.cachedLesson(slug) ?: throw error
+            withContext(Dispatchers.IO) { offlineStore?.cachedLesson(slug) } ?: throw error
         }
     }
 }
