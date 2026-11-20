@@ -39,8 +39,8 @@ export function QuestionBankPage() {
   }
   useEffect(() => { void load(); }, [query, status, difficulty, page]);
 
-  async function transition(item: QuestionAdminItem) {
-    const target = nextStatus[item.status];
+  async function transition(item: QuestionAdminItem, requestedTarget?: string) {
+    const target = requestedTarget ?? nextStatus[item.status];
     if (!target || !window.confirm(`Move "${item.slug}" from ${item.status} to ${target}?`)) return;
     setBusy(item.id); setError(""); setNotice("");
     try { await api.transitionQuestion(item.id, target); setNotice(`Question moved to ${target}.`); await load(); }
@@ -85,11 +85,13 @@ export function QuestionBankPage() {
           <tbody>{items.map(item => <tr key={item.id}><td><strong>{item.promptText || item.slug}</strong><small>{item.slug} · {item.questionType}</small></td>
             <td>{item.technologyName}<small>{item.categoryName}</small></td><td>{item.difficulty}</td>
             <td><span className={`status-badge status-${item.status.toLowerCase()}`}>{item.status.replace("_", " ")}</span></td>
-            <td>v{item.revisionNumber}</td><td>{((item.status === "DRAFT" || item.status === "ARCHIVED") && canCreate)
-              || (item.status === "IN_REVIEW" && canReview)
-              || ((item.status === "APPROVED" || item.status === "PUBLISHED") && canPublish)
-              ? <button className="text-button" disabled={busy !== null} onClick={() => void transition(item)}>{busy === item.id ? "Updating…" : nextStatus[item.status]}</button>
-              : <span className="muted">—</span>}</td>
+            <td>v{item.revisionNumber}</td><td>{item.status === "IN_REVIEW" && canReview
+              ? <><button className="text-button" disabled={busy !== null} onClick={() => void transition(item, "APPROVED")}>Approve</button>
+                  <button className="text-button" disabled={busy !== null} onClick={() => void transition(item, "DRAFT")}>Request changes</button></>
+              : (((item.status === "DRAFT" || item.status === "ARCHIVED") && canCreate)
+                || ((item.status === "APPROVED" || item.status === "PUBLISHED") && canPublish))
+                ? <button className="text-button" disabled={busy !== null} onClick={() => void transition(item)}>{busy === item.id ? "Updating…" : nextStatus[item.status]}</button>
+                : <span className="muted">—</span>}</td>
           </tr>)}</tbody></table></div>}
       {totalPages > 1 && <div className="page-controls"><button className="button button-secondary" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous</button>
         <span>Page {page + 1} of {totalPages}</span><button className="button button-secondary" disabled={page + 1 >= totalPages} onClick={() => setPage(value => value + 1)}>Next</button></div>}
