@@ -30,13 +30,15 @@ public class LearningService {
                 SELECT l.slug,r.content_revision,p.status,p.progress_percent,p.last_position_json::text,
                        p.updated_at
                 FROM learner_lesson_progress p JOIN lessons l ON l.id=p.lesson_id
+                JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
                 LEFT JOIN LATERAL (SELECT revision_number AS content_revision FROM lesson_revisions
                     WHERE id=l.published_revision_id) r ON TRUE
-                WHERE p.user_id=? ORDER BY p.updated_at DESC LIMIT 200
+                JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE p.user_id=? AND tech.academy_id=? ORDER BY p.updated_at DESC LIMIT 200
                 """, (rs, row) -> new ProgressItem(rs.getString("slug"),
                 rs.getInt("content_revision"), rs.getString("status"),
                 rs.getBigDecimal("progress_percent"), parsePosition(rs.getString("last_position_json")),
-                rs.getTimestamp("updated_at").toInstant()), user.id());
+                rs.getTimestamp("updated_at").toInstant()), user.id(), primaryAcademyId(user));
     }
 
     @Transactional
@@ -51,9 +53,10 @@ public class LearningService {
         var lessons = jdbc.query("""
                 SELECT l.id,r.revision_number
                 FROM lessons l JOIN lesson_revisions r ON r.id=l.published_revision_id
-                WHERE l.slug=? AND l.status='PUBLISHED'
+                JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE l.slug=? AND l.status='PUBLISHED' AND tech.academy_id=?
                 """, (rs, row) -> new PublishedLesson(rs.getObject("id", UUID.class), rs.getInt("revision_number")),
-                lessonSlug);
+                lessonSlug, primaryAcademyId(user));
         if (lessons.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Published lesson not found");
         PublishedLesson lesson = lessons.getFirst();
         if (request.contentRevision() > lesson.revision()) {
@@ -85,11 +88,12 @@ public class LearningService {
         return jdbc.query("""
                 SELECT l.slug,p.content_revision,p.status,p.progress_percent,p.last_position_json::text,p.updated_at
                 FROM learner_lesson_progress p JOIN lessons l ON l.id=p.lesson_id
-                WHERE p.user_id=? AND p.lesson_id=?
+                JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE p.user_id=? AND p.lesson_id=? AND tech.academy_id=?
                 """, (rs, row) -> new ProgressItem(rs.getString("slug"), rs.getInt("content_revision"),
                 rs.getString("status"), rs.getBigDecimal("progress_percent"),
                 parsePosition(rs.getString("last_position_json")), rs.getTimestamp("updated_at").toInstant()),
-                user.id(), lesson.id()).getFirst();
+                user.id(), lesson.id(), primaryAcademyId(user)).getFirst();
     }
 
     @Transactional(readOnly = true)
@@ -97,14 +101,15 @@ public class LearningService {
         return jdbc.query("""
                 SELECT l.slug,l.title,b.created_at
                 FROM learner_bookmarks b JOIN lessons l ON l.id=b.lesson_id
-                WHERE b.user_id=? ORDER BY b.created_at DESC LIMIT 200
+                JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
+                WHERE b.user_id=? AND tech.academy_id=? ORDER BY b.created_at DESC LIMIT 200
                 """, (rs, row) -> new BookmarkItem(rs.getString("slug"), rs.getString("title"),
-                rs.getTimestamp("created_at").toInstant()), user.id());
+                rs.getTimestamp("created_at").toInstant()), user.id(), primaryAcademyId(user));
     }
 
     @Transactional
     public void bookmark(CurrentUser user, String lessonSlug) {
-        UUID lessonId = publishedLessonId(lessonSlug);
+        UUID lessonId = publishedLessonId(lessonSlug, user);
         jdbc.update("""
                 INSERT INTO learner_bookmarks(user_id,lesson_id,created_at)
                 VALUES (?,?,now()) ON CONFLICT (user_id,lesson_id) DO NOTHING
@@ -114,9 +119,10 @@ public class LearningService {
     @Transactional
     public void removeBookmark(CurrentUser user, String lessonSlug) {
         jdbc.update("""
-                DELETE FROM learner_bookmarks b USING lessons l
-                WHERE b.lesson_id=l.id AND b.user_id=? AND l.slug=?
-                """, user.id(), lessonSlug);
+                DELETE FROM learner_bookmarks b USING lessons l, categories c, technologies tech
+                WHERE b.lesson_id=l.id AND c.id=l.category_id AND tech.id=c.technology_id
+                  AND b.user_id=? AND l.slug=? AND tech.academy_id=?
+                """, user.id(), lessonSlug, primaryAcademyId(user));
     }
 
     @Transactional(readOnly = true)
@@ -133,16 +139,26 @@ public class LearningService {
                 latest == null ? null : latest.toInstant(), Instant.now());
     }
 
+    private static UUID primaryAcademyId(CurrentUser user) {
+        if (user.academyIds() == null || user.academyIds().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
+        }
+        return user.academyIds().getFirst();
+    }
+
     private JsonNode parsePosition(String value) {
         if (value == null) return null;
         try { return mapper.readTree(value); }
         catch (Exception ex) { throw new IllegalStateException("Stored progress position is invalid JSON", ex); }
     }
 
-    private UUID publishedLessonId(String slug) {
+    private UUID publishedLessonId(String slug, CurrentUser user) {
         return jdbc.query("""
-                SELECT id FROM lessons WHERE slug=? AND status='PUBLISHED'
-                """, (rs, row) -> rs.getObject(1, UUID.class), slug).stream().findFirst()
+                SELECT l.id FROM lessons l
+                JOIN categories c ON c.id=l.category_id
+                JOIN technologies tech ON tech.id=c.technology_id
+                WHERE l.slug=? AND l.status='PUBLISHED' AND tech.academy_id=?
+                """, (rs, row) -> rs.getObject(1, UUID.class), slug, primaryAcademyId(user)).stream().findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Published lesson not found"));
     }
 
