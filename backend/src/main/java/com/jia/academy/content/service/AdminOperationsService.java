@@ -92,8 +92,17 @@ public class AdminOperationsService {
                     userId, role);
         }
         audit(actor, "ADMIN_USER_UPDATED", "USER", userId);
-        return users(null, 0, 1000).items().stream().filter(item -> item.id().equals(userId)).findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return jdbc.query("""
+                SELECT u.id,u.name,u.email,u.status,u.created_at,
+                       COALESCE(array_agg(DISTINCT r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::varchar[]) AS roles
+                FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id
+                LEFT JOIN roles r ON r.id=ur.role_id WHERE u.id=?
+                GROUP BY u.id
+                """, (rs, row) -> new UserItem(rs.getObject("id", UUID.class), rs.getString("name"),
+                rs.getString("email"), rs.getString("status"),
+                List.of((String[]) rs.getArray("roles").getArray()), rs.getTimestamp("created_at").toInstant()), userId)
+                .stream().findFirst().orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
     @Transactional(readOnly = true)
