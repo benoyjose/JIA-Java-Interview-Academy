@@ -45,7 +45,7 @@ final class QuizController
             if ($durationLimitSeconds < 60 || $durationLimitSeconds > 21600) {
                 throw new BadRequestHttpException('durationSeconds must be between 60 and 21600');
             }
-        } elseif ($mode !== 'DAILY_CHALLENGE') {
+        } elseif (! in_array($mode, ['DAILY_CHALLENGE', 'WEAK_AREA'], true)) {
             self::assertAvailableMode($mode);
         }
         $filters = $this->filters($request);
@@ -63,9 +63,21 @@ final class QuizController
                     return $this->dailyChallengeResponse((string) $existing->id);
                 }
             }
-            $selected = $this->questionQuery($filters)
-                ->inRandomOrder()
-                ->limit($count)
+            $selectedQuery = $this->questionQuery($filters);
+            if ($mode === 'WEAK_AREA') {
+                $selectedQuery->orderByRaw("COALESCE((
+                    SELECT SUM(CASE WHEN paa.is_correct THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(*), 0)
+                    FROM quiz_attempts pa
+                    JOIN quiz_attempt_questions paq ON paq.attempt_id = pa.id
+                    JOIN quiz_attempt_answers paa ON paa.attempt_id = paq.attempt_id AND paa.position = paq.position
+                    JOIN questions pq ON pq.id = paq.question_id
+                    WHERE pa.user_id = ? AND pa.academy_id = questions.academy_id
+                      AND pa.status = 'SUBMITTED' AND pq.category_id = questions.category_id
+                ), 1.0) ASC, RANDOM()", [$user->id]);
+            } else {
+                $selectedQuery->inRandomOrder();
+            }
+            $selected = $selectedQuery->limit($count)
                 ->get([
                     'questions.id as question_id',
                     'questions.question_type',
@@ -420,7 +432,7 @@ final class QuizController
 
     public static function assertAvailableMode(string $mode): void
     {
-        if (! in_array($mode, ['PRACTICE', 'DAILY_CHALLENGE'], true)) {
+        if (! in_array($mode, ['PRACTICE', 'DAILY_CHALLENGE', 'WEAK_AREA'], true)) {
             throw new BadRequestHttpException('Quiz mode is not available yet: '.$mode);
         }
     }
