@@ -1,67 +1,45 @@
-# API contract inventory and parity baseline
+# Spring Boot API contract coverage and backend parity
 
-**Contract:** `docs/api/openapi.yaml`  
-**Contract version:** 1.3.0  
-**Baseline reviewed:** 19 November 2026  
-**Implementations:** Spring Boot and Laravel  
+**Normative contract:** `docs/api/openapi.yaml`  
+**Contract version:** 1.5.0  
+**Baseline reviewed:** 20 November 2026  
+**Primary production backend:** Spring Boot  
 **Deployment rule:** one active backend implementation writes to the canonical database at a time.
 
-## Scope of this baseline
+## Spring Boot route coverage
 
-This inventory covers routes that exist in both backend implementations today. CMS authoring/review/publishing, learner progress, bookmarks, content manifests/synchronization, subscription entitlements and app-release APIs are product requirements, but are not represented as implemented endpoints until both backends have working handlers, authorization and tests.
+Every Spring MVC controller route under `backend/src/main/java` must be represented by the OpenAPI document. The `verify-spring-openapi-routes.mjs` CI check extracts class-level and method-level Spring mapping annotations and fails if a route is undocumented. This is a route-presence gate; it does not replace request/response schema, authorization or integration tests.
 
-## Route parity inventory
+Spring-first capabilities currently include content authoring, review, publishing, lesson archiving, taxonomy management, learner progress/bookmarks, content release manifests and admin question operations. These routes are part of the normative Spring contract even where Laravel has no equivalent handler.
 
-| Method | Path | Access | Spring Boot | Laravel |
-|---|---|---|---|---|
-| POST | `/auth/register` | Public; equivalent throttling not implemented in both | AuthController | AuthController |
-| POST | `/auth/login` | Public; equivalent throttling not implemented in both | AuthController | AuthController |
-| POST | `/auth/federated/google` | Public; equivalent throttling not implemented in both | FederatedAuthController | FederatedAuthController |
-| POST | `/auth/federated/apple` | Public; equivalent throttling not implemented in both | FederatedAuthController | FederatedAuthController |
-| POST | `/auth/phone/otp` | Public; rate-limit behavior differs | PhoneOtpController | PhoneOtpController |
-| POST | `/auth/phone/verify` | Public; equivalent throttling not implemented in both | PhoneOtpController | PhoneOtpController |
-| GET | `/auth/me` | Authenticated | AuthController | AuthController |
-| POST | `/auth/logout` | Authenticated | AuthController | AuthController |
-| GET | `/technologies` | Public | CatalogueController | CatalogueController |
-| GET | `/technologies/{slug}` | Public | CatalogueController | CatalogueController |
-| GET | `/technologies/{technologySlug}/categories` | Public | CatalogueController | CatalogueController |
-| GET | `/categories/{categorySlug}/lessons` | Public | CatalogueController | CatalogueController |
-| GET | `/lessons/{slug}` | Public | CatalogueController | CatalogueController |
-| GET | `/quizzes/availability` | Public | QuizController | QuizController |
-| POST | `/quiz-attempts` | Authenticated | QuizController | QuizController |
-| POST | `/quiz-attempts/{attemptId}/submit` | Authenticated | QuizController | QuizController |
-| GET | `/me/quiz-performance` | Authenticated | QuizController | QuizController |
-| GET | `/me/quiz-attempts` | Authenticated | QuizController | QuizController |
+## Laravel compatibility boundary
 
-All paths above are relative to `/api/v1`.
+Laravel remains a secondary compatibility implementation. The existing shared authentication, catalogue and quiz endpoints are the current parity baseline. Spring-first CMS and learning-continuity endpoints are not required to ship in Laravel and must not be described as implemented there until matching routes, authorization, persistence behavior and tests exist.
 
-## Contract findings and known parity work
+Do not add undocumented Laravel-only behavior required by Android or Admin clients. If a backend switch is planned, complete the parity inventory and contract tests before switching traffic; never dual-write to both implementations.
 
-1. **Rate-limit parity is incomplete.** Laravel applies route-level throttling to public authentication routes. Spring security currently permits these routes without equivalent route-level throttles; the phone OTP service has a narrower per-phone request limit. Do not describe the six routes as uniformly throttled until equivalent limits and tests exist in both backends.
-2. **Error envelope normalization is implemented for covered paths.** Both backends now emit the shared `code` and `message` fields, with optional field-level `errors`. Continue testing framework-generated edge cases before declaring complete parity.
-3. **Quiz request validation differs.** Laravel validates nested answer fields and non-negative `timeSpentMs`. Spring currently parses generic maps and validates answer positions, but does not apply equivalent constraints to every nested field. Tighten Spring validation or extract shared validation rules, then add matching tests.
-4. **Authentication failure envelopes are normalized for covered paths.** Spring Security and Laravel middleware have common error handlers. Android accepts the common `message` field and retains `detail` compatibility for older responses.
-5. **Public and authenticated route policies must stay explicit.** Catalogue and availability are public. Personal quiz attempts/history/performance and session endpoints require bearer authentication.
-6. **Phone number validation is E.164.** The OpenAPI patterns for both OTP request and verification must represent a literal leading plus and match the backend constraints.
-7. **Nullable performance fields are valid.** Topic performance may contain a null technology slug for an unfiltered attempt; schemas must not incorrectly require a non-null value.
-8. **No refresh-token API exists yet.** The current token response is a 30-day opaque bearer token. Do not document refresh-token behavior until both implementations and clients support it.
-9. **Permission enforcement is not yet mapped to a shared production route.** Spring method security is enabled and tested with a protected test endpoint; Laravel has reusable `RequireJiaPermission` middleware. No current shared production route applies a matching named permission policy, and persisted-token permission loading still needs end-to-end parity coverage. Do not treat this as complete authorization parity.
-10. **Expired persisted bearer tokens are covered by integration tests.** Both implementations query the `api_tokens` table with `expires_at > now`; tests seed an already-expired token and verify `/auth/me` rejects it with the common 401 envelope without updating `last_used_at`.
-11. **No CMS/progress/sync routes exist yet.** Add those paths to this contract in the same change that implements both backend handlers, permission checks and tests.
+## Known parity work
 
-## Required CI contract gates
+1. **Authentication throttling:** Laravel route-level throttling and Spring Boot controls are not yet identical for every public auth route. Phone OTP has narrower service-level limits. Keep these differences explicit until equivalent controls and tests exist.
+2. **Quiz validation:** Laravel validates nested answer fields and non-negative `timeSpentMs`; Spring currently parses generic maps and validates key constraints. Align nested validation before claiming full parity.
+3. **Error envelopes:** Both backends use the shared `code` and `message` fields with optional field-level `errors`; continue covering framework-generated failures.
+4. **Permission enforcement:** Spring method security and Laravel permission middleware exist, but persisted role-to-permission behavior needs end-to-end parity coverage before treating authorization as equivalent.
+5. **Session lifecycle:** Spring refresh-token rotation and password recovery are Spring-first features until Laravel and all clients support the same contract. Do not imply Laravel parity.
+6. **Content lifecycle:** Spring content authoring/review/publishing and academy isolation are authoritative. Laravel parity is intentionally deferred and is not a release blocker for the Spring-first product increment.
 
-- Lint the OpenAPI document on pull requests and pushes to the default branch.
-- Keep the route inventory synchronized with both backend route declarations.
-- Add contract tests against each backend for status codes, response schemas, validation, authentication, named permissions and ownership.
-- Add a parity test for representative requests so the same fixtures produce equivalent status codes and JSON semantics.
-- Fail CI when an implementation adds/removes a route without updating the contract and inventory.
+## CI contract gates
 
-## Definition of done for API parity
+- Lint `docs/api/openapi.yaml` on pull requests and pushes to `main`.
+- Fail CI if any Spring controller route is missing from OpenAPI.
+- Keep request/response schemas, status codes, validation and authorization documented for each implemented route.
+- Add PostgreSQL integration tests for lifecycle transitions, ownership, academy isolation and learner activity.
+- Add shared behavioral contract tests before declaring Spring/Laravel parity or switching the active backend.
 
-- Every implemented API route is documented.
-- Every documented route is implemented in both backends, or explicitly marked as a planned route outside the published contract.
-- Success payloads and error semantics are equivalent.
-- Validation and authorization behavior is equivalent, including named permissions derived from persisted roles.
-- Both implementations pass the same contract test suite.
-- The mobile clients require no backend-specific branching.
+## Definition of done
+
+- Every implemented Spring Boot route is present in OpenAPI.
+- Every published route has accurate request/response schemas and status/error semantics.
+- Public versus authenticated access and named permissions are explicit.
+- Spring integration tests cover success, validation, authorization, ownership and not-found behavior.
+- Laravel parity is claimed only for routes with matching handlers and passing tests.
+- Mobile and Admin clients do not need backend-specific branching for the active Spring API.
