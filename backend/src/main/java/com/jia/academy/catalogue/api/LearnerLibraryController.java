@@ -1,6 +1,8 @@
 package com.jia.academy.catalogue.api;
 
 import com.jia.academy.security.CurrentUser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -19,7 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/me")
 public class LearnerLibraryController {
     private final JdbcTemplate jdbc;
-    public LearnerLibraryController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private final ObjectMapper mapper;
+    public LearnerLibraryController(JdbcTemplate jdbc, ObjectMapper mapper) { this.jdbc = jdbc; this.mapper = mapper; }
 
     @GetMapping("/lesson-progress")
     public List<Map<String,Object>> progress(@AuthenticationPrincipal CurrentUser user) {
@@ -69,7 +72,7 @@ public class LearnerLibraryController {
               completed_at=COALESCE(learner_lesson_progress.completed_at,EXCLUDED.completed_at),
               updated_at=now()
             """,user.id(),lessonId,revision,completed?"COMPLETED":"IN_PROGRESS",
-            BigDecimal.valueOf(n.doubleValue()),body.get("lastPosition")==null?null:body.get("lastPosition").toString(),
+            BigDecimal.valueOf(n.doubleValue()),jsonPosition(body.get("lastPosition")),
             completed);
         return Map.of("lessonSlug",lessonSlug,"contentRevision",revision,"status",completed?"COMPLETED":"IN_PROGRESS",
                 "progressPercent",n.doubleValue());
@@ -108,6 +111,12 @@ public class LearnerLibraryController {
             WHERE b.lesson_id=l.id AND b.user_id=? AND l.slug=?
             """,user.id(),lessonSlug);
         return Map.of("lessonSlug",lessonSlug,"bookmarked",false);
+    }
+
+    private String jsonPosition(Object value) {
+        if (value == null) return null;
+        try { return mapper.writeValueAsString(value); }
+        catch (JsonProcessingException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"lastPosition must be valid JSON"); }
     }
 
     private static void requireUser(CurrentUser user) {
