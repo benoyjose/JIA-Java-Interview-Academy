@@ -25,6 +25,12 @@ public class ContentReleaseController {
         return releases.get(version);
     }
 
+    @GetMapping("/content/releases/{version}/lessons/{slug}")
+    public com.jia.academy.catalogue.api.CatalogueDtos.LessonDetailResponse lesson(
+            @PathVariable long version, @PathVariable String slug) {
+        return releases.lesson(version, slug);
+    }
+
     @PostMapping("/admin/content-releases")
     @PreAuthorize("hasAuthority('releases.manage')")
     public ContentReleaseResponse create(@AuthenticationPrincipal CurrentUser actor) {
