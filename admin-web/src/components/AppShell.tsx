@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { useAuth } from "../auth/AuthContext";
-type Tab = "lessons" | "reviews";
+type Tab = "lessons" | "reviews" | "taxonomy";
 export function AppShell({ activeTab, onNavigate, children }: PropsWithChildren<{ activeTab: Tab; onNavigate: (tab: Tab) => void }>) {
   const { user, logout } = useAuth();
   return <div className="app-shell">
@@ -10,6 +10,8 @@ export function AppShell({ activeTab, onNavigate, children }: PropsWithChildren<
           <button className={activeTab === "lessons" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("lessons")}><span>▤</span> Lessons</button>}
         {user?.roles.some(role => role === "REVIEWER" || role === "ADMIN") &&
           <button className={activeTab === "reviews" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("reviews")}><span>✓</span> Review queue</button>}
+        {user?.roles.some(role => role === "EDITOR" || role === "ADMIN") &&
+          <button className={activeTab === "taxonomy" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("taxonomy")}><span>⌘</span> Taxonomy</button>}
       </nav>
       <div className="sidebar-footer"><div className="avatar">{user?.name.slice(0, 1).toUpperCase() ?? "A"}</div><div className="account-copy"><strong>{user?.name}</strong><span>{user?.roles.join(" · ")}</span></div><button className="icon-button" title="Sign out" aria-label="Sign out" onClick={() => void logout()}>↗</button></div>
     </aside>
