@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers\\Api\\V1;
+namespace App\Http\Controllers\Api\V1;
 
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
-use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class LearnerLibraryController
 {
