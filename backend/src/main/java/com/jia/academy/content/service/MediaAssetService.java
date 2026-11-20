@@ -112,8 +112,9 @@ public class MediaAssetService {
                     "Uploaded object could not be verified; retry after upload completes");
         }
 
-        jdbc.update("UPDATE media_assets SET status='READY',completed_at=now() WHERE id=? AND status='PENDING'",
+        int updated = jdbc.update("UPDATE media_assets SET status='READY',completed_at=now() WHERE id=? AND status='PENDING'",
                 mediaId);
+        if (updated == 0) return get(actor, mediaId);
         jdbc.update("""
                 INSERT INTO audit_events(id,actor_user_id,academy_id,action,entity_type,entity_id,metadata_json)
                 VALUES (?,?,?,'MEDIA_ASSET_UPLOADED','MEDIA_ASSET',?,jsonb_build_object('contentType',?,'sizeBytes',?))
