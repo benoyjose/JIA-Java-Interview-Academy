@@ -255,7 +255,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/GoogleIdentityRequest' }
+            schema:
+              type: object
+              required: [idToken, nonce]
+              properties:
+                idToken: { type: string, maxLength: 12000 }
+                nonce: { type: string, maxLength: 256 }
+                deviceName: { type: [string, 'null'], maxLength: 100 }
       responses:
         '204': { description: Identity linked }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -269,7 +275,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AppleIdentityRequest' }
+            schema:
+              type: object
+              required: [identityToken, nonce]
+              properties:
+                identityToken: { type: string, maxLength: 12000 }
+                nonce: { type: string, maxLength: 256 }
+                deviceName: { type: [string, 'null'], maxLength: 100 }
       responses:
         '204': { description: Identity linked }
         '401': { $ref: '#/components/responses/Unauthorized' }
