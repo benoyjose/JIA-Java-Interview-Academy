@@ -36,7 +36,7 @@ public class AdminOperationsController {
     }
 
     @GetMapping("/questions")
-    @PreAuthorize("hasAuthority('content.create')")
+    @PreAuthorize("hasAnyAuthority('content.create','content.review','content.publish')")
     public PageResult<QuestionItem> questions(@RequestParam(required = false) String q,
             @RequestParam(required = false) String status, @RequestParam(required = false) String difficulty,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "25") int size) {
@@ -44,7 +44,7 @@ public class AdminOperationsController {
     }
 
     @PatchMapping("/questions/{questionId}/status")
-    @PreAuthorize("hasAuthority('content.create')")
+    @PreAuthorize("hasAnyAuthority('content.create','content.review','content.publish')")
     public QuestionItem transitionQuestion(@AuthenticationPrincipal CurrentUser actor,
             @PathVariable UUID questionId, @RequestBody QuestionStatusRequest request) {
         return operations.transitionQuestion(actor, questionId, request.status());
