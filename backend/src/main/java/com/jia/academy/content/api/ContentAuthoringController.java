@@ -94,6 +94,14 @@ public class ContentAuthoringController {
         return content.decideReview(actor, taskId, request);
     }
 
+    @PostMapping("/lessons/{lessonId}/rollback")
+    @PreAuthorize("hasAuthority('content.create')")
+    public LessonDraftResponse rollback(@AuthenticationPrincipal CurrentUser actor,
+                                         @PathVariable UUID lessonId,
+                                         @Valid @RequestBody RollbackRequest request) {
+        return content.rollback(actor, lessonId, request);
+    }
+
     @PostMapping("/lessons/{lessonId}/publish")
     @PreAuthorize("hasAuthority('content.publish')")
     public Map<String, Object> publish(@AuthenticationPrincipal CurrentUser actor,
