@@ -80,7 +80,7 @@ public class TaxonomyAdminService {
                 FROM categories c
                 JOIN technologies t ON t.id=c.technology_id
                 LEFT JOIN categories p ON p.id=c.parent_id
-                WHERE (? IS NULL OR t.slug=?)
+                WHERE t.slug = COALESCE(CAST(? AS VARCHAR), t.slug)
                 ORDER BY t.sort_order, c.sort_order, c.name
                 """, (rs, row) -> new CategoryItem(
                 rs.getObject("id", UUID.class), rs.getObject("technology_id", UUID.class),
@@ -88,7 +88,7 @@ public class TaxonomyAdminService {
                 rs.getString("parent_slug"), rs.getString("slug"), rs.getString("name"),
                 rs.getInt("sort_order"), rs.getString("status"),
                 rs.getLong("lesson_count"), rs.getLong("question_count")),
-                technologySlug, technologySlug);
+                technologySlug);
     }
 
     @Transactional
