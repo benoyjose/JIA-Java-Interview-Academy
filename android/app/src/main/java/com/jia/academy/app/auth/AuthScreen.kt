@@ -128,32 +128,15 @@ fun AuthScreen(
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(onClick = {
-                loading = true
-                error = null
-                scope.launch {
-                    runCatching {
-                        if (otpRequested) repository.verifyPhoneOtp(baseUrl, phoneNumber.trim(), otpCode)
-                        else { repository.requestPhoneOtp(baseUrl, phoneNumber.trim()); null }
-                    }.onSuccess { session ->
-                        if (session == null) otpRequested = true
-                        else {
-                            runCatching {
-                                val userJson = org.json.JSONObject().put("id", session.account.id)
-                                    .put("name", session.account.name).put("email", session.account.email)
-                                    .put("roles", org.json.JSONArray(session.account.roles)).toString()
-                                SecureSessionStore(context).save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
-                            }.onSuccess { onAuthenticated(session) }
-                                .onFailure { error = "Could not securely save this session." }
-                        }
-                    }.onFailure { error = it.message ?: "Phone verification failed." }
-                    loading = false
-                }
+                authViewModel.setError(null)
+                if (otpRequested) authViewModel.verifyPhoneOtp(baseUrl, phoneNumber, otpCode)
+                else authViewModel.requestPhoneOtp(baseUrl, phoneNumber)
             }, enabled = !loading && phoneNumber.startsWith("+") && phoneNumber.count { it.isDigit() } in 8..15 &&
                 (!otpRequested || otpCode.length == 6), modifier = Modifier.fillMaxWidth()) {
                 if (loading) CircularProgressIndicator() else Text(if (otpRequested) "Verify and sign in" else "Send verification code")
             }
-            if (otpRequested) TextButton(onClick = { otpRequested = false; otpCode = ""; error = null }) { Text("Change phone number") }
-            TextButton(onClick = { phoneMode = false; otpRequested = false; error = null }) { Text("Use email instead") }
+            if (otpRequested) TextButton(onClick = { authViewModel.resetOtp(); otpCode = "" }) { Text("Change phone number") }
+            TextButton(onClick = { phoneMode = false; authViewModel.resetOtp() }) { Text("Use email instead") }
         } else {
         if (registering) {
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") },
