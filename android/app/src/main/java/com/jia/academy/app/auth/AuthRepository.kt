@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 data class JiaAccount(val id: String, val name: String, val email: String?, val roles: List<String>)
-data class JiaSession(val accessToken: String, val expiresAt: String, val account: JiaAccount)
+data class JiaSession(val accessToken: String, val refreshToken: String, val expiresAt: String, val account: JiaAccount)
 
 class AuthRepository {
     suspend fun login(baseUrl: String, email: String, password: String): JiaSession =
@@ -16,6 +16,9 @@ class AuthRepository {
 
     suspend fun register(baseUrl: String, name: String, email: String, password: String): JiaSession =
         post(baseUrl, "/auth/register", JSONObject().put("name", name).put("email", email).put("password", password))
+
+    suspend fun refresh(baseUrl: String, refreshToken: String): JiaSession =
+        post(baseUrl, "/auth/refresh", JSONObject().put("refreshToken", refreshToken))
 
 
     suspend fun loginWithGoogle(baseUrl: String, idToken: String, nonce: String): JiaSession =
@@ -107,6 +110,7 @@ class AuthRepository {
             val roles = (0 until (rolesJson?.length() ?: 0)).map { rolesJson!!.getString(it) }
             JiaSession(
                 json.getString("accessToken"),
+                json.getString("refreshToken"),
                 json.getString("expiresAt"),
                 JiaAccount(user.getString("id"), user.getString("name"), user.optString("email").takeIf(String::isNotBlank), roles)
             )
