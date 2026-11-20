@@ -1,4 +1,4 @@
-import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease, TechnologyItem, CategoryItem, CategoryRequest, RevisionHistoryItem, UserAdminItem, UserAdminUpdate, QuestionAdminItem } from "./types";
+import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease, TechnologyItem, CategoryItem, CategoryRequest, RevisionHistoryItem, UserAdminItem, UserAdminUpdate, QuestionAdminItem, TechnologyRequest } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
 const TOKEN_KEY = "jia.admin.access-token";
@@ -95,6 +95,9 @@ export const api = {
   publishLesson: (id: string) => request<{ status: string }>(`/admin/lessons/${encodeURIComponent(id)}/publish`, { method: "POST" }),
   createContentRelease: () => request<ContentRelease>("/admin/content-releases", { method: "POST" }),
   taxonomyTechnologies: () => request<TechnologyItem[]>("/admin/taxonomy/technologies"),
+  createTechnology: (body: TechnologyRequest) => request<TechnologyItem>("/admin/taxonomy/technologies", { method: "POST", body: JSON.stringify(body) }),
+  updateTechnology: (id: string, body: TechnologyRequest) => request<TechnologyItem>("/admin/taxonomy/technologies/" + encodeURIComponent(id), { method: "PUT", body: JSON.stringify(body) }),
+  archiveTechnology: (id: string) => request<void>("/admin/taxonomy/technologies/" + encodeURIComponent(id), { method: "DELETE" }),
   taxonomyCategories: (technology?: string) => request<CategoryItem[]>(`/admin/taxonomy/categories${technology ? `?technology=${encodeURIComponent(technology)}` : ""}`),
   createCategory: (body: CategoryRequest) => request<CategoryItem>("/admin/taxonomy/categories", { method: "POST", body: JSON.stringify(body) }),
   updateCategory: (id: string, body: CategoryRequest) => request<CategoryItem>(`/admin/taxonomy/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
