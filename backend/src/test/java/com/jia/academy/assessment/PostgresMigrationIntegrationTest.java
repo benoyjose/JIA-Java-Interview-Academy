@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(16);
+        assertThat(result.migrationsExecuted).isEqualTo(18);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
