@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, validateLessonContent } from "../../api/client";
-import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, LessonStatus, PageResult } from "../../api/types";
+import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, LessonStatus, PageResult, RevisionHistoryItem } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 
 const PAGE_SIZE = 25;
@@ -129,6 +129,30 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
   const [changeNote, setChangeNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [history, setHistory] = useState<RevisionHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [rollbackBusy, setRollbackBusy] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!lesson) return;
+    const controller = new AbortController();
+    setHistoryLoading(true);
+    api.lessonHistory(lesson.id, controller.signal)
+      .then(items => setHistory(items))
+      .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Could not load revision history."); })
+      .finally(() => { if (!controller.signal.aborted) setHistoryLoading(false); });
+    return () => controller.abort();
+  }, [lesson?.id]);
+
+  async function rollback(revisionNumber: number) {
+    if (!lesson || !window.confirm(`Create a new draft from revision ${revisionNumber}? Published content will remain live until review and publication.`)) return;
+    setRollbackBusy(revisionNumber); setError("");
+    try {
+      await api.rollbackLesson(lesson.id, revisionNumber, `Restored from revision ${revisionNumber}`);
+      await onSaved(lesson.id, `Rollback draft created from revision ${revisionNumber}. Submit it for review before publishing.`);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Rollback failed."); }
+    finally { setRollbackBusy(null); }
+  }
 
   async function save(event: FormEvent<HTMLFormElement>, submitForReview = false) {
     event.preventDefault();
@@ -154,6 +178,20 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
   return <div className="editor-content">
     <div className="panel-heading"><div><p className="eyebrow">{lesson ? "LESSON REVISION" : "NEW CONTENT"}</p><h2>{lesson ? lesson.title : "Create lesson"}</h2><span className="muted small-copy">{lesson ? `Revision ${lesson.revisionNumber} · ${lesson.status}` : "Unpublished draft"}</span></div><button className="icon-button" onClick={onCancel} aria-label="Close editor">×</button></div>
     {lesson?.status === "PUBLISHED" && <div className="notice info">Live revision {lesson.publishedRevision ?? "—"} remains visible while you prepare this draft.</div>}
+    {lesson && <div className="revision-history">
+      <div className="panel-heading"><h3>Revision & review history</h3><span className="muted small-copy">{history.length} revision(s)</span></div>
+      {historyLoading ? <p className="muted small-copy">Loading history…</p> : history.length === 0 ? <p className="muted small-copy">No revision history available.</p> :
+        <ol className="revision-list">{history.map(item => <li key={item.revisionId}>
+          <div><strong>Revision {item.revisionNumber}: {item.title}</strong>
+            <small>{new Date(item.createdAt).toLocaleString()} · {item.changedByName}{item.published ? " · Published" : item.currentDraft ? " · Current draft" : ""}</small>
+            {item.reviewStatus && <small>Review: {item.reviewStatus.replace("_", " ")}{item.submittedBy ? ` · submitted by ${item.submittedBy}` : ""}</small>}
+            {item.changeNote && <small>{item.changeNote}</small>}
+            {item.reviewComment && <small>Reviewer: {item.reviewComment}</small>}
+          </div>
+          {["DRAFT", "PUBLISHED"].includes(lesson.status) && !lesson.editingDraft && !item.currentDraft && item.revisionNumber !== lesson.revisionNumber &&
+            <button type="button" className="text-button" disabled={rollbackBusy !== null} onClick={() => void rollback(item.revisionNumber)}>{rollbackBusy === item.revisionNumber ? "Restoring…" : "Restore"}</button>}
+        </li>)}</ol>}
+    </div>}
     <form className="editor-form" onSubmit={event => void save(event)}>
       <label>Lesson title<input required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} /></label>
       <div className="field-row"><label>Category slug<input required maxLength={100} placeholder="java-language-fundamentals" value={categorySlug} onChange={event => setCategorySlug(event.target.value)} /></label><label>Lesson slug<input required maxLength={120} value={slug} onChange={event => setSlug(event.target.value)} /></label></div>
