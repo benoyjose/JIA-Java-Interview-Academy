@@ -97,7 +97,7 @@ public class TaxonomyAdminService {
     @Transactional
     public CategoryItem create(CurrentUser actor, CategoryRequest request) {
         validateRequest(request);
-        UUID technologyId = technologyId(request.technologySlug());
+        UUID technologyId = technologyId(request.technologySlug(), actor);
         UUID parentId = validateParent(request.parentId(), technologyId, null);
         UUID id = UUID.randomUUID();
         try {
@@ -121,7 +121,7 @@ public class TaxonomyAdminService {
         if ("ARCHIVED".equals(current.status())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived categories cannot be edited");
         }
-        UUID technologyId = technologyId(request.technologySlug());
+        UUID technologyId = technologyId(request.technologySlug(), actor);
         if (!current.technologyId().equals(technologyId)) {
             Integer children = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE parent_id=?", Integer.class, id);
             if (children != null && children > 0) {
