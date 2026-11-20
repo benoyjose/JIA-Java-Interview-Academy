@@ -179,7 +179,7 @@ public class AdminOperationsService {
                 VALUES (?,?,?,?,?, ?,jsonb_build_object('from',?,'to',?))
                 """, UUID.randomUUID(), actor.id(), state.academyId(), "QUESTION_STATUS_CHANGED",
                 "QUESTION", questionId, state.status(), target);
-        return questions(null, null, null, 0, 1000).items().stream().filter(item -> item.id().equals(questionId)).findFirst()
+        return questions(null, null, null, 0, 100).items().stream().filter(item -> item.id().equals(questionId)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found"));
     }
 
