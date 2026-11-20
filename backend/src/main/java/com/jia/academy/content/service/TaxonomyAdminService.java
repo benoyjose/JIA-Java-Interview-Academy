@@ -49,7 +49,7 @@ public class TaxonomyAdminService {
     public void archiveTechnology(CurrentUser actor, UUID id) {
         TechnologyItem current = technologies().stream().filter(item -> item.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Technology not found"));
-        Integer categories = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE technology_id=?",
+        Integer categories = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE technology_id=? AND status <> 'ARCHIVED'",
                 Integer.class, id);
         if (categories != null && categories > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
