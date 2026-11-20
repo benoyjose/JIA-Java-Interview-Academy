@@ -179,6 +179,36 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 .isInstanceOf(ResponseStatusException.class);
     }
 
+    @Test
+    void accessTokensAreShortLivedAndFederatedIdentityCannotRemoveLastSignInMethod() {
+        var registered = auth.register(new RegisterRequest("Short Token Test",
+                "short-token-" + UUID.randomUUID() + "@example.test", "long-secure-test-password"));
+        Boolean shortLived = jdbc.queryForObject("""
+                SELECT EXISTS(
+                    SELECT 1 FROM api_tokens
+                    WHERE user_id=? AND expires_at > now()
+                      AND expires_at <= now() + interval '16 minutes'
+                )
+                """, Boolean.class, registered.user().id());
+        assertThat(shortLived).isTrue();
+
+        CurrentUser federatedOnly = user("Federated Only", "LEARNER");
+        jdbc.update("UPDATE users SET password_hash=NULL WHERE id=?", federatedOnly.id());
+        auth.linkFederatedIdentity(federatedOnly, "GOOGLE", "google-" + UUID.randomUUID(),
+                "federated@example.test", true);
+        assertThatThrownBy(() -> auth.unlinkFederatedIdentity(federatedOnly, "GOOGLE"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Add another sign-in method");
+
+        auth.linkFederatedIdentity(federatedOnly, "APPLE", "apple-" + UUID.randomUUID(),
+                "federated-apple@example.test", true);
+        auth.unlinkFederatedIdentity(federatedOnly, "GOOGLE");
+        Integer remaining = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM auth_identities WHERE user_id=?",
+                Integer.class, federatedOnly.id());
+        assertThat(remaining).isEqualTo(1);
+    }
+
     private static CurrentUser user(String name, String role) {
         UUID id = UUID.randomUUID();
         String email = role.toLowerCase() + "-" + id + "@example.test";
