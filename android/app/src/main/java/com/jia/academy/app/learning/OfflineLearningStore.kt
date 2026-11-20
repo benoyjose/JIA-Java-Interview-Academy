@@ -231,11 +231,13 @@ class OfflineLearningStore(context: Context) :
     }
 
     fun recordSyncSuccess(progressCount: Int, bookmarkCount: Int) {
+        writableDatabase.insertWithOnConflict("sync_diagnostics",null,
+            ContentValues().apply { put("id",1) },SQLiteDatabase.CONFLICT_IGNORE)
         val values = ContentValues().apply {
-            put("id",1); put("last_success_at",System.currentTimeMillis()); putNull("last_error")
+            put("last_success_at",System.currentTimeMillis()); putNull("last_error")
             put("synced_progress_count",progressCount); put("synced_bookmark_count",bookmarkCount)
         }
-        writableDatabase.insertWithOnConflict("sync_diagnostics",null,values,SQLiteDatabase.CONFLICT_REPLACE)
+        writableDatabase.update("sync_diagnostics",values,"id=1",null)
     }
 
     fun recordSyncFailure(message: String) {
