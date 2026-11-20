@@ -3,6 +3,8 @@ package com.jia.academy.content.api;
 import com.jia.academy.content.api.ContentAuthoringDtos.*;
 import com.jia.academy.content.service.ContentAuthoringService;
 import com.jia.academy.content.service.LessonImportService;
+import com.jia.academy.content.service.LessonRevisionHistoryService;
+import com.jia.academy.content.service.LessonRevisionHistoryService.RevisionHistoryItem;
 import com.jia.academy.content.api.LessonImportDtos.BatchRequest;
 import com.jia.academy.content.api.LessonImportDtos.BatchResponse;
 import com.jia.academy.security.CurrentUser;
@@ -19,10 +21,13 @@ import org.springframework.web.bind.annotation.*;
 public class ContentAuthoringController {
     private final ContentAuthoringService content;
     private final LessonImportService imports;
+    private final LessonRevisionHistoryService revisionHistory;
 
-    public ContentAuthoringController(ContentAuthoringService content, LessonImportService imports) {
+    public ContentAuthoringController(ContentAuthoringService content, LessonImportService imports,
+                                       LessonRevisionHistoryService revisionHistory) {
         this.content = content;
         this.imports = imports;
+        this.revisionHistory = revisionHistory;
     }
 
     @GetMapping("/lessons")
@@ -92,6 +97,20 @@ public class ContentAuthoringController {
                                       @PathVariable UUID taskId,
                                       @Valid @RequestBody ReviewDecisionRequest request) {
         return content.decideReview(actor, taskId, request);
+    }
+
+    @GetMapping("/lessons/{lessonId}/history")
+    @PreAuthorize("hasAuthority('content.create') or hasAuthority('content.review')")
+    public java.util.List<RevisionHistoryItem> revisionHistory(@PathVariable UUID lessonId) {
+        return revisionHistory.history(lessonId);
+    }
+
+    @PostMapping("/lessons/{lessonId}/rollback")
+    @PreAuthorize("hasAuthority('content.create')")
+    public LessonDraftResponse rollback(@AuthenticationPrincipal CurrentUser actor,
+                                         @PathVariable UUID lessonId,
+                                         @Valid @RequestBody RollbackRequest request) {
+        return content.rollback(actor, lessonId, request);
     }
 
     @PostMapping("/lessons/{lessonId}/publish")

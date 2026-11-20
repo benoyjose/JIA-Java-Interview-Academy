@@ -37,12 +37,15 @@ public class SecurityConfiguration {
                 .requestMatchers(
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
+                    "/api/v1/auth/refresh",
+                    "/api/v1/auth/password/**",
                 "/api/v1/auth/federated/**",
                     "/api/v1/auth/phone/**",
                     "/api/v1/technologies",
                     "/api/v1/technologies/**",
                     "/api/v1/categories/**",
                     "/api/v1/lessons/**",
+                    "/api/v1/content/releases/**",
                     "/api/v1/quizzes/availability",
                     "/actuator/health",
                     "/up"

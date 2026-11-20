@@ -38,6 +38,18 @@ describe("admin API client", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/admin/lessons?page=1&size=25&status=DRAFT&q=spring");
   });
 
+  it("creates an immutable content release through the admin API", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(
+      JSON.stringify({ version: 3, createdAt: "2026-11-20T00:00:00Z", items: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const release = await api.createContentRelease();
+    expect(release.version).toBe(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/v1/admin/content-releases");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+  });
+
   it("normalizes the shared API error envelope", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(
       JSON.stringify({ code: "FORBIDDEN", message: "Permission denied." }),

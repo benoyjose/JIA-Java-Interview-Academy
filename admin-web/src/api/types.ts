@@ -1,5 +1,5 @@
 export type User = { id: string; name: string; email: string | null; roles: string[] };
-export type TokenResponse = { accessToken: string; tokenType: "Bearer"; expiresAt: string; user: User };
+export type TokenResponse = { accessToken: string; refreshToken: string; tokenType: "Bearer"; expiresAt: string; user: User };
 export type LessonStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "ARCHIVED";
 export type AdminLesson = {
   id: string; slug: string; title: string; categorySlug: string; status: LessonStatus;
@@ -35,3 +35,26 @@ export type PageResult<T> = {
   totalItems: number;
   totalPages: number;
 };
+
+export type ContentRelease = {
+  version: number;
+  createdAt: string;
+  items: Array<{ id: string; slug: string; title: string; contentRevision: number; checksum: string }>;
+};
+
+export type TechnologyItem = { id: string; slug: string; name: string; description: string | null; sortOrder: number; status: string };
+export type CategoryItem = { id: string; technologyId: string; technologySlug: string; parentId: string | null; parentSlug: string | null; slug: string; name: string; sortOrder: number; status: string; lessonCount: number; questionCount: number };
+export type CategoryRequest = { technologySlug: string; parentId: string | null; slug: string; name: string; sortOrder: number };
+
+export type RevisionHistoryItem = {
+  revisionId: string; revisionNumber: number; title: string; summary: string | null;
+  difficulty: string; sourceType: string; changedBy: string | null; changedByName: string;
+  changeNote: string | null; createdAt: string; published: boolean; currentDraft: boolean;
+  reviewStatus: string | null; reviewComment: string | null; reviewedAt: string | null; submittedBy: string | null;
+};
+
+export type UserAdminItem = { id: string; name: string; email: string | null; status: string; roles: string[]; createdAt: string };
+export type UserAdminUpdate = { status: string; roles: string[] };
+export type QuestionAdminItem = { id: string; slug: string; questionType: string; difficulty: string; status: string; revisionNumber: number; categoryName: string | null; categorySlug: string | null; technologyName: string; promptText: string; updatedAt: string };
+
+export type TechnologyRequest = { slug: string; name: string; description: string | null; sortOrder: number };

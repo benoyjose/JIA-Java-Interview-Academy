@@ -13,6 +13,11 @@ sealed interface LessonBlock {
         val source: String, val javaVersion: String?, val explanation: String?
     ) : LessonBlock
     data class Callout(override val key: String, override val title: String?, val tone: String, val body: String) : LessonBlock
+    data class Section(override val key: String, override val title: String?, val body: String) : LessonBlock
+    data class BulletList(override val key: String, override val title: String?, val items: List<String>) : LessonBlock
+    data class Diagram(override val key: String, override val title: String?, val language: String, val source: String) : LessonBlock
+    data class ResourceLink(override val key: String, override val title: String?, val label: String, val url: String) : LessonBlock
+    data class Media(override val key: String, override val title: String?, val kind: String, val url: String, val altText: String, val caption: String?) : LessonBlock
     data class InterviewAnswer(
         override val key: String, override val title: String?, val mode: String,
         val points: List<String>, val expandedExplanation: String?
@@ -20,6 +25,41 @@ sealed interface LessonBlock {
 }
 
 data class LessonDocument(val schemaVersion: Int, val blocks: List<LessonBlock>, val skippedBlockCount: Int)
+
+data class DiagramNode(val id: String, val label: String)
+data class DiagramEdge(val from: String, val to: String, val label: String?)
+data class MermaidDiagram(val nodes: List<DiagramNode>, val edges: List<DiagramEdge>)
+
+/** Parses the common Mermaid flowchart subset into an accessible node/edge model. */
+object MermaidDiagramParser {
+    private val nodePattern = Regex("""([A-Za-z0-9_]+)\s*(?:\[([^\]]+)\]|\(([^)]+)\)|\{([^}]+)\})""")
+    private val edgePattern = Regex("""([A-Za-z0-9_]+)(?:\s*(?:\[[^\]]+\]|\([^)]+\)|\{[^}]+\}))?\s*(?:-->|---|-.->|==>)\s*(?:\|([^|]+)\|\s*)?([A-Za-z0-9_]+)""")
+
+    fun parse(source: String): MermaidDiagram {
+        val nodes = linkedMapOf<String, String>()
+        val edges = mutableListOf<DiagramEdge>()
+        source.lineSequence()
+            .map(String::trim)
+            .filter { it.isNotBlank() && !it.startsWith("%%")
+                    && !it.startsWith("graph ") && !it.startsWith("flowchart ") }
+            .forEach { line ->
+                edgePattern.findAll(line).forEach { match ->
+                    val from = match.groupValues[1]
+                    val to = match.groupValues[3]
+                    nodes.putIfAbsent(from, from)
+                    nodes.putIfAbsent(to, to)
+                    edges += DiagramEdge(from, to, match.groupValues[2].trim().takeIf(String::isNotBlank))
+                }
+                nodePattern.findAll(line).forEach { match ->
+                    val id = match.groupValues[1]
+                    val label = listOf(match.groupValues[2], match.groupValues[3], match.groupValues[4])
+                        .firstOrNull(String::isNotBlank) ?: id
+                    nodes[id] = label.trim()
+                }
+            }
+        return MermaidDiagram(nodes.map { DiagramNode(it.key, it.value) }, edges.distinct())
+    }
+}
 
 object LessonContentParser {
     const val SUPPORTED_SCHEMA_VERSION = 1
@@ -52,6 +92,28 @@ object LessonContentParser {
             }
             "callout" -> item.optString("body").takeIf(String::isNotBlank)?.let {
                 LessonBlock.Callout(key, title, item.optString("tone", "info"), it)
+            }
+            "section", "overview", "objectives", "prerequisites", "explanation",
+            "tradeoffs", "commonMistakes", "troubleshooting", "followUps" ->
+                item.optString("body").takeIf(String::isNotBlank)?.let { LessonBlock.Section(key, title, it) }
+            "list" -> item.optJSONArray("items")?.strings()?.filter(String::isNotBlank)
+                ?.takeIf { it.isNotEmpty() }?.let { LessonBlock.BulletList(key, title, it) }
+            "diagram" -> item.optString("source").takeIf(String::isNotBlank)?.let {
+                LessonBlock.Diagram(key, title, item.optString("language", "mermaid"), it)
+            }
+            "image", "video" -> {
+                val url = item.optString("url")
+                val alt = item.optString("alt").trim()
+                val scheme = runCatching { java.net.URI(url).scheme?.lowercase() }.getOrNull()
+                if (scheme != "https" || alt.isBlank() || url.length > 2048) null
+                else LessonBlock.Media(key, title, type, url, alt,
+                    item.optString("caption").takeIf(String::isNotBlank))
+            }
+            "resourceLink" -> {
+                val url = item.optString("url")
+                val scheme = runCatching { java.net.URI(url).scheme?.lowercase() }.getOrNull()
+                if (scheme != "https" && scheme != "http") null
+                else LessonBlock.ResourceLink(key, title, item.optString("label").ifBlank { url }, url)
             }
             "interviewAnswer" -> {
                 val points = item.optJSONArray("body")?.strings().orEmpty().filter(String::isNotBlank)

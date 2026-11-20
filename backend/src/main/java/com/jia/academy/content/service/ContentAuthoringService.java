@@ -353,6 +353,76 @@ public class ContentAuthoringService {
         return Map.of("lessonId", lessonId, "revisionId", revisionId, "status", "PUBLISHED");
     }
 
+    @Transactional
+    public LessonDraftResponse rollback(CurrentUser actor, UUID lessonId, RollbackRequest request) {
+        var states = jdbc.query("""
+                SELECT status, content_revision, published_revision_id, draft_revision_id
+                FROM lessons WHERE id=? FOR UPDATE
+                """, (rs, row) -> new RollbackLessonState(
+                rs.getString("status"), rs.getInt("content_revision"),
+                rs.getObject("published_revision_id", UUID.class),
+                rs.getObject("draft_revision_id", UUID.class)), lessonId);
+        if (states.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found");
+        }
+        RollbackLessonState state = states.getFirst();
+        if (!List.of("DRAFT", "PUBLISHED").contains(state.status())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only draft or published lessons can be rolled back");
+        }
+        if (state.draftRevisionId() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Resolve or discard the existing draft revision before rolling back");
+        }
+        if ("DRAFT".equals(state.status()) && request.revisionNumber().equals(state.contentRevision())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "The selected revision is already the current draft");
+        }
+        var targets = jdbc.query("""
+                SELECT title, summary, difficulty, content_json::text AS content_json, source_type
+                FROM lesson_revisions
+                WHERE lesson_id=? AND revision_number=?
+                """, (rs, row) -> new RollbackRevision(
+                rs.getString("title"), rs.getString("summary"), rs.getString("difficulty"),
+                rs.getString("content_json"), rs.getString("source_type")),
+                lessonId, request.revisionNumber());
+        if (targets.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Requested lesson revision not found");
+        }
+        RollbackRevision target = targets.getFirst();
+        int nextRevision = jdbc.queryForObject(
+                "SELECT COALESCE(MAX(revision_number),0)+1 FROM lesson_revisions WHERE lesson_id=?",
+                Integer.class, lessonId);
+        UUID newRevisionId = UUID.randomUUID();
+        String note = "Rollback to revision " + request.revisionNumber()
+                + (request.changeNote() == null || request.changeNote().isBlank()
+                ? "" : ": " + request.changeNote().trim());
+        jdbc.update("""
+                INSERT INTO lesson_revisions(id,lesson_id,revision_number,title,summary,difficulty,
+                    content_json,source_type,changed_by,change_note)
+                VALUES (?,?,?,?,?,?,?::jsonb,?,?,?)
+                """, newRevisionId, lessonId, nextRevision, target.title(), target.summary(),
+                target.difficulty(), target.contentJson(), target.sourceType(), actor.id(), note);
+        if ("PUBLISHED".equals(state.status())) {
+            jdbc.update("""
+                    UPDATE lessons SET draft_revision_id=?,updated_at=now()
+                    WHERE id=? AND status='PUBLISHED'
+                    """, newRevisionId, lessonId);
+        } else {
+            jdbc.update("""
+                    UPDATE lessons SET title=?,summary=?,difficulty=?,content_json=?::jsonb,
+                        source_type=?,content_revision=?,status='DRAFT',updated_at=now()
+                    WHERE id=? AND status='DRAFT'
+                    """, target.title(), target.summary(), target.difficulty(), target.contentJson(),
+                    target.sourceType(), nextRevision, lessonId);
+        }
+        audit(actor, "LESSON_REVISION_ROLLED_BACK", lessonId,
+                Map.of("sourceRevision", request.revisionNumber(), "createdRevision", nextRevision));
+        return new LessonDraftResponse(lessonId,
+                jdbc.queryForObject("SELECT slug FROM lessons WHERE id=?", String.class, lessonId),
+                target.title(), "DRAFT", nextRevision);
+    }
+
     private LessonDraftResponse updatePublishedDraft(CurrentUser actor, UUID lessonId, LessonDraftRequest request) {
         validateContent(request.contentJson());
         validateTaxonomy(request.difficulty(), request.sourceType());
@@ -394,6 +464,8 @@ public class ContentAuthoringService {
         return new LessonDraftResponse(lessonId, state.slug(), request.title().trim(), "DRAFT", nextRevision);
     }
 
+    private record RollbackLessonState(String status, int contentRevision, UUID publishedRevisionId, UUID draftRevisionId) {}
+    private record RollbackRevision(String title, String summary, String difficulty, String contentJson, String sourceType) {}
     private record LessonReviewState(String status, int contentRevision, UUID draftRevisionId) {}
     private record ReviewTaskOwner(UUID lessonId, UUID submittedBy, UUID revisionId, String lessonStatus) {}
     private record PublishState(String status, UUID draftRevisionId) {}

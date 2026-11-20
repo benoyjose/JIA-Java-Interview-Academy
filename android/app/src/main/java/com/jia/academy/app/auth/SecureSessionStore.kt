@@ -15,8 +15,8 @@ class SecureSessionStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("jia_secure_session", Context.MODE_PRIVATE)
     private val alias = "jia.session.aes.v1"
 
-    fun save(accessToken: String, expiresAt: String, userJson: String) {
-        val plain = """{"accessToken":${org.json.JSONObject.quote(accessToken)},"expiresAt":${org.json.JSONObject.quote(expiresAt)},"user":$userJson}"""
+    fun save(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {
+        val plain = """{"accessToken":${org.json.JSONObject.quote(accessToken)},"refreshToken":${org.json.JSONObject.quote(refreshToken)},"expiresAt":${org.json.JSONObject.quote(expiresAt)},"user":$userJson}"""
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val encrypted = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
@@ -32,6 +32,14 @@ class SecureSessionStore(context: Context) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(128, iv))
         org.json.JSONObject(String(cipher.doFinal(payload), Charsets.UTF_8)).getString("accessToken")
+    }.getOrNull()
+
+    fun refreshToken(): String? = runCatching {
+        val iv = Base64.decode(preferences.getString("iv", null), Base64.NO_WRAP)
+        val payload = Base64.decode(preferences.getString("payload", null), Base64.NO_WRAP)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(128, iv))
+        org.json.JSONObject(String(cipher.doFinal(payload), Charsets.UTF_8)).getString("refreshToken")
     }.getOrNull()
 
     fun clear() { preferences.edit().clear().apply() }

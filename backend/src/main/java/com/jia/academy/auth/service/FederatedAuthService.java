@@ -1,6 +1,7 @@
 package com.jia.academy.auth.service;
 
 import com.jia.academy.auth.api.AuthDtos.TokenResponse;
+import com.jia.academy.security.CurrentUser;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +60,33 @@ public class FederatedAuthService {
                 || "true".equalsIgnoreCase(String.valueOf(verifiedClaim));
         return auth.authenticateFederated("APPLE", subject, email, verified,
                 null, deviceName);
+    }
+
+    public void linkGoogle(CurrentUser actor, String idToken, String nonce) {
+        Jwt jwt = decode(googleDecoder, idToken);
+        requireAudience(jwt, googleAudience);
+        requireNonce(jwt, nonce, false);
+        String subject = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+        Boolean verified = jwt.getClaim("email_verified");
+        if (subject == null || email == null || !Boolean.TRUE.equals(verified)) throw unauthorized();
+        auth.linkFederatedIdentity(actor, "GOOGLE", subject, email, true);
+    }
+
+    public void linkApple(CurrentUser actor, String identityToken, String nonce) {
+        Jwt jwt = decode(appleDecoder, identityToken);
+        requireAudience(jwt, appleAudience);
+        requireNonce(jwt, nonce, true);
+        String subject = jwt.getSubject();
+        Boolean verifiedClaim = jwt.getClaim("email_verified");
+        boolean verified = Boolean.TRUE.equals(verifiedClaim)
+                || "true".equalsIgnoreCase(String.valueOf(verifiedClaim));
+        if (subject == null || subject.isBlank() || !verified) throw unauthorized();
+        auth.linkFederatedIdentity(actor, "APPLE", subject, jwt.getClaimAsString("email"), true);
+    }
+
+    public void unlinkIdentity(CurrentUser actor, String provider) {
+        auth.unlinkFederatedIdentity(actor, provider);
     }
 
     private Jwt decode(JwtDecoder decoder, String token) {

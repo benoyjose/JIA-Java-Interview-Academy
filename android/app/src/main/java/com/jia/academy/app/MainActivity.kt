@@ -1,14 +1,18 @@
 package com.jia.academy.app
 
+import com.jia.academy.app.catalogue.*
+import com.jia.academy.app.learning.OfflineLearningStore
+import com.jia.academy.app.lesson.LessonScreen
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +27,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -30,12 +35,19 @@ import com.jia.academy.app.auth.AuthRepository
 import com.jia.academy.app.auth.AuthScreen
 import com.jia.academy.app.auth.JiaSession
 import com.jia.academy.app.assessment.QuizRepository
+import com.jia.academy.app.assessment.QuizSelectionScreen
 import com.jia.academy.app.assessment.JiaQuizMode
 import com.jia.academy.app.assessment.JiaQuizAttempt
 import com.jia.academy.app.assessment.JiaQuizResult
 import com.jia.academy.app.assessment.JiaQuizHistoryItem
 import com.jia.academy.app.assessment.JiaQuizPerformance
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
@@ -57,91 +70,6 @@ import java.net.URL
 import java.net.URLEncoder
 import java.time.Duration
 import java.time.Instant
-
-data class Technology(val id: String, val slug: String, val name: String, val description: String?)
-data class Category(val id: String, val slug: String, val name: String, val technologySlug: String)
-data class LessonSummary(val id: String, val slug: String, val title: String, val summary: String?, val difficulty: String)
-data class QuizAvailability(val difficulty: String, val availableQuestionCount: Int)
-
-data class LessonDetail(
-    val id: String,
-    val slug: String,
-    val title: String,
-    val summary: String?,
-    val difficulty: String,
-    val sourceType: String,
-    val contentJson: String?
-)
-
-class CatalogueRepository {
-    private fun apiUrl(baseUrl: String, path: String): String {
-        require(baseUrl.isNotBlank()) {
-            "Configure JIA_API_BASE_URL in ~/.gradle/gradle.properties to connect to the JIA API."
-        }
-        return baseUrl.trimEnd('/') + "/api/v1" + path
-    }
-
-    private suspend fun get(baseUrl: String, path: String): String = withContext(Dispatchers.IO) {
-        val connection = (URL(apiUrl(baseUrl, path)).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 10_000
-            readTimeout = 10_000
-            setRequestProperty("Accept", "application/json")
-        }
-        try {
-            val status = connection.responseCode
-            if (status !in 200..299) error("JIA API returned HTTP $status")
-            connection.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            connection.disconnect()
-        }
-    }
-
-    private fun segment(value: String) = URLEncoder.encode(value, Charsets.UTF_8.name())
-
-    suspend fun getTechnologies(baseUrl: String): List<Technology> {
-        val json = JSONArray(get(baseUrl, "/technologies"))
-        return (0 until json.length()).map { i ->
-            val item = json.getJSONObject(i)
-            Technology(item.getString("id"), item.getString("slug"), item.getString("name"),
-                item.optString("description").takeIf(String::isNotBlank))
-        }
-    }
-
-    suspend fun getCategories(baseUrl: String, technologySlug: String): List<Category> {
-        val json = JSONArray(get(baseUrl, "/technologies/${segment(technologySlug)}/categories"))
-        return (0 until json.length()).map { i ->
-            val item = json.getJSONObject(i)
-            Category(item.getString("id"), item.getString("slug"), item.getString("name"),
-                item.optString("technologySlug", technologySlug))
-        }
-    }
-
-    suspend fun getLessons(baseUrl: String, categorySlug: String): List<LessonSummary> {
-        val json = JSONArray(get(baseUrl, "/categories/${segment(categorySlug)}/lessons"))
-        return (0 until json.length()).map { i ->
-            val item = json.getJSONObject(i)
-            LessonSummary(item.getString("id"), item.getString("slug"), item.getString("title"),
-                item.optString("summary").takeIf(String::isNotBlank),
-                item.optString("difficulty", "Not specified"))
-        }
-    }
-
-    suspend fun getQuizAvailability(baseUrl: String, difficulty: String): QuizAvailability {
-        val query = URLEncoder.encode(difficulty, Charsets.UTF_8.name())
-        val item = JSONObject(get(baseUrl, "/quizzes/availability?difficulty=$query"))
-        return QuizAvailability(item.getString("difficulty"), item.getInt("availableQuestionCount"))
-    }
-
-    suspend fun getLesson(baseUrl: String, slug: String): LessonDetail {
-        val item = JSONObject(get(baseUrl, "/lessons/${segment(slug)}"))
-        return LessonDetail(item.getString("id"), item.getString("slug"), item.getString("title"),
-            item.optString("summary").takeIf(String::isNotBlank),
-            item.optString("difficulty", "Not specified"),
-            item.optString("sourceType", "Unknown"),
-            item.optString("contentJson").takeIf(String::isNotBlank))
-    }
-}
 
 private sealed interface BrowseRoute {
     data object Home : BrowseRoute
@@ -162,72 +90,124 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JiaApp() {
-    val repository = remember { CatalogueRepository() }
-    var route by remember { mutableStateOf<BrowseRoute>(BrowseRoute.Home) }
-    var backStack by remember { mutableStateOf(listOf<BrowseRoute>()) }
-    var signedInAccount by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val repository = remember(context) { CatalogueRepository(OfflineLearningStore(context)) }
+    val catalogueViewModel: CatalogueViewModel = viewModel(factory = CatalogueViewModelFactory(repository))
+    val navController = rememberNavController()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    var selectedTechnology by remember { mutableStateOf<Technology?>(null) }
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    var selectedLesson by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var signedInAccount by remember { mutableStateOf<String?>(null) }
     val authRepository = remember { AuthRepository() }
+
     LaunchedEffect(Unit) {
-        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+        val sessionStore = com.jia.academy.app.auth.SecureSessionStore(context)
+        val token = sessionStore.accessToken()
         if (!token.isNullOrBlank()) {
-            runCatching { authRepository.currentUser(BuildConfig.JIA_API_BASE_URL, token) }
-                .onSuccess { signedInAccount = it.name }
-                .onFailure { com.jia.academy.app.auth.SecureSessionStore(context).clear() }
+            val account = runCatching { authRepository.currentUser(BuildConfig.JIA_API_BASE_URL, token) }
+                .getOrElse {
+                    val refresh = sessionStore.refreshToken()
+                    if (refresh.isNullOrBlank()) {
+                        sessionStore.clear()
+                        null
+                    } else {
+                        runCatching { authRepository.refresh(BuildConfig.JIA_API_BASE_URL, refresh) }
+                            .onSuccess { session ->
+                                val userJson = org.json.JSONObject()
+                                    .put("id", session.account.id)
+                                    .put("name", session.account.name)
+                                    .put("email", session.account.email)
+                                    .put("roles", org.json.JSONArray(session.account.roles))
+                                    .toString()
+                                sessionStore.save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
+                            }
+                            .getOrNull()?.account
+                    }
+                }
+            signedInAccount = account?.name
         }
     }
+
     fun navigate(next: BrowseRoute) {
-        backStack = backStack + route
-        route = next
+        when (next) {
+            BrowseRoute.Home -> navController.navigate("home")
+            BrowseRoute.QuizSelection -> navController.navigate("quiz")
+            BrowseRoute.Authentication -> navController.navigate("auth")
+            is BrowseRoute.Categories -> {
+                selectedTechnology = next.technology
+                navController.navigate("categories")
+            }
+            is BrowseRoute.Lessons -> {
+                selectedTechnology = next.technology
+                selectedCategory = next.category
+                navController.navigate("lessons")
+            }
+            is BrowseRoute.Lesson -> {
+                selectedLesson = next.slug to next.title
+                navController.navigate("lesson")
+            }
+        }
     }
-    fun goBack() {
-        if (backStack.isNotEmpty()) {
-            route = backStack.last()
-            backStack = backStack.dropLast(1)
-        } else route = BrowseRoute.Home
-    }
-    BackHandler(enabled = route !is BrowseRoute.Home) { goBack() }
 
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("JIA") },
             navigationIcon = {
-                if (route !is BrowseRoute.Home) TextButton(onClick = ::goBack) { Text("Back") }
+                if (currentEntry?.destination?.route != "home") {
+                    TextButton(onClick = { navController.popBackStack() }) { Text("Back") }
+                }
             }
         )
     }) { padding ->
-        when (val current = route) {
-            BrowseRoute.Home -> TechnologyScreen(repository, signedInAccount, Modifier.padding(padding), ::navigate, onSignOut = { signedInAccount = null })
-            BrowseRoute.QuizSelection -> QuizSelectionScreen(repository, signedInAccount != null, Modifier.padding(padding))
-            BrowseRoute.Authentication -> AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
-                signedInAccount = session.account.name
-                goBack()
-            }, modifier = Modifier.padding(padding))
-            is BrowseRoute.Categories -> CategoryScreen(repository, current.technology, Modifier.padding(padding), ::navigate)
-            is BrowseRoute.Lessons -> LessonListScreen(repository, current.category, current.technology, Modifier.padding(padding), ::navigate)
-            is BrowseRoute.Lesson -> LessonScreen(repository, current.slug, current.title, Modifier.padding(padding))
+        NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(padding)) {
+            composable("home") {
+                TechnologyScreen(catalogueViewModel, signedInAccount, Modifier.fillMaxSize(), ::navigate,
+                    onSignOut = { signedInAccount = null })
+            }
+            composable("quiz") {
+                QuizSelectionScreen(repository, signedInAccount != null, Modifier.fillMaxSize())
+            }
+            composable("auth") {
+                AuthScreen(AuthRepository(), BuildConfig.JIA_API_BASE_URL, onAuthenticated = { session: JiaSession ->
+                    signedInAccount = session.account.name
+                    navController.popBackStack()
+                }, modifier = Modifier.fillMaxSize())
+            }
+            composable("categories") {
+                selectedTechnology?.let { CategoryScreen(catalogueViewModel, it, Modifier.fillMaxSize(), ::navigate) }
+            }
+            composable("lessons") {
+                val technology = selectedTechnology
+                val category = selectedCategory
+                if (technology != null && category != null) {
+                    LessonListScreen(catalogueViewModel, category, technology, Modifier.fillMaxSize(), ::navigate)
+                }
+            }
+            composable("lesson") {
+                selectedLesson?.let { (slug, title) -> LessonScreen(repository, slug, title, Modifier.fillMaxSize()) }
+            }
         }
     }
 }
 
 @Composable
 private fun TechnologyScreen(
-    repository: CatalogueRepository,
+    catalogueViewModel: CatalogueViewModel,
     signedInAccount: String?,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit,
     onSignOut: () -> Unit
 ) {
-    var items by remember { mutableStateOf<List<Technology>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val state by catalogueViewModel.technologies.collectAsStateWithLifecycle()
+    val items = state.data.orEmpty()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        runCatching { repository.getTechnologies(BuildConfig.JIA_API_BASE_URL) }
-            .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load Java topics." }
-        loading = false
+    val offlineStore = remember(context) { OfflineLearningStore(context) }
+    var allowMeteredDownloads by remember(context) {
+        mutableStateOf(offlineStore.downloadsOnMeteredNetwork())
     }
+    LaunchedEffect(Unit) { catalogueViewModel.loadTechnologies(BuildConfig.JIA_API_BASE_URL) }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Java Interview Academy", style = MaterialTheme.typography.headlineMedium)
         if (signedInAccount == null) {
@@ -246,11 +226,25 @@ private fun TechnologyScreen(
             }) { Text("Sign out") }
         }
         Text("Quick explanations. Practical code. Interview-ready answers.")
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Allow lesson downloads on mobile data", style = MaterialTheme.typography.bodyMedium)
+                Text("Off by default. Progress and bookmarks still sync when connected.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = allowMeteredDownloads, onCheckedChange = { enabled ->
+                allowMeteredDownloads = enabled
+                offlineStore.setDownloadsOnMeteredNetwork(enabled)
+            })
+        }
         Button(onClick = { navigate(BrowseRoute.QuizSelection) }) { Text("Choose a quiz difficulty") }
         Text("Explore Java topics", style = MaterialTheme.typography.titleLarge)
         when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            state.loading -> CircularProgressIndicator()
+            state.error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(state.error ?: "Unable to load topics.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { catalogueViewModel.loadTechnologies(BuildConfig.JIA_API_BASE_URL, force = true) }) { Text("Retry") }
+            }
             items.isEmpty() -> Text("No published topics are available yet.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items, key = { it.id }) { technology ->
@@ -271,25 +265,25 @@ private fun TechnologyScreen(
 
 @Composable
 private fun CategoryScreen(
-    repository: CatalogueRepository,
+    catalogueViewModel: CatalogueViewModel,
     technology: Technology,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit
 ) {
-    var items by remember(technology.slug) { mutableStateOf<List<Category>>(emptyList()) }
-    var loading by remember(technology.slug) { mutableStateOf(true) }
-    var error by remember(technology.slug) { mutableStateOf<String?>(null) }
+    val state by catalogueViewModel.categories.collectAsStateWithLifecycle()
+    val items = state.data.orEmpty()
     LaunchedEffect(technology.slug) {
-        runCatching { repository.getCategories(BuildConfig.JIA_API_BASE_URL, technology.slug) }
-            .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load categories." }
-        loading = false
+        catalogueViewModel.loadCategories(BuildConfig.JIA_API_BASE_URL, technology.slug)
     }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(technology.name, style = MaterialTheme.typography.headlineSmall)
         Text("Choose a category")
         when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            state.loading -> CircularProgressIndicator()
+            state.error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(state.error ?: "Unable to load categories.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { catalogueViewModel.loadCategories(BuildConfig.JIA_API_BASE_URL, technology.slug, force = true) }) { Text("Retry") }
+            }
             items.isEmpty() -> Text("No published categories are available yet.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items, key = { it.id }) { category ->
@@ -306,26 +300,26 @@ private fun CategoryScreen(
 
 @Composable
 private fun LessonListScreen(
-    repository: CatalogueRepository,
+    catalogueViewModel: CatalogueViewModel,
     category: Category,
     technology: Technology,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit
 ) {
-    var items by remember(category.slug) { mutableStateOf<List<LessonSummary>>(emptyList()) }
-    var loading by remember(category.slug) { mutableStateOf(true) }
-    var error by remember(category.slug) { mutableStateOf<String?>(null) }
+    val state by catalogueViewModel.lessons.collectAsStateWithLifecycle()
+    val items = state.data.orEmpty()
     LaunchedEffect(category.slug) {
-        runCatching { repository.getLessons(BuildConfig.JIA_API_BASE_URL, category.slug) }
-            .onSuccess { items = it }.onFailure { error = it.message ?: "Unable to load lessons." }
-        loading = false
+        catalogueViewModel.loadLessons(BuildConfig.JIA_API_BASE_URL, category.slug)
     }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(technology.name, style = MaterialTheme.typography.labelLarge)
         Text(category.name, style = MaterialTheme.typography.headlineSmall)
         when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
+            state.loading -> CircularProgressIndicator()
+            state.error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(state.error ?: "Unable to load lessons.", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { catalogueViewModel.loadLessons(BuildConfig.JIA_API_BASE_URL, category.slug, force = true) }) { Text("Retry") }
+            }
             items.isEmpty() -> Text("No published lessons are available yet.")
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(items, key = { it.id }) { lesson ->
@@ -341,320 +335,5 @@ private fun LessonListScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LessonScreen(
-    repository: CatalogueRepository,
-    slug: String,
-    fallbackTitle: String,
-    modifier: Modifier
-) {
-    var lesson by remember(slug) { mutableStateOf<LessonDetail?>(null) }
-    var loading by remember(slug) { mutableStateOf(true) }
-    var error by remember(slug) { mutableStateOf<String?>(null) }
-    LaunchedEffect(slug) {
-        runCatching { repository.getLesson(BuildConfig.JIA_API_BASE_URL, slug) }
-            .onSuccess { lesson = it }.onFailure { error = it.message ?: "Unable to load lesson." }
-        loading = false
-    }
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        when {
-            loading -> CircularProgressIndicator()
-            error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
-            lesson != null -> {
-                Text(lesson!!.title, style = MaterialTheme.typography.headlineSmall)
-                Text("Difficulty: ${lesson!!.difficulty} · Source: ${lesson!!.sourceType}",
-                    style = MaterialTheme.typography.labelMedium)
-                lesson!!.summary?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-                Spacer(Modifier.padding(top = 4.dp))
-                Text("Lesson content", style = MaterialTheme.typography.titleLarge)
-                val raw = lesson!!.contentJson
-                if (raw.isNullOrBlank() || raw == "null") {
-                    Text("This lesson has no published content yet.")
-                } else {
-                    com.jia.academy.app.lesson.LessonContentRenderer(raw)
-                }
-            }
-            else -> Text(fallbackTitle)
-        }
-    }
-}
-
-
-@Composable
-private fun CodeSnippet(language: String?, source: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(language?.uppercase() ?: "CODE", style = MaterialTheme.typography.labelSmall)
-            Text(
-                source,
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modifier: Modifier) {
-    val levels = listOf(
-        "BEGINNER" to "Beginner", "NOVICE" to "Novice",
-        "PROFESSIONAL" to "Professional", "EXPERT" to "Expert"
-    )
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val quizRepository = remember { QuizRepository() }
-    var selected by remember { mutableStateOf("BEGINNER") }
-    var selectedMode by remember { mutableStateOf(JiaQuizMode.PRACTICE) }
-    var selectedDuration by remember { mutableStateOf(1800) }
-    var remainingSeconds by remember { mutableStateOf<Int?>(null) }
-    var availability by remember { mutableStateOf<QuizAvailability?>(null) }
-    var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
-    var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
-    var result by remember { mutableStateOf<JiaQuizResult?>(null) }
-    var history by remember { mutableStateOf<List<JiaQuizHistoryItem>?>(null) }
-    var performance by remember { mutableStateOf<JiaQuizPerformance?>(null) }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(selected) {
-        loading = true
-        error = null
-        runCatching { repository.getQuizAvailability(BuildConfig.JIA_API_BASE_URL, selected) }
-            .onSuccess { availability = it }.onFailure { error = it.message ?: "Unable to check quiz availability." }
-        loading = false
-    }
-
-    val activeAttempt = attempt
-    val completed = result
-    LaunchedEffect(activeAttempt?.id, answers) {
-        val current = activeAttempt
-        if (current?.mode == JiaQuizMode.TIMED_MOCK) {
-            val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
-            if (!token.isNullOrBlank()) {
-                delay(500)
-                runCatching { quizRepository.saveAnswers(BuildConfig.JIA_API_BASE_URL, token, current, answers) }
-                    .onFailure { error = it.message ?: "Unable to save timed mock progress." }
-            }
-        }
-    }
-    LaunchedEffect(activeAttempt?.deadlineAt) {
-        val deadline = activeAttempt?.deadlineAt
-        if (deadline != null) {
-            while (result == null) {
-                val seconds = Duration.between(Instant.now(), Instant.parse(deadline)).seconds.coerceAtLeast(0).toInt()
-                remainingSeconds = seconds
-                if (seconds == 0) {
-                    val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
-                    if (!token.isNullOrBlank()) {
-                        loading = true
-                        runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt!!, answers) }
-                            .onSuccess { result = it }
-                            .onFailure { error = it.message ?: "Timed mock expired; unable to submit saved answers." }
-                        loading = false
-                    }
-                    break
-                }
-                delay(1000)
-            }
-        } else remainingSeconds = null
-    }
-    val answeredCount = activeAttempt?.questions?.count { !answers[it.position].isNullOrEmpty() } ?: 0
-    val totalQuestions = activeAttempt?.questions?.size ?: 0
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Java practice", style = MaterialTheme.typography.headlineSmall)
-        when {
-            completed != null && activeAttempt != null -> {
-                Text("Quiz result", style = MaterialTheme.typography.titleLarge)
-                if (completed.timedOut) Text("Time expired — your saved answers were submitted automatically.",
-                    color = MaterialTheme.colorScheme.error)
-                Text("${completed.correctCount} / ${completed.questionCount} correct",
-                    style = MaterialTheme.typography.headlineMedium)
-                Text("Score: ${completed.scorePercent}%")
-                activeAttempt.questions.forEach { question ->
-                    val review = completed.explanations[question.position]
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Q${question.position}. ${question.prompt}")
-                            if (!question.codeSource.isNullOrBlank()) CodeSnippet(question.codeLanguage, question.codeSource)
-                            Text(if (review?.first == true) "Correct" else "Incorrect",
-                                color = if (review?.first == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-                            if (!review?.second.isNullOrBlank()) Text(review!!.second)
-                        }
-                    }
-                }
-                Button(onClick = { attempt = null; result = null; answers = emptyMap() }) { Text("Back to difficulty selection") }
-            }
-            activeAttempt != null -> {
-                Text("${levels.first { it.first == activeAttempt.difficulty }.second} · ${activeAttempt.mode.displayName} · ${activeAttempt.questions.size} questions")
-                if (activeAttempt.mode == JiaQuizMode.DAILY_CHALLENGE) {
-                    Text("Daily challenge · ${activeAttempt.challengeDate ?: "Today"} · one challenge per day")
-                }
-                if (activeAttempt.mode == JiaQuizMode.TIMED_MOCK) {
-                    val seconds = remainingSeconds ?: activeAttempt.durationLimitSeconds ?: 0
-                    Text("Time remaining: ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = if (seconds <= 60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                }
-                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(activeAttempt.questions, key = { it.position }) { question ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Question ${question.position}", style = MaterialTheme.typography.labelLarge)
-                                if (question.prompt.isNotBlank()) {
-                                    Text(question.prompt, style = MaterialTheme.typography.titleMedium)
-                                }
-                                if (!question.codeSource.isNullOrBlank()) {
-                                    CodeSnippet(question.codeLanguage, question.codeSource)
-                                }
-                                val multi = question.questionType == "MULTI_SELECT"
-                                Text(if (multi) "Select all that apply" else "Select one answer",
-                                    style = MaterialTheme.typography.bodySmall)
-                                question.options.forEach { (value, label) ->
-                                    val checked = value in answers[question.position].orEmpty()
-                                    FilterChip(
-                                        selected = checked,
-                                        onClick = {
-                                            val current = answers[question.position].orEmpty()
-                                            val next = if (multi) {
-                                                if (checked) current - value else current + value
-                                            } else setOf(value)
-                                            answers = answers + (question.position to next)
-                                        },
-                                        label = { Text("$value. $label") }
-                                    )
-                                }
-                                question.hint?.let { Text("Hint: $it", style = MaterialTheme.typography.bodySmall) }
-                            }
-                        }
-                    }
-                }
-                Text(
-                    "$answeredCount of $totalQuestions questions answered",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (answeredCount == totalQuestions) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(
-                    enabled = !loading && (activeAttempt.mode == JiaQuizMode.TIMED_MOCK || answeredCount == totalQuestions),
-                    onClick = {
-                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
-                        if (token.isNullOrBlank()) { error = "Please sign in again to submit this quiz."; return@Button }
-                        loading = true
-                        error = null
-                        scope.launch {
-                            runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt, answers) }
-                                .onSuccess { result = it }.onFailure { error = it.message ?: "Unable to submit quiz." }
-                            loading = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (loading) "Submitting…" else if (activeAttempt.mode == JiaQuizMode.TIMED_MOCK) "Submit mock interview" else "Submit all answers") }
-            }
-            else -> {
-                Text("Quiz mode", style = MaterialTheme.typography.titleMedium)
-                JiaQuizMode.learnerOptions.forEach { mode ->
-                    FilterChip(
-                        selected = selectedMode == mode,
-                        onClick = { selectedMode = mode },
-                        label = { Text(mode.displayName) }
-                    )
-                }
-                if (selectedMode == JiaQuizMode.DAILY_CHALLENGE) {
-                    Text("A fixed challenge is shared for your account for the day. Reopening it returns the same questions and attempt.", style = MaterialTheme.typography.bodySmall)
-                }
-                if (selectedMode == JiaQuizMode.WEAK_AREA) {
-                    Text("Questions are prioritized from categories where your previous submitted answers show the lowest accuracy. Categories without history are considered after measured weak areas.", style = MaterialTheme.typography.bodySmall)
-                }
-                if (selectedMode == JiaQuizMode.TIMED_MOCK) {
-                    Text("Mock duration", style = MaterialTheme.typography.titleMedium)
-                    listOf(900 to "15 minutes", 1800 to "30 minutes", 3600 to "60 minutes").forEach { (seconds, label) ->
-                        FilterChip(selected = selectedDuration == seconds,
-                            onClick = { selectedDuration = seconds }, label = { Text(label) })
-                    }
-                }
-                Text("Choose your difficulty", style = MaterialTheme.typography.titleMedium)
-                levels.forEach { (value, label) ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            FilterChip(selected == value, onClick = { selected = value }, label = { Text(label) })
-                            Text(when (value) {
-                                "BEGINNER" -> "Fundamentals, definitions and direct examples"
-                                "NOVICE" -> "Practical application and common code patterns"
-                                "PROFESSIONAL" -> "Advanced Java, Spring and problem-solving"
-                                else -> "Architecture, JVM internals and distributed systems"
-                            }, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-                when {
-                    loading -> CircularProgressIndicator()
-                    error != null -> Text(error!!, color = MaterialTheme.colorScheme.error)
-                    availability != null -> Text("${availability!!.availableQuestionCount} published questions available.")
-                }
-                if (!signedIn) {
-                    Text("Sign in is required to start and save a quiz. You can continue browsing lessons without an account.")
-                } else {
-                    Button(
-                        enabled = !loading && (availability?.availableQuestionCount ?: 0) > 0,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
-                            if (token.isNullOrBlank()) { error = "Please sign in again."; return@Button }
-                            loading = true
-                            error = null
-                            val count = minOf(10, availability?.availableQuestionCount ?: 0)
-                            scope.launch {
-                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, selectedDuration) }
-                                    .onSuccess { attempt = it; answers = emptyMap(); result = null }
-                                    .onFailure { error = it.message ?: "Unable to start quiz." }
-                                loading = false
-                            }
-                        }
-                    ) { Text("Start ${selectedMode.displayName.lowercase()} quiz") }
-                    TextButton(onClick = {
-                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
-                        if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
-                        loading = true
-                        scope.launch {
-                            runCatching { quizRepository.performance(BuildConfig.JIA_API_BASE_URL, token) }
-                                .onSuccess { performance = it }.onFailure { error = it.message ?: "Unable to load performance." }
-                            loading = false
-                        }
-                    }) { Text("View my performance") }
-                    performance?.let { report ->
-                        Text("Performance by difficulty", style = MaterialTheme.typography.titleMedium)
-                        report.levels.forEach { level ->
-                            Text("${level.difficulty}: ${level.attempts} attempts · ${level.correctAnswers}/${level.questionsAttempted} correct · ${level.accuracyPercent?.let { "$it%" } ?: "No score"}")
-                        }
-                    }
-                    TextButton(onClick = {
-                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
-                        if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
-                        loading = true
-                        scope.launch {
-                            runCatching { quizRepository.history(BuildConfig.JIA_API_BASE_URL, token) }
-                                .onSuccess { history = it }.onFailure { error = it.message ?: "Unable to load history." }
-                            loading = false
-                        }
-                    }) { Text("View my quiz history") }
-                    history?.let { rows ->
-                        Text("Recent attempts", style = MaterialTheme.typography.titleMedium)
-                        if (rows.isEmpty()) Text("No quiz attempts yet.")
-                        rows.forEach { row ->
-                            Text("${row.difficulty} · ${row.correctCount ?: 0}/${row.questionCount} · ${row.scorePercent?.let { "$it%" } ?: row.status}")
-                        }
-                    }
-                }
-            }
-        }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }

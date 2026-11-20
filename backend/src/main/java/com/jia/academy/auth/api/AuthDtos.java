@@ -16,5 +16,9 @@ public final class AuthDtos {
                                @NotBlank @Size(max=128) String password,
                                @Size(max=100) String deviceName) {}
     public record UserResponse(UUID id, String name, String email, List<String> roles) {}
-    public record TokenResponse(String accessToken, String tokenType, Instant expiresAt, UserResponse user) {}
+    public record TokenResponse(String accessToken, String refreshToken, String tokenType, Instant expiresAt, UserResponse user) {}
+    public record RefreshRequest(@NotBlank @Size(max=160) String refreshToken) {}
+    public record PasswordResetRequest(@NotBlank @Email @Size(max=254) String email) {}
+    public record PasswordResetConfirmRequest(@NotBlank @Size(max=180) String token,
+                                              @NotBlank @Size(min=12,max=128) String newPassword) {}
 }

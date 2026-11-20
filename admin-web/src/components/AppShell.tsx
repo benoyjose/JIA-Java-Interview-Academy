@@ -1,13 +1,21 @@
 import type { PropsWithChildren } from "react";
 import { useAuth } from "../auth/AuthContext";
-type Tab = "lessons" | "reviews";
+type Tab = "lessons" | "reviews" | "taxonomy" | "questions" | "users";
 export function AppShell({ activeTab, onNavigate, children }: PropsWithChildren<{ activeTab: Tab; onNavigate: (tab: Tab) => void }>) {
   const { user, logout } = useAuth();
   return <div className="app-shell">
     <aside className="sidebar"><div className="sidebar-brand"><div className="brand-mark small">J</div><div><strong>JIA Admin</strong><span>Academy workspace</span></div></div>
       <div className="sidebar-label">WORKSPACE</div><nav className="side-nav" aria-label="Main navigation">
-        <button className={activeTab === "lessons" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("lessons")}><span>▤</span> Lessons</button>
-        <button className={activeTab === "reviews" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("reviews")}><span>✓</span> Review queue</button>
+        {user?.roles.some(role => role === "EDITOR" || role === "ADMIN") &&
+          <button className={activeTab === "lessons" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("lessons")}><span>▤</span> Lessons</button>}
+        {user?.roles.some(role => role === "REVIEWER" || role === "ADMIN") &&
+          <button className={activeTab === "reviews" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("reviews")}><span>✓</span> Review queue</button>}
+        {user?.roles.some(role => role === "EDITOR" || role === "ADMIN") &&
+          <button className={activeTab === "taxonomy" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("taxonomy")}><span>⌘</span> Taxonomy</button>}
+        {user?.roles.some(role => ["EDITOR", "REVIEWER", "ADMIN"].includes(role)) &&
+          <button className={activeTab === "questions" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("questions")}><span>?</span> Question bank</button>}
+        {user?.roles.includes("ADMIN") &&
+          <button className={activeTab === "users" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("users")}><span>♙</span> Users</button>}
       </nav>
       <div className="sidebar-footer"><div className="avatar">{user?.name.slice(0, 1).toUpperCase() ?? "A"}</div><div className="account-copy"><strong>{user?.name}</strong><span>{user?.roles.join(" · ")}</span></div><button className="icon-button" title="Sign out" aria-label="Sign out" onClick={() => void logout()}>↗</button></div>
     </aside>
