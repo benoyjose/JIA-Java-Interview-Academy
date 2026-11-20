@@ -19,6 +19,7 @@ data class LessonDetail(
     val title: String,
     val summary: String?,
     val difficulty: String,
+    val contentRevision: Int,
     val sourceType: String,
     val contentJson: String?
 )
