@@ -222,6 +222,49 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void archiveRemovesPublishedLessonFromPublicLifecycleWithoutDeletingRevisionHistory() {
+        String slug = "archive-published-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Published then archived"));
+        UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+        service.decideReview(reviewer, taskId, new ReviewDecisionRequest("APPROVE", "Approved"));
+        service.publish(admin, draft.id());
+
+        UUID publishedRevision = jdbc.queryForObject(
+                "SELECT published_revision_id FROM lessons WHERE id=?", UUID.class, draft.id());
+        var archived = service.archive(admin, draft.id());
+
+        assertThat(archived.get("status")).isEqualTo("ARCHIVED");
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
+                .isEqualTo("ARCHIVED");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id FROM lessons WHERE id=?",
+                UUID.class, draft.id())).isEqualTo(publishedRevision);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM lesson_revisions WHERE lesson_id=?",
+                Integer.class, draft.id())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("""
+                SELECT academy_id FROM audit_events
+                WHERE entity_id=? AND action='LESSON_ARCHIVED'
+                ORDER BY occurred_at DESC LIMIT 1
+                """, UUID.class, draft.id()))
+                .isEqualTo(UUID.fromString("50000000-0000-0000-0000-000000000001"));
+    }
+
+    @Test
+    void cannotArchiveLessonWhileRevisionIsUnderReview() {
+        String slug = "archive-review-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Review protected"));
+        UUID taskId = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+
+        assertThatThrownBy(() -> service.archive(admin, draft.id()))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(409));
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
+                .isEqualTo("IN_REVIEW");
+        assertThat(jdbc.queryForObject("SELECT status FROM content_review_tasks WHERE id=?", String.class, taskId))
+                .isEqualTo("PENDING");
+    }
+
+    @Test
     void authorCannotReviewTheirOwnSubmission() {
         var draft = service.createDraft(editor,
                 request("self-review-" + UUID.randomUUID(), "Self review"));
