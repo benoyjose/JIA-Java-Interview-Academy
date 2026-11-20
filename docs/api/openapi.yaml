@@ -1,0 +1,1831 @@
+openapi: 3.1.0
+info:
+  title: JIA API
+  version: 1.4.0
+  description: >-
+    Normative contract for the production Spring Boot API and supported Laravel
+    compatibility routes. Laravel remains secondary and may not yet expose every
+    Spring-first administration capability.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Authentication
+    description: Account registration, sign-in and session management.
+  - name: Catalogue
+    description: Public technology, category and lesson catalogue.
+  - name: Content Admin
+    description: Controlled content authoring, review and publication.
+  - name: Learning
+    description: Authenticated learner progress and saved lessons.
+paths:
+  /auth/register:
+    post:
+      summary: Register a learner account
+      security: []
+      tags: [Authentication]
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, maxLength: 160 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '201':
+          description: Learner account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /auth/login:
+    post:
+      summary: Sign in with email and password
+      security: []
+      tags: [Authentication]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, maxLength: 128 }
+                deviceName: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/federated/google:
+    post:
+      summary: Sign in with Google
+      security: []
+      tags: [Authentication]
+      operationId: authenticateWithGoogle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken, nonce]
+              properties:
+                idToken: { type: string, maxLength: 12000 }
+                nonce: { type: string, maxLength: 256 }
+                deviceName: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: JIA session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { description: Provider sign-in is not configured }
+  /auth/federated/apple:
+    post:
+      summary: Sign in with Apple
+      security: []
+      tags: [Authentication]
+      operationId: authenticateWithApple
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityToken, nonce]
+              properties:
+                identityToken: { type: string, maxLength: 12000 }
+                nonce: { type: string, maxLength: 256 }
+                deviceName: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: JIA session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { description: Provider sign-in is not configured }
+  /auth/phone/otp:
+    post:
+      summary: Request a phone verification code
+      security: []
+      tags: [Authentication]
+      operationId: requestPhoneOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber]
+              properties:
+                phoneNumber:
+                  type: string
+                  pattern: '^\+[1-9][0-9]{7,14}$'
+                  example: '+919876543210'
+      responses:
+        '202': { description: SMS challenge created and delivery accepted }
+        '503': { description: SMS gateway is not configured or is unavailable }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/phone/verify:
+    post:
+      summary: Verify a phone verification code
+      security: []
+      tags: [Authentication]
+      operationId: verifyPhoneOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, code]
+              properties:
+                phoneNumber:
+                  type: string
+                  pattern: '^\+[1-9][0-9]{7,14}$'
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                deviceName:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: Phone verified and session issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/me:
+    get:
+      summary: Get the current authenticated account
+      operationId: getCurrentAccount
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      summary: Revoke the current session token
+      operationId: logout
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Token revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /technologies:
+    get:
+      summary: List published technology tracks
+      security: []
+      tags: [Catalogue]
+      operationId: listTechnologies
+      responses:
+        '200':
+          description: Published technologies
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Technology' }
+  /technologies/{slug}:
+    get:
+      summary: Get a published technology track
+      security: []
+      tags: [Catalogue]
+      operationId: getTechnology
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: Published technology
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Technology' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /technologies/{technologySlug}/categories:
+    get:
+      summary: List published categories for a technology
+      security: []
+      tags: [Catalogue]
+      operationId: listCategories
+      parameters:
+        - name: technologySlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Published categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+  /categories/{categorySlug}/lessons:
+    get:
+      summary: List published lessons in a category
+      security: []
+      tags: [Catalogue]
+      operationId: listLessons
+      parameters:
+        - name: categorySlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Published lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LessonSummary' }
+  /lessons/{slug}:
+    get:
+      summary: Get a published lesson
+      security: []
+      tags: [Catalogue]
+      operationId: getLesson
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: Published lesson
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lesson' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /content/releases/latest:
+    get:
+      summary: Get the latest immutable published-content manifest
+      tags: [Learning]
+      operationId: getLatestContentRelease
+      security: []
+      responses:
+        '200':
+          description: Latest published content release and per-lesson SHA-256 checksums
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentRelease' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /content/releases/{version}/lessons/{slug}:
+    get:
+      summary: Download a lesson at the exact revision captured by a content release
+      tags: [Learning]
+      operationId: getReleasedLesson
+      security: []
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Immutable lesson revision from the requested release
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lesson' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/content-releases:
+    post:
+      summary: Publish a new immutable content release manifest
+      tags: [Content Admin]
+      operationId: createContentRelease
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: New release manifest
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentRelease' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /me/lesson-progress:
+    get:
+      summary: List the authenticated learner's recent lesson progress
+      tags: [Learning]
+      operationId: listLessonProgress
+      responses:
+        '200':
+          description: Progress entries ordered by most recent update
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  required: [lessonSlug, contentRevision, status, progressPercent, updatedAt]
+                  properties:
+                    lessonSlug: { type: string }
+                    contentRevision: { type: integer, minimum: 1 }
+                    status: { type: string, enum: [IN_PROGRESS, COMPLETED] }
+                    progressPercent: { type: number, minimum: 0, maximum: 100 }
+                    lastPosition: { type: [object, 'null'], additionalProperties: true }
+                    updatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/lesson-progress/{lessonSlug}:
+    put:
+      summary: Upsert progress for a published lesson
+      tags: [Learning]
+      operationId: updateLessonProgress
+      parameters:
+        - name: lessonSlug
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentRevision, progressPercent]
+              properties:
+                contentRevision: { type: integer, minimum: 1 }
+                progressPercent: { type: number, minimum: 0, maximum: 100 }
+                lastPosition: { type: [object, 'null'], additionalProperties: true }
+      responses:
+        '200': { description: Progress updated; completion is monotonic and duplicate writes are safe }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Requested lesson revision is not available }
+  /me/bookmarks:
+    get:
+      summary: List the authenticated learner's bookmarked lessons
+      tags: [Learning]
+      operationId: listBookmarks
+      responses:
+        '200':
+          description: Bookmarks ordered by creation time
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  required: [lessonSlug, title, createdAt]
+                  properties:
+                    lessonSlug: { type: string }
+                    title: { type: string }
+                    createdAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/bookmarks/{lessonSlug}:
+    put:
+      summary: Bookmark a published lesson (idempotent)
+      tags: [Learning]
+      operationId: createBookmark
+      parameters:
+        - name: lessonSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Bookmark exists }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Remove a lesson bookmark (idempotent)
+      tags: [Learning]
+      operationId: deleteBookmark
+      parameters:
+        - name: lessonSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Bookmark removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /quizzes/availability:
+    get:
+      security: []
+      summary: Preview published question availability by difficulty and topic
+      tags: [Assessments]
+      operationId: getQuizAvailability
+      parameters:
+        - name: technologySlug
+          in: query
+          schema: { type: string }
+        - name: categorySlug
+          in: query
+          schema: { type: string }
+        - name: difficulty
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/QuizDifficulty' }
+      responses:
+        '200':
+          description: Available published question count
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizAvailability' }
+  /quiz-attempts:
+    post:
+      summary: Start a difficulty-selected quiz attempt
+      tags: [Assessments]
+      operationId: startQuizAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [difficulty]
+              properties:
+                technologySlug: { type: string }
+                categorySlug: { type: string }
+                difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+                questionCount: { type: integer, minimum: 1, maximum: 100, default: 10 }
+                mode:
+                  type: string
+                  enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA]
+                  description: WEAK_AREA prioritizes categories with the learner's lowest historical answer accuracy; categories without history are ranked after measured categories.
+                  default: PRACTICE
+                durationSeconds:
+                  type: integer
+                  minimum: 60
+                  maximum: 21600
+                  description: Required for TIMED_MOCK; server sets deadlineAt from this duration. Ignored for DAILY_CHALLENGE and WEAK_AREA.
+      responses:
+        '201':
+          description: Quiz attempt created; answer keys are withheld
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizAttemptStart' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /quiz-attempts/{attemptId}/answers:
+    post:
+      summary: Save partial answers for an active timed mock attempt
+      tags: [Assessments]
+      operationId: saveTimedMockAnswers
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [position, response]
+                    properties:
+                      position: { type: integer, minimum: 1 }
+                      response: { type: object, additionalProperties: true }
+                      timeSpentMs: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Partial answers saved }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /quiz-attempts/{attemptId}/submit:
+    post:
+      summary: Submit and grade a quiz attempt
+      tags: [Assessments]
+      operationId: submitQuizAttempt
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required: [position, response]
+                    properties:
+                      position: { type: integer, minimum: 1 }
+                      response: { type: object, additionalProperties: true }
+                      timeSpentMs: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Attempt graded and saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizAttemptResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/quiz-performance:
+    get:
+      summary: Get learner quiz performance by difficulty and topic
+      tags: [Assessments]
+      operationId: getMyQuizPerformance
+      responses:
+        '200':
+          description: Difficulty and topic performance summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuizPerformance' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/quiz-attempts:
+    get:
+      summary: List the authenticated learner's quiz history
+      tags: [Assessments]
+      operationId: listMyQuizAttempts
+      parameters:
+        - name: difficulty
+          in: query
+          schema: { $ref: '#/components/schemas/QuizDifficulty' }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Recent quiz attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/QuizAttemptSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /admin/questions/import:
+    post:
+      summary: Import a batch of reviewed objective question drafts
+      description: Create-only import. Questions remain DRAFT and answer keys are never returned by learner-facing endpoints.
+      tags: [Content Admin]
+      operationId: importQuestionDrafts
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/question-import-v1.schema.json' }
+      responses:
+        '201': { description: Questions imported as immutable draft revisions }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons:
+    get:
+      summary: List lessons for content administration
+      tags: [Content Admin]
+      operationId: listAdminLessons
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED]
+        - name: q
+          in: query
+          description: Case-insensitive prefix search across title, slug and category slug
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: Searchable lesson page, newest updates first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLessonPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a lesson draft
+      tags: [Content Admin]
+      operationId: createLessonDraft
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LessonDraftRequest' }
+      responses:
+        '200':
+          description: Draft created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonDraft' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}:
+    get:
+      summary: Get the current editable revision for a lesson
+      tags: [Content Admin]
+      operationId: getAdminLesson
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current draft or published revision detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonAuthoringDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Update a draft lesson and create a revision
+      tags: [Content Admin]
+      operationId: updateLessonDraft
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LessonDraftRequest' }
+      responses:
+        '200':
+          description: Draft updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonDraft' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}/submit:
+    post:
+      summary: Submit a draft for review
+      tags: [Content Admin]
+      operationId: submitLessonForReview
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Review task created }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/reviews:
+    get:
+      summary: List pending content reviews
+      tags: [Content Admin]
+      operationId: listPendingContentReviews
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive prefix search across lesson title, slug and submitter name
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: Searchable pending review page, oldest submissions first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewQueuePage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reviews/{taskId}:
+    get:
+      summary: Get the exact pending revision submitted for review
+      tags: [Content Admin]
+      operationId: getContentReviewDetail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Immutable revision snapshot for reviewer inspection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/reviews/{taskId}/decision:
+    post:
+      summary: Approve, request changes or reject a lesson revision
+      tags: [Content Admin]
+      operationId: decideContentReview
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [APPROVE, REQUEST_CHANGES, REJECT] }
+                comment: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200': { description: Review decision recorded }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/lessons/{lessonId}/rollback:
+    post:
+      summary: Create a new draft by copying a selected historical lesson revision
+      description: A published revision remains live; the rollback copy must pass the normal review and publication workflow.
+      tags: [Content Admin]
+      operationId: rollbackLessonRevision
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revisionNumber]
+              properties:
+                revisionNumber: { type: integer, minimum: 1 }
+                changeNote: { type: [string, 'null'], maxLength: 500 }
+      responses:
+        '200':
+          description: A new draft revision created from the selected historical revision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonDraft' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/lessons/{lessonId}/publish:
+    post:
+      summary: Publish an approved lesson
+      tags: [Content Admin]
+      operationId: publishLesson
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Lesson published }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /auth/refresh:
+    post:
+      summary: Rotate a single-use refresh token and issue a new session pair
+      tags: [Authentication]
+      operationId: refreshSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: New access and refresh tokens; prior refresh token is consumed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/password/reset/request:
+    post:
+      summary: Request a one-time password reset email
+      tags: [Authentication]
+      operationId: requestPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202': { description: Generic response that does not disclose account existence }
+        '503': { description: Password recovery delivery is not configured }
+  /auth/password/reset/confirm:
+    post:
+      summary: Confirm password reset with a single-use token
+      tags: [Authentication]
+      operationId: confirmPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string, maxLength: 180 }
+                newPassword: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '204': { description: Password changed; existing sessions are revoked }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /auth/federated/link/google:
+    post:
+      summary: Link a verified Google identity to the authenticated account
+      tags: [Authentication]
+      operationId: linkGoogleIdentity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken, nonce]
+              properties:
+                idToken: { type: string, maxLength: 12000 }
+                nonce: { type: string, maxLength: 256 }
+                deviceName: { type: [string, 'null'], maxLength: 100 }
+      responses:
+        '204': { description: Identity linked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /auth/federated/link/apple:
+    post:
+      summary: Link a verified Apple identity to the authenticated account
+      tags: [Authentication]
+      operationId: linkAppleIdentity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityToken, nonce]
+              properties:
+                identityToken: { type: string, maxLength: 12000 }
+                nonce: { type: string, maxLength: 256 }
+                deviceName: { type: [string, 'null'], maxLength: 100 }
+      responses:
+        '204': { description: Identity linked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/taxonomy/technologies:
+    get:
+      summary: List technologies for CMS taxonomy management
+      tags: [Content Admin]
+      operationId: listAdminTechnologies
+      responses:
+        '200': { description: Technology taxonomy }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a technology taxonomy entry
+      tags: [Content Admin]
+      operationId: createAdminTechnology
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name, sortOrder]
+              properties:
+                slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*
+    get:
+      summary: List CMS categories with hierarchy and content counts
+      tags: [Content Admin]
+      operationId: listAdminCategories
+      parameters:
+        - name: technology
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Category taxonomy }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a taxonomy category
+      tags: [Content Admin]
+      operationId: createAdminCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [technologySlug, slug, name, sortOrder]
+              properties:
+                technologySlug: { type: string, maxLength: 80 }
+                parentId: { type: [string, 'null'], format: uuid }
+                slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [BAD_REQUEST, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR, HTTP_ERROR]
+        message: { type: string }
+        traceId: { type: string, description: Optional request correlation identifier }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    User:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        roles:
+          type: array
+          items: { type: string }
+    TokenResponse:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/User' }
+    Technology:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Category:
+      type: object
+      required: [id, slug, name, sortOrder, technologySlug]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer }
+        technologySlug: { type: string }
+    LessonSummary:
+      type: object
+      required: [id, slug, title, difficulty, contentRevision]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        contentRevision: { type: integer }
+
+    QuizDifficulty:
+      type: string
+      enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT]
+    QuizAvailability:
+      type: object
+      required: [difficulty, availableQuestionCount]
+      properties:
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        availableQuestionCount: { type: integer, minimum: 0 }
+    QuizQuestion:
+      type: object
+      required: [position, questionId, revisionId, questionType, prompt, difficulty]
+      properties:
+        position: { type: integer }
+        questionId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        questionType: { type: string }
+        prompt: { type: object, additionalProperties: true }
+        options: { type: [array, 'null'], items: { type: object, additionalProperties: true } }
+        hint: { type: [string, 'null'] }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+    QuizAttemptStart:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt, challengeDate]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string }
+        questionCount: { type: integer }
+        durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
+        deadlineAt: { type: [string, 'null'], format: date-time }
+        challengeDate: { type: [string, 'null'], format: date, description: UTC calendar date for DAILY_CHALLENGE; the same attempt and question snapshot is returned on repeat starts that day. }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuizQuestion' }
+    QuizAttemptResult:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, submittedAt, timedOut]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        questionCount: { type: integer }
+        correctCount: { type: integer }
+        scorePercent: { type: number, minimum: 0, maximum: 100 }
+        submittedAt: { type: string, format: date-time }
+        timedOut: { type: boolean }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [position, isCorrect, explanation]
+            properties:
+              position: { type: integer }
+              isCorrect: { type: boolean }
+              explanation: { type: string }
+    QuizAttemptSummary:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, startedAt, status]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        technologySlug: { type: [string, 'null'] }
+        categorySlug: { type: [string, 'null'] }
+        questionCount: { type: integer }
+        correctCount: { type: [integer, 'null'] }
+        scorePercent: { type: [number, 'null'] }
+        startedAt: { type: string, format: date-time }
+        status: { type: string }
+    QuizPerformance:
+      type: object
+      required: [byDifficulty, byTopic]
+      properties:
+        byDifficulty:
+          type: array
+          items:
+            type: object
+            required: [difficulty, attempts, questionsAttempted, correctAnswers, accuracyPercent]
+            properties:
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              questionsAttempted: { type: integer }
+              correctAnswers: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+              bestScorePercent: { type: [number, 'null'] }
+              latestAttemptAt: { type: [string, 'null'], format: date-time }
+        byTopic:
+          type: array
+          items:
+            type: object
+            required: [technologySlug, difficulty, attempts, accuracyPercent]
+            properties:
+              technologySlug: { type: [string, 'null'] }
+              categorySlug: { type: [string, 'null'] }
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+    AdminLessonPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    ReviewQueuePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ContentReviewTask' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminLessonListItem:
+      type: object
+      required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        categorySlug: { type: string }
+        status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        contentRevision: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        draftRevision: { type: [integer, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    LessonAuthoringDetail:
+      type: object
+      required: [id, slug, title, categorySlug, difficulty, sourceType, contentJson, status, revisionNumber, editingDraft, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        categorySlug: { type: string }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        status: { type: string }
+        revisionNumber: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        editingDraft: { type: boolean }
+        changeNote: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    ReviewDetail:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, difficulty, sourceType, contentJson, revisionNumber, submittedBy, submittedAt, lessonStatus]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        revisionNumber: { type: integer }
+        changeNote: { type: [string, 'null'] }
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        lessonStatus: { type: string }
+    LessonDraftRequest:
+      type: object
+      required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
+      properties:
+        categorySlug: { type: string, maxLength: 100 }
+        slug: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 700 }
+        difficulty: { type: string, enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT] }
+        sourceType: { type: string, enum: [USER_ORIGINAL, ADMIN_AUTHORED, EXTERNAL_REFERENCE] }
+        contentJson: { type: string, description: JSON lesson document with schemaVersion and blocks }
+        changeNote: { type: [string, 'null'], maxLength: 500 }
+    LessonDraft:
+      type: object
+      required: [id, slug, title, status, revisionNumber]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, const: DRAFT }
+        revisionNumber: { type: integer, minimum: 1 }
+    ContentReviewTask:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, submittedBy, status, submittedAt]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        submittedBy: { type: string }
+        status: { type: string, const: PENDING }
+        submittedAt: { type: string, format: date-time }
+    ContentRelease:
+      type: object
+      required: [version, createdAt, items]
+      properties:
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, slug, title, contentRevision, checksum]
+            properties:
+              id: { type: string, format: uuid }
+              slug: { type: string }
+              title: { type: string }
+              contentRevision: { type: integer, minimum: 1 }
+              checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          required: [sourceType]
+          properties:
+            sourceType: { type: string }
+            contentJson: { type: [string, 'null'] }
+, maxLength: 100 }
+                name: { type: string, maxLength: 160 }
+                sortOrder: { type: integer, minimum: 0 }
+      responses:
+        '201': { description: Category created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/taxonomy/categories/{categoryId}:
+    put:
+      summary: Update a taxonomy category
+      tags: [Content Admin]
+      operationId: updateAdminCategory
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [technologySlug, slug, name, sortOrder]
+              properties:
+                technologySlug: { type: string }
+                parentId: { type: [string, 'null'], format: uuid }
+                slug: { type: string, maxLength: 100 }
+                name: { type: string, maxLength: 160 }
+                sortOrder: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Category updated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      summary: Archive an empty taxonomy category
+      tags: [Content Admin]
+      operationId: archiveAdminCategory
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Category archived }
+        '409': { description: Category has child categories, lessons or questions }
+  /admin/lessons/{lessonId}/history:
+    get:
+      summary: List immutable lesson revisions and their review decisions
+      tags: [Content Admin]
+      operationId: getLessonRevisionHistory
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Revision history, newest first }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/users:
+    get:
+      summary: Search users for access administration
+      tags: [Content Admin]
+      operationId: listAdminUsers
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 120 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200': { description: Paginated user accounts and role assignments }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/users/{userId}:
+    put:
+      summary: Update a user's status and role assignments
+      tags: [Content Admin]
+      operationId: updateAdminUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, roles]
+              properties:
+                status: { type: string, enum: [ACTIVE, LOCKED, DISABLED] }
+                roles:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: string, enum: [LEARNER, EDITOR, REVIEWER, ADMIN] }
+      responses:
+        '200': { description: Updated user access }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/questions:
+    get:
+      summary: Search and filter the question bank
+      tags: [Content Admin]
+      operationId: listAdminQuestions
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 120 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        - name: difficulty
+          in: query
+          schema: { $ref: '#/components/schemas/QuizDifficulty' }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200': { description: Paginated question bank entries }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/questions/{questionId}/status:
+    patch:
+      summary: Transition a question through the editorial workflow
+      tags: [Content Admin]
+      operationId: transitionAdminQuestion
+      parameters:
+        - name: questionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+      responses:
+        '200': { description: Updated question status }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/sync/diagnostics:
+    get:
+      summary: Read server-side learner synchronization diagnostics
+      tags: [Learning]
+      operationId: getSyncDiagnostics
+      responses:
+        '200': { description: Progress and bookmark counts with latest server update timestamp }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [BAD_REQUEST, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR, HTTP_ERROR]
+        message: { type: string }
+        traceId: { type: string, description: Optional request correlation identifier }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    User:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        roles:
+          type: array
+          items: { type: string }
+    TokenResponse:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/User' }
+    Technology:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Category:
+      type: object
+      required: [id, slug, name, sortOrder, technologySlug]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer }
+        technologySlug: { type: string }
+    LessonSummary:
+      type: object
+      required: [id, slug, title, difficulty, contentRevision]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        contentRevision: { type: integer }
+
+    QuizDifficulty:
+      type: string
+      enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT]
+    QuizAvailability:
+      type: object
+      required: [difficulty, availableQuestionCount]
+      properties:
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        availableQuestionCount: { type: integer, minimum: 0 }
+    QuizQuestion:
+      type: object
+      required: [position, questionId, revisionId, questionType, prompt, difficulty]
+      properties:
+        position: { type: integer }
+        questionId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        questionType: { type: string }
+        prompt: { type: object, additionalProperties: true }
+        options: { type: [array, 'null'], items: { type: object, additionalProperties: true } }
+        hint: { type: [string, 'null'] }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+    QuizAttemptStart:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt, challengeDate]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string }
+        questionCount: { type: integer }
+        durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
+        deadlineAt: { type: [string, 'null'], format: date-time }
+        challengeDate: { type: [string, 'null'], format: date, description: UTC calendar date for DAILY_CHALLENGE; the same attempt and question snapshot is returned on repeat starts that day. }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuizQuestion' }
+    QuizAttemptResult:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, submittedAt, timedOut]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        questionCount: { type: integer }
+        correctCount: { type: integer }
+        scorePercent: { type: number, minimum: 0, maximum: 100 }
+        submittedAt: { type: string, format: date-time }
+        timedOut: { type: boolean }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [position, isCorrect, explanation]
+            properties:
+              position: { type: integer }
+              isCorrect: { type: boolean }
+              explanation: { type: string }
+    QuizAttemptSummary:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, startedAt, status]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        technologySlug: { type: [string, 'null'] }
+        categorySlug: { type: [string, 'null'] }
+        questionCount: { type: integer }
+        correctCount: { type: [integer, 'null'] }
+        scorePercent: { type: [number, 'null'] }
+        startedAt: { type: string, format: date-time }
+        status: { type: string }
+    QuizPerformance:
+      type: object
+      required: [byDifficulty, byTopic]
+      properties:
+        byDifficulty:
+          type: array
+          items:
+            type: object
+            required: [difficulty, attempts, questionsAttempted, correctAnswers, accuracyPercent]
+            properties:
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              questionsAttempted: { type: integer }
+              correctAnswers: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+              bestScorePercent: { type: [number, 'null'] }
+              latestAttemptAt: { type: [string, 'null'], format: date-time }
+        byTopic:
+          type: array
+          items:
+            type: object
+            required: [technologySlug, difficulty, attempts, accuracyPercent]
+            properties:
+              technologySlug: { type: [string, 'null'] }
+              categorySlug: { type: [string, 'null'] }
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+    AdminLessonPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    ReviewQueuePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ContentReviewTask' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminLessonListItem:
+      type: object
+      required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        categorySlug: { type: string }
+        status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        contentRevision: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        draftRevision: { type: [integer, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    LessonAuthoringDetail:
+      type: object
+      required: [id, slug, title, categorySlug, difficulty, sourceType, contentJson, status, revisionNumber, editingDraft, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        categorySlug: { type: string }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        status: { type: string }
+        revisionNumber: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        editingDraft: { type: boolean }
+        changeNote: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    ReviewDetail:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, difficulty, sourceType, contentJson, revisionNumber, submittedBy, submittedAt, lessonStatus]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        revisionNumber: { type: integer }
+        changeNote: { type: [string, 'null'] }
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        lessonStatus: { type: string }
+    LessonDraftRequest:
+      type: object
+      required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
+      properties:
+        categorySlug: { type: string, maxLength: 100 }
+        slug: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 700 }
+        difficulty: { type: string, enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT] }
+        sourceType: { type: string, enum: [USER_ORIGINAL, ADMIN_AUTHORED, EXTERNAL_REFERENCE] }
+        contentJson: { type: string, description: JSON lesson document with schemaVersion and blocks }
+        changeNote: { type: [string, 'null'], maxLength: 500 }
+    LessonDraft:
+      type: object
+      required: [id, slug, title, status, revisionNumber]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, const: DRAFT }
+        revisionNumber: { type: integer, minimum: 1 }
+    ContentReviewTask:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, submittedBy, status, submittedAt]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        submittedBy: { type: string }
+        status: { type: string, const: PENDING }
+        submittedAt: { type: string, format: date-time }
+    ContentRelease:
+      type: object
+      required: [version, createdAt, items]
+      properties:
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, slug, title, contentRevision, checksum]
+            properties:
+              id: { type: string, format: uuid }
+              slug: { type: string }
+              title: { type: string }
+              contentRevision: { type: integer, minimum: 1 }
+              checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          required: [sourceType]
+          properties:
+            sourceType: { type: string }
+            contentJson: { type: [string, 'null'] }
