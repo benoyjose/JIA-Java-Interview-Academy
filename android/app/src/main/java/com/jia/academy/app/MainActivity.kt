@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -293,7 +294,11 @@ private fun LessonScreen(
     var loading by remember(slug) { mutableStateOf(true) }
     var error by remember(slug) { mutableStateOf<String?>(null) }
     var progressMessage by remember(slug) { mutableStateOf<String?>(null) }
+    var bookmarked by remember(slug) { mutableStateOf(false) }
+    var syncDiagnostics by remember { mutableStateOf<com.jia.academy.app.learning.OfflineSyncDiagnostics?>(null) }
     LaunchedEffect(slug) {
+        bookmarked = OfflineLearningStore(context).isBookmarked(slug)
+        syncDiagnostics = OfflineLearningStore(context).syncDiagnostics()
         runCatching { repository.getLesson(BuildConfig.JIA_API_BASE_URL, slug) }
             .onSuccess { lesson = it }.onFailure { error = it.message ?: "Unable to load lesson." }
         loading = false
@@ -307,7 +312,22 @@ private fun LessonScreen(
                 Text("Difficulty: ${lesson!!.difficulty} · Source: ${lesson!!.sourceType}",
                     style = MaterialTheme.typography.labelMedium)
                 lesson!!.summary?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-                Button(onClick = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
+                        if (token.isNullOrBlank()) {
+                            progressMessage = "Sign in to sync bookmarks across devices."
+                        } else {
+                            OfflineLearningStore(context).setBookmarkAndSchedule(
+                                context, BuildConfig.JIA_API_BASE_URL, slug, !bookmarked
+                            )
+                            bookmarked = !bookmarked
+                            progressMessage = if (bookmarked) "Bookmark saved offline; it will sync when connected."
+                                else "Bookmark removal queued for synchronization."
+                        }
+                    }) { Text(if (bookmarked) "★ Saved offline" else "☆ Bookmark") }
+                    Button(onClick = {
+
                     val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                     if (token.isNullOrBlank()) {
                         progressMessage = "Sign in to save your learning progress."
@@ -324,7 +344,13 @@ private fun LessonScreen(
                         }
                     }
                 }) { Text("Mark lesson complete") }
+                }
                 progressMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                syncDiagnostics?.let { diagnostics ->
+                    Text("Offline sync: " + (diagnostics.lastSuccessAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "not synchronized yet"),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    diagnostics.lastError?.let { Text("Last sync issue: " + it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                }
                 Spacer(Modifier.padding(top = 4.dp))
                 Text("Lesson content", style = MaterialTheme.typography.titleLarge)
                 val raw = lesson!!.contentJson
