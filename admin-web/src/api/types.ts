@@ -45,3 +45,10 @@ export type ContentRelease = {
 export type TechnologyItem = { id: string; slug: string; name: string; description: string | null; sortOrder: number; status: string };
 export type CategoryItem = { id: string; technologyId: string; technologySlug: string; parentId: string | null; parentSlug: string | null; slug: string; name: string; sortOrder: number; status: string; lessonCount: number; questionCount: number };
 export type CategoryRequest = { technologySlug: string; parentId: string | null; slug: string; name: string; sortOrder: number };
+
+export type RevisionHistoryItem = {
+  revisionId: string; revisionNumber: number; title: string; summary: string | null;
+  difficulty: string; sourceType: string; changedBy: string | null; changedByName: string;
+  changeNote: string | null; createdAt: string; published: boolean; currentDraft: boolean;
+  reviewStatus: string | null; reviewComment: string | null; reviewedAt: string | null; submittedBy: string | null;
+};
