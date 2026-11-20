@@ -51,5 +51,11 @@ jobs:
       - name: Run Android unit tests
         run: gradle -p android :app:testDebugUnitTest --no-daemon
 
+      - name: Run Android lint
+        run: gradle -p android :app:lintDebug --no-daemon
+
       - name: Assemble debug APK
         run: gradle -p android :app:assembleDebug --no-daemon
+
+      - name: Assemble unsigned release APK
+        run: gradle -p android :app:assembleRelease --no-daemon
