@@ -56,3 +56,5 @@ export type RevisionHistoryItem = {
 export type UserAdminItem = { id: string; name: string; email: string | null; status: string; roles: string[]; createdAt: string };
 export type UserAdminUpdate = { status: string; roles: string[] };
 export type QuestionAdminItem = { id: string; slug: string; questionType: string; difficulty: string; status: string; revisionNumber: number; categoryName: string; categorySlug: string; technologyName: string; promptText: string; updatedAt: string };
+
+export type TechnologyRequest = { slug: string; name: string; description: string | null; sortOrder: number };
