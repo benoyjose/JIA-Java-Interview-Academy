@@ -435,7 +435,7 @@ private fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boole
     )
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val quizRepository = remember { QuizRepository() }
+    val quizRepository = remember(context) { QuizRepository(context) }
     var selected by remember { mutableStateOf("BEGINNER") }
     var selectedMode by remember { mutableStateOf(JiaQuizMode.PRACTICE) }
     var selectedDuration by remember { mutableStateOf(1800) }
