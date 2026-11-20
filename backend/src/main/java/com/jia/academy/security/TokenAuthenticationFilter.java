@@ -38,7 +38,13 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                     SELECT u.id, u.name, u.email,
                            COALESCE(array_agg(DISTINCT r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::varchar[]) AS roles,
                            COALESCE(array_agg(DISTINCT p.code) FILTER (WHERE p.code IS NOT NULL), ARRAY[]::varchar[]) AS permissions,
-                           COALESCE(array_agg(DISTINCT am.academy_id) FILTER (WHERE am.academy_id IS NOT NULL), ARRAY[]::uuid[]) AS academy_ids
+                           ARRAY(
+                               SELECT am2.academy_id
+                               FROM academy_memberships am2
+                               JOIN academies a2 ON a2.id=am2.academy_id AND a2.status='ACTIVE'
+                               WHERE am2.user_id=u.id AND am2.status='ACTIVE'
+                               ORDER BY am2.is_default DESC, am2.joined_at, am2.academy_id
+                           ) AS academy_ids
                     FROM api_tokens t
                     JOIN users u ON u.id = t.user_id
                     JOIN academy_memberships am ON am.user_id = u.id AND am.status = 'ACTIVE'
