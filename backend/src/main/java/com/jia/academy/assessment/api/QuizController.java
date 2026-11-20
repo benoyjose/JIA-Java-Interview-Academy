@@ -393,9 +393,9 @@ public class QuizController {
     private Map<String,Object> dailyChallengeResponse(UUID attemptId, UUID userId, UUID academyId) {
         var attempts = jdbc.query("""
             SELECT difficulty, question_count, started_at, challenge_date
-            FROM quiz_attempts WHERE id=?
+            FROM quiz_attempts WHERE id=? AND user_id=? AND academy_id=?
             """, (rs,n) -> new Object[]{rs.getString("difficulty"), rs.getInt("question_count"),
-                rs.getTimestamp("started_at"), rs.getString("challenge_date")}, attemptId);
+                rs.getTimestamp("started_at"), rs.getString("challenge_date")}, attemptId, userId, academyId);
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Daily challenge not found");
         Object[] a = attempts.getFirst();
         List<Map<String,Object>> questions = jdbc.query("""
