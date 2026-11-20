@@ -25,6 +25,10 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import coil.compose.AsyncImage
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 
@@ -90,7 +94,7 @@ fun LessonContentRenderer(raw: String) {
                                 style = MaterialTheme.typography.labelSmall
                             )
                             SelectionContainer {
-                                Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
+                                Text(highlightCode(block.source), Modifier.horizontalScroll(rememberScrollState()),
                                     style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
                             }
                             TextButton(onClick = { clipboard.setText(AnnotatedString(block.source)) }) {
@@ -114,6 +118,31 @@ fun LessonContentRenderer(raw: String) {
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (document.blocks.isEmpty()) Text("No readable lesson sections are available yet.")
+    }
+}
+
+@Composable
+private fun highlightCode(source: String): AnnotatedString {
+    val keywordColor = MaterialTheme.colorScheme.primary
+    val literalColor = MaterialTheme.colorScheme.secondary
+    val commentColor = MaterialTheme.colorScheme.tertiary
+    val tokenPattern = remember {
+        Regex("""//[^\\n]*|/\\*[\\s\\S]*?\\*/|"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|\\b\\d+(?:\\.\\d+)?\\b|\\b(?:public|private|protected|static|final|class|interface|enum|record|void|new|return|if|else|for|while|try|catch|throw|throws|extends|implements|import|package|var|val|fun|suspend|override|data|object|when|true|false|null|this|super|static|const|async|await)\\b""")
+    }
+    return buildAnnotatedString {
+        var cursor = 0
+        tokenPattern.findAll(source).forEach { match ->
+            append(source.substring(cursor, match.range.first))
+            val token = match.value
+            val color = when {
+                token.startsWith("//") || token.startsWith("/*") -> commentColor
+                token.startsWith("\"") || token.startsWith("'") || token.firstOrNull()?.isDigit() == true -> literalColor
+                else -> keywordColor
+            }
+            withStyle(SpanStyle(color = color, fontWeight = FontWeight.SemiBold)) { append(token) }
+            cursor = match.range.last + 1
+        }
+        append(source.substring(cursor))
     }
 }
 
