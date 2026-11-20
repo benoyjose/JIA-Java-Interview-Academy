@@ -151,7 +151,7 @@ class PostgresMigrationIntegrationTest {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt(1)).isEqualTo(1);
             }
-            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname IN ('idx_academy_memberships_academy_status_user','idx_academy_memberships_user_status')")) {
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public' AND indexname IN ('idx_academy_memberships_academy_status_user','idx_academy_memberships_user_status','uq_academy_memberships_one_default')")) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt(1)).isEqualTo(2);
             }
