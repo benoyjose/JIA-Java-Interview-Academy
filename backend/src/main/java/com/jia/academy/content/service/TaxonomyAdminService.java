@@ -19,7 +19,6 @@ public class TaxonomyAdminService {
         this.jdbc = jdbc;
     }
 
-    @Transactional(readOnly = true)
     @Transactional
     public TechnologyItem createTechnology(CurrentUser actor, TechnologyRequest request) {
         validateTechnologyRequest(request);
@@ -60,6 +59,7 @@ public class TaxonomyAdminService {
         audit(actor, "TAXONOMY_TECHNOLOGY_ARCHIVED", "TECHNOLOGY", id);
     }
 
+    @Transactional(readOnly = true)
     public List<TechnologyItem> technologies() {
         return jdbc.query("""
                 SELECT id, slug, name, description, sort_order, status
@@ -99,7 +99,7 @@ public class TaxonomyAdminService {
         try {
             jdbc.update("""
                     INSERT INTO categories(id,technology_id,parent_id,slug,name,sort_order,status)
-                    VALUES (?,?,?,?,?,?,'DRAFT')
+                    VALUES (?,?,?,?,?,?,'PUBLISHED')
                     """, id, technologyId, parentId, normalizeSlug(request.slug()),
                     request.name().trim(), request.sortOrder());
         } catch (org.springframework.dao.DuplicateKeyException ex) {
