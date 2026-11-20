@@ -14,9 +14,15 @@ final class QuizSubmissionValidationTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_accepts_weak_area_mode(): void
+    {
+        QuizController::assertAvailableMode('WEAK_AREA');
+        $this->assertTrue(true);
+    }
+
     public function test_rejects_modes_without_a_completed_workflow(): void
     {
-        foreach (['TIMED_MOCK', 'WEAK_AREA', 'UNKNOWN'] as $mode) {
+        foreach (['TIMED_MOCK', 'UNKNOWN'] as $mode) {
             try {
                 QuizController::assertAvailableMode($mode);
                 $this->fail("Expected mode {$mode} to be unavailable.");
