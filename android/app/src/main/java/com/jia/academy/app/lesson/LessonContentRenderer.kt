@@ -25,6 +25,29 @@ fun LessonContentRenderer(raw: String) {
         document.blocks.forEach { block ->
             when (block) {
                 is LessonBlock.Markdown -> LessonTextBlock(block.title, block.body)
+                is LessonBlock.Section -> LessonTextBlock(block.title, block.body)
+                is LessonBlock.BulletList -> Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(block.title ?: "Key points", style = MaterialTheme.typography.titleMedium)
+                        block.items.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+                is LessonBlock.Diagram -> Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(block.title ?: "Diagram", style = MaterialTheme.typography.titleMedium)
+                        Text(block.language.uppercase(), style = MaterialTheme.typography.labelSmall)
+                        Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                    }
+                }
+                is LessonBlock.ResourceLink -> Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(block.title ?: "Further reading", style = MaterialTheme.typography.titleSmall)
+                        Text(block.label, style = MaterialTheme.typography.bodyMedium)
+                        Text(block.url, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                }
                 is LessonBlock.Code -> {
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
