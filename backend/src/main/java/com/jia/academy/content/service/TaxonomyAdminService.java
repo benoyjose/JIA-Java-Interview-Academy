@@ -52,6 +52,7 @@ public class TaxonomyAdminService {
 
     @Transactional
     public CategoryItem create(CurrentUser actor, CategoryRequest request) {
+        validateRequest(request);
         UUID technologyId = technologyId(request.technologySlug());
         UUID parentId = validateParent(request.parentId(), technologyId, null);
         UUID id = UUID.randomUUID();
@@ -70,12 +71,20 @@ public class TaxonomyAdminService {
 
     @Transactional
     public CategoryItem update(CurrentUser actor, UUID id, CategoryRequest request) {
+        validateRequest(request);
         CategoryItem current = categories(null).stream().filter(item -> item.id().equals(id)).findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         if ("ARCHIVED".equals(current.status())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Archived categories cannot be edited");
         }
         UUID technologyId = technologyId(request.technologySlug());
+        if (!current.technologyId().equals(technologyId)) {
+            Integer children = jdbc.queryForObject("SELECT COUNT(*) FROM categories WHERE parent_id=?", Integer.class, id);
+            if (children != null && children > 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Move child categories before moving a parent to another technology");
+            }
+        }
         UUID parentId = validateParent(request.parentId(), technologyId, id);
         try {
             int changed = jdbc.update("""
@@ -106,6 +115,14 @@ public class TaxonomyAdminService {
         }
         jdbc.update("UPDATE categories SET status='ARCHIVED',updated_at=now() WHERE id=?", id);
         audit(actor, "TAXONOMY_CATEGORY_ARCHIVED", id);
+    }
+
+    private static void validateRequest(CategoryRequest request) {
+        if (request == null || request.technologySlug() == null || request.technologySlug().isBlank()
+                || request.slug() == null || request.name() == null || request.name().isBlank()
+                || request.name().trim().length() > 160 || request.sortOrder() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Technology, slug, name and non-negative sort order are required");
+        }
     }
 
     private UUID technologyId(String slug) {
