@@ -71,12 +71,19 @@ fun AuthScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var googleLoading by remember { mutableStateOf(false) }
+    var resetMode by remember { mutableStateOf(false) }
+    var resetRequested by remember { mutableStateOf(false) }
+    var resetCompleted by remember { mutableStateOf(false) }
+    var resetToken by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var resetBusy by remember { mutableStateOf(false) }
+    var resetMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(if (phoneMode) "Sign in with phone" else if (registering) "Create your JIA account" else "Sign in to JIA",
+        Text(if (resetMode) "Recover your JIA account" else if (phoneMode) "Sign in with phone" else if (registering) "Create your JIA account" else "Sign in to JIA",
             style = MaterialTheme.typography.headlineSmall)
         Text("You can continue browsing public lessons without signing in.")
         Button(
@@ -118,7 +125,60 @@ fun AuthScreen(
         if (com.jia.academy.app.BuildConfig.JIA_GOOGLE_WEB_CLIENT_ID.isBlank()) {
             Text("Google sign-in needs a configured OAuth Web Client ID.", style = MaterialTheme.typography.bodySmall)
         }
-        if (phoneMode) {
+        if (resetMode) {
+            OutlinedTextField(value = email, onValueChange = { email = it },
+                label = { Text("Account email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            if (resetRequested && !resetCompleted) {
+                OutlinedTextField(value = resetToken, onValueChange = { resetToken = it },
+                    label = { Text("Reset token from your email link") },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = newPassword, onValueChange = { newPassword = it },
+                    label = { Text("New password (at least 12 characters)") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+            }
+            resetMessage?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (!resetRequested) {
+                Button(enabled = !resetBusy && email.isNotBlank(), modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        resetBusy = true
+                        resetMessage = null
+                        scope.launch {
+                            runCatching { repository.requestPasswordReset(baseUrl, email.trim()) }
+                                .onSuccess {
+                                    resetRequested = true
+                                    resetMessage = "If an active account exists, reset instructions have been sent. Paste the token from the email link below."
+                                }
+                                .onFailure { resetMessage = it.message ?: "Could not request password reset." }
+                            resetBusy = false
+                        }
+                    }) { Text(if (resetBusy) "Sending…" else "Send reset instructions") }
+            } else if (!resetCompleted) {
+                Button(enabled = !resetBusy && resetToken.isNotBlank() && newPassword.length >= 12,
+                    modifier = Modifier.fillMaxWidth(), onClick = {
+                        resetBusy = true
+                        resetMessage = null
+                        scope.launch {
+                            runCatching { repository.confirmPasswordReset(baseUrl, resetToken.trim(), newPassword) }
+                                .onSuccess {
+                                    resetCompleted = true
+                                    resetMessage = "Password updated. You can now sign in with your new password."
+                                    password = ""
+                                }
+                                .onFailure { resetMessage = it.message ?: "Could not reset password." }
+                            resetBusy = false
+                        }
+                    }) { Text(if (resetBusy) "Updating…" else "Reset password") }
+            }
+            TextButton(onClick = {
+                resetMode = false
+                resetRequested = false
+                resetCompleted = false
+                resetToken = ""
+                newPassword = ""
+                resetMessage = null
+            }) { Text(if (resetCompleted) "Back to sign in" else "Cancel") }
+        } else if (phoneMode) {
             OutlinedTextField(value = phoneNumber, onValueChange = { phoneNumber = it },
                 label = { Text("Phone number (E.164, e.g. +919876543210)") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -166,6 +226,16 @@ fun AuthScreen(
         }
         TextButton(onClick = { phoneMode = true; registering = false; authViewModel.resetOtp() }) {
             Text("Continue with phone number")
+        }
+        if (!registering) {
+            TextButton(onClick = {
+                resetMode = true
+                resetRequested = false
+                resetCompleted = false
+                resetToken = ""
+                newPassword = ""
+                resetMessage = null
+            }) { Text("Forgot password?") }
         }
         }
     }
