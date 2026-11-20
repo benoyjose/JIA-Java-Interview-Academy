@@ -38,6 +38,13 @@ data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questi
 data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
 data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>)
 
+data class JiaLessonProgress(
+    val lessonSlug: String, val contentRevision: Int, val status: String,
+    val progressPercent: Double, val updatedAt: String
+)
+data class JiaLessonBookmark(val lessonSlug: String, val title: String, val createdAt: String)
+
+
 class QuizRepository {
     private fun endpoint(baseUrl: String, path: String) = baseUrl.trimEnd('/') + "/api/v1" + path
     private fun request(baseUrl: String, path: String, token: String, method: String, body: JSONObject? = null): String {
@@ -161,4 +168,40 @@ class QuizRepository {
                 if (item.isNull("scorePercent")) null else item.getDouble("scorePercent"), item.getString("status"))
         }
     }
+    suspend fun lessonProgress(baseUrl: String, token: String): List<JiaLessonProgress> =
+        withContext(Dispatchers.IO) {
+            val rows = JSONArray(request(baseUrl, "/me/lesson-progress", token, "GET"))
+            (0 until rows.length()).map { i ->
+                val row = rows.getJSONObject(i)
+                JiaLessonProgress(row.getString("lessonSlug"), row.getInt("contentRevision"),
+                    row.getString("status"), row.getDouble("progressPercent"), row.getString("updatedAt"))
+            }
+        }
+
+    suspend fun updateLessonProgress(
+        baseUrl: String, token: String, lessonSlug: String, contentRevision: Int,
+        progressPercent: Double, lastPosition: JSONObject? = null
+    ) = withContext(Dispatchers.IO) {
+        require(contentRevision > 0) { "contentRevision must be positive" }
+        require(progressPercent in 0.0..100.0) { "progressPercent must be between 0 and 100" }
+        val body = JSONObject().put("contentRevision", contentRevision)
+            .put("progressPercent", progressPercent)
+        if (lastPosition != null) body.put("lastPosition", lastPosition)
+        request(baseUrl, "/me/lesson-progress/$lessonSlug", token, "PUT", body)
+    }
+
+    suspend fun bookmarks(baseUrl: String, token: String): List<JiaLessonBookmark> =
+        withContext(Dispatchers.IO) {
+            val rows = JSONArray(request(baseUrl, "/me/bookmarks", token, "GET"))
+            (0 until rows.length()).map { i ->
+                val row = rows.getJSONObject(i)
+                JiaLessonBookmark(row.getString("lessonSlug"), row.getString("title"), row.getString("createdAt"))
+            }
+        }
+
+    suspend fun setBookmarked(baseUrl: String, token: String, lessonSlug: String, bookmarked: Boolean) =
+        withContext(Dispatchers.IO) {
+            request(baseUrl, "/me/bookmarks/$lessonSlug", token, if (bookmarked) "PUT" else "DELETE")
+        }
+
 }
