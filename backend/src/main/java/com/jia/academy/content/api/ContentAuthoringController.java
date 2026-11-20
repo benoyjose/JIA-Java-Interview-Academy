@@ -113,6 +113,13 @@ public class ContentAuthoringController {
         return content.rollback(actor, lessonId, request);
     }
 
+    @PostMapping("/lessons/{lessonId}/archive")
+    @PreAuthorize("hasAuthority('content.publish')")
+    public Map<String, Object> archive(@AuthenticationPrincipal CurrentUser actor,
+                                       @PathVariable UUID lessonId) {
+        return content.archive(actor, lessonId);
+    }
+
     @PostMapping("/lessons/{lessonId}/publish")
     @PreAuthorize("hasAuthority('content.publish')")
     public Map<String, Object> publish(@AuthenticationPrincipal CurrentUser actor,
