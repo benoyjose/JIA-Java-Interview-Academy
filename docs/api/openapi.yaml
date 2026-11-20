@@ -187,6 +187,101 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/refresh:
+    post:
+      summary: Rotate a single-use refresh token and issue a new session pair
+      tags: [Authentication]
+      operationId: refreshSession
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string, maxLength: 160 }
+      responses:
+        '200':
+          description: New access and refresh tokens; prior refresh token is consumed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/password/reset/request:
+    post:
+      summary: Request a one-time password reset email
+      tags: [Authentication]
+      operationId: requestPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202': { description: Generic response that does not disclose account existence }
+        '503': { description: Password recovery delivery is not configured }
+  /auth/password/reset/confirm:
+    post:
+      summary: Confirm password reset with a single-use token
+      tags: [Authentication]
+      operationId: confirmPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string, maxLength: 180 }
+                newPassword: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '204': { description: Password changed; existing sessions are revoked }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /auth/federated/link/google:
+    post:
+      summary: Link a verified Google identity to the authenticated account
+      tags: [Authentication]
+      operationId: linkGoogleIdentity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleIdentityRequest' }
+      responses:
+        '204': { description: Identity linked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /auth/federated/link/apple:
+    post:
+      summary: Link a verified Apple identity to the authenticated account
+      tags: [Authentication]
+      operationId: linkAppleIdentity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppleIdentityRequest' }
+      responses:
+        '204': { description: Identity linked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/sync/diagnostics:
+    get:
+      summary: Read server-side learner synchronization diagnostics
+      tags: [Learning]
+      operationId: getSyncDiagnostics
+      responses:
+        '200': { description: Progress and bookmark counts with latest server update timestamp }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /auth/logout:
     post:
       summary: Revoke the current session token
@@ -957,9 +1052,10 @@ components:
           items: { type: string }
     TokenResponse:
       type: object
-      required: [accessToken, tokenType, expiresAt, user]
+      required: [accessToken, refreshToken, tokenType, expiresAt, user]
       properties:
         accessToken: { type: string }
+        refreshToken: { type: string }
         tokenType: { type: string, const: Bearer }
         expiresAt: { type: string, format: date-time }
         user: { $ref: '#/components/schemas/User' }
