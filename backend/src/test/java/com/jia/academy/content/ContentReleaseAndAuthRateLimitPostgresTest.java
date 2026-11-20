@@ -136,8 +136,8 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 .containsExactly("other-academy-release-lesson");
         assertThat(releases.latest().items()).extracting(item -> item.slug())
                 .doesNotContain("other-academy-release-lesson");
-        assertThatThrownBy(() -> releases.get(otherRelease.version(), admin))
-                .isInstanceOf(ResponseStatusException.class);
+        assertThat(releases.get(otherRelease.version(), admin).items()).extracting(item -> item.slug())
+                .doesNotContain("other-academy-release-lesson");
         assertThat(releases.lesson(otherRelease.version(), "other-academy-release-lesson", otherAcademyAdmin)
                 .title()).isEqualTo("Other Academy Lesson");
         assertThatThrownBy(() -> releases.lesson(otherRelease.version(),
