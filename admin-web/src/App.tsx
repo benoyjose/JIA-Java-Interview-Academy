@@ -7,9 +7,15 @@ const ReviewsPage = lazy(() => import("./features/reviews/ReviewsPage").then(mod
 type Tab = "lessons" | "reviews";
 export function App() {
   const { user, loading } = useAuth(); const [activeTab, setActiveTab] = useState<Tab>("lessons");
+  const canEdit = Boolean(user?.roles.some(role => role === "EDITOR" || role === "ADMIN"));
+  const canReview = Boolean(user?.roles.some(role => role === "REVIEWER" || role === "ADMIN"));
+  const firstAllowedTab: Tab | null = canEdit ? "lessons" : canReview ? "reviews" : null;
+  const visibleTab = activeTab === "lessons" && canEdit ? "lessons"
+    : activeTab === "reviews" && canReview ? "reviews" : firstAllowedTab;
   if (loading) return <div className="full-loading"><div className="brand-mark">J</div><span>Loading secure workspace…</span></div>;
   if (!user) return <LoginPage />;
-  return <AppShell activeTab={activeTab} onNavigate={setActiveTab}><Suspense fallback={<div className="loading-line">Loading workspace…</div>}>
-    {activeTab === "lessons" ? <LessonsPage /> : <ReviewsPage />}
+  if (!visibleTab) return <div className="full-loading"><span>Your account has no content-operations permissions.</span></div>;
+  return <AppShell activeTab={visibleTab} onNavigate={setActiveTab}><Suspense fallback={<div className="loading-line">Loading workspace…</div>}>
+    {visibleTab === "lessons" ? <LessonsPage /> : <ReviewsPage />}
   </Suspense></AppShell>;
 }
