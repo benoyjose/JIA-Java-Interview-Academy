@@ -117,7 +117,7 @@ public class AdminOperationsService {
         String search = normalize(query);
         String pattern = search == null ? null : "%" + search + "%";
         long total = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM questions q JOIN categories c ON c.id=q.category_id
+                SELECT COUNT(*) FROM questions q LEFT JOIN categories c ON c.id=q.category_id
                 JOIN technologies t ON t.id=q.technology_id
                 LEFT JOIN LATERAL (SELECT prompt_json FROM question_revisions qr
                     WHERE qr.question_id=q.id ORDER BY qr.revision_number DESC LIMIT 1) rev ON TRUE
@@ -130,7 +130,7 @@ public class AdminOperationsService {
                 SELECT q.id,q.slug,q.question_type,q.difficulty,q.status,q.current_revision,
                        c.name AS category_name,c.slug AS category_slug,t.name AS technology_name,
                        COALESCE(rev.prompt_json->>'text','') AS prompt_text,q.updated_at
-                FROM questions q JOIN categories c ON c.id=q.category_id
+                FROM questions q LEFT JOIN categories c ON c.id=q.category_id
                 JOIN technologies t ON t.id=q.technology_id
                 LEFT JOIN LATERAL (SELECT prompt_json FROM question_revisions qr
                     WHERE qr.question_id=q.id ORDER BY qr.revision_number DESC LIMIT 1) rev ON TRUE
