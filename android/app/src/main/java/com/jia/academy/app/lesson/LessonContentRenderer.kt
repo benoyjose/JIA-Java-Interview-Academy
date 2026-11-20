@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -64,12 +65,17 @@ fun LessonContentRenderer(raw: String) {
                         }
                     }
                 }
-                is LessonBlock.ResourceLink -> Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(block.title ?: "Further reading", style = MaterialTheme.typography.titleSmall)
-                        Text(block.label, style = MaterialTheme.typography.bodyMedium)
-                        Text(block.url, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary)
+                is LessonBlock.ResourceLink -> {
+                    val uriHandler = LocalUriHandler.current
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(block.title ?: "Further reading", style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.semantics { heading() })
+                            Text(block.label, style = MaterialTheme.typography.bodyMedium)
+                            TextButton(onClick = { uriHandler.openUri(block.url) }) {
+                                Text("Open resource")
+                            }
+                        }
                     }
                 }
                 is LessonBlock.Code -> {
@@ -83,8 +89,10 @@ fun LessonContentRenderer(raw: String) {
                                 },
                                 style = MaterialTheme.typography.labelSmall
                             )
-                            Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                            SelectionContainer {
+                                Text(block.source, Modifier.horizontalScroll(rememberScrollState()),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace))
+                            }
                             TextButton(onClick = { clipboard.setText(AnnotatedString(block.source)) }) {
                                 Text("Copy code")
                             }
@@ -123,7 +131,8 @@ private fun InterviewAnswerCard(block: LessonBlock.InterviewAnswer) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(block.title ?: "Interview answer", style = MaterialTheme.typography.titleMedium)
-            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"))
+            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"),
+            modifier = Modifier.semantics { contentDescription = "Interview answer with ${block.points.size} key points" })
             block.expandedExplanation?.let {
                 TextButton(onClick = { expanded = !expanded }) {
                     Text(if (expanded) "Hide detailed explanation" else "Show detailed explanation")
