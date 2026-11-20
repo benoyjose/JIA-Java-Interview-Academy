@@ -23,8 +23,14 @@ class QuizSubmissionValidationTest {
     }
 
     @Test
+    void acceptsWeakAreaMode() {
+        assertThatCode(() -> QuizController.validateMode("WEAK_AREA"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void rejectsModesUntilTheirWorkflowsAreImplemented() {
-        for (String mode : Set.of("TIMED_MOCK", "WEAK_AREA", "UNKNOWN")) {
+        for (String mode : Set.of("TIMED_MOCK", "UNKNOWN")) {
             assertThatThrownBy(() -> QuizController.validateMode(mode))
                     .isInstanceOf(ResponseStatusException.class)
                     .hasMessageContaining("Quiz mode is not available yet");
