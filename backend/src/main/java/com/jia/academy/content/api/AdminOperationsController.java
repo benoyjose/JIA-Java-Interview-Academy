@@ -37,10 +37,11 @@ public class AdminOperationsController {
 
     @GetMapping("/questions")
     @PreAuthorize("hasAnyAuthority('content.create','content.review','content.publish')")
-    public PageResult<QuestionItem> questions(@RequestParam(required = false) String q,
+    public PageResult<QuestionItem> questions(@AuthenticationPrincipal CurrentUser actor,
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) String status, @RequestParam(required = false) String difficulty,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "25") int size) {
-        return operations.questions(q, status, difficulty, page, size);
+        return operations.questions(actor, q, status, difficulty, page, size);
     }
 
     @PatchMapping("/questions/{questionId}/status")
