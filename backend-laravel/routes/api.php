@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\QuizController;
 use App\Http\Controllers\Api\V1\LearnerLibraryController;
 use App\Http\Controllers\Api\V1\LessonImportController;
 use App\Http\Controllers\Api\V1\QuestionImportController;
+use App\Http\Controllers\Api\V1\AppReleasePolicyController;
 use App\Http\Middleware\AuthenticateJiaToken;
 use Illuminate\Support\Facades\Route;
 
