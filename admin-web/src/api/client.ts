@@ -1,3 +1,4 @@
+import type { AcademyAnalyticsSummary } from "./analytics";
 import type { AdminLesson, LessonDetail, LessonDraftRequest, LessonDraftResponse, PageResult, ReviewDetail, ReviewQueueItem, TokenResponse, User, ContentRelease, TechnologyItem, CategoryItem, CategoryRequest, RevisionHistoryItem, UserAdminItem, UserAdminUpdate, QuestionAdminItem, TechnologyRequest } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api/v1").replace(/\/$/, "");
@@ -126,6 +127,7 @@ export const api = {
   },
   transitionQuestion: (id: string, status: string) => request<QuestionAdminItem>("/admin/questions/" + encodeURIComponent(id) + "/status", { method: "PATCH", body: JSON.stringify({ status }) }),
   importQuestions: (payload: unknown) => request<Record<string, unknown>>("/admin/questions/import", { method: "POST", body: JSON.stringify(payload) }),
+  analyticsSummary: (windowDays: number, signal?: AbortSignal) => request<AcademyAnalyticsSummary>(`/admin/analytics/summary?windowDays=${encodeURIComponent(String(windowDays))}`, { signal }),
   reviews: (params: { q?: string; page: number; size: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams({ page: String(params.page), size: String(params.size) });
     if (params.q) query.set("q", params.q);
