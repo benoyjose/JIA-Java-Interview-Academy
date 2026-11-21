@@ -7,16 +7,31 @@ plugins {
 
 val jiaApiBaseUrl = providers.gradleProperty("JIA_API_BASE_URL").orElse("")
 val googleWebClientId = providers.gradleProperty("JIA_GOOGLE_WEB_CLIENT_ID").orElse("")
+val jiaApplicationId = providers.gradleProperty("JIA_APPLICATION_ID").orElse("com.jia.academy.app").get()
+val jiaAppCode = providers.gradleProperty("JIA_APP_CODE").orElse("JIA_ANDROID").get()
+val jiaVersionCode = providers.gradleProperty("JIA_VERSION_CODE").orElse("1").get().toInt()
+val jiaVersionName = providers.gradleProperty("JIA_VERSION_NAME").orElse("0.1.0").get()
+
+require(jiaApplicationId.matches(Regex("[A-Za-z][A-Za-z0-9_]*([.][A-Za-z][A-Za-z0-9_]*)+"))) {
+    "JIA_APPLICATION_ID must be a valid Android application ID"
+}
+require(jiaAppCode.matches(Regex("[A-Z][A-Z0-9_]{2,39}"))) {
+    "JIA_APP_CODE must be a registered uppercase app code"
+}
+require(jiaVersionCode > 0 && jiaVersionName.matches(Regex("[0-9]{1,5}([.][0-9]{1,5}){2}"))) {
+    "JIA_VERSION_CODE must be positive and JIA_VERSION_NAME must use MAJOR.MINOR.PATCH"
+}
 
 android {
     namespace = "com.jia.academy.app"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.jia.academy.app"
+        applicationId = jiaApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = jiaVersionCode
+        versionName = jiaVersionName
+        buildConfigField("String", "JIA_APP_CODE", "\"$jiaAppCode\"")
         buildConfigField("String", "JIA_API_BASE_URL", "\"${jiaApiBaseUrl.get()}\"")
         buildConfigField("String", "JIA_GOOGLE_WEB_CLIENT_ID", "\"${googleWebClientId.get()}\"")
     }
