@@ -102,6 +102,66 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /me/academies/{academyCode}/entitlements:
+    get:
+      summary: List active academy entitlements for the authenticated learner
+      tags: [Subscriptions]
+      operationId: getAcademyEntitlements
+      parameters:
+        - name: academyCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+      responses:
+        '200':
+          description: Current, unexpired entitlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [code, status]
+                  properties:
+                    code: { type: string }
+                    status: { type: string, enum: [ACTIVE, GRACE] }
+                    validUntil: { type: [string, 'null'], format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /payments/webhooks/{providerCode}:
+    post:
+      summary: Receive an HMAC-authenticated normalized payment-provider event
+      security: []
+      tags: [Subscriptions]
+      operationId: receivePaymentProviderWebhook
+      parameters:
+        - name: providerCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+        - name: X-Payment-Signature
+          in: header
+          required: true
+          schema: { type: string, pattern: '^sha256=[a-fA-F0-9]{64}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, type, subscriptionId]
+              properties:
+                id: { type: string, maxLength: 180 }
+                type: { type: string, maxLength: 80, enum: [subscription.activated, subscription.renewed, payment.succeeded, payment.failed, subscription.expired, subscription.cancelled, payment.refunded] }
+                subscriptionId: { type: string, maxLength: 180 }
+                periodEnd: { type: [string, 'null'], format: date-time }
+                entitlementCode: { type: [string, 'null'], maxLength: 80 }
+      responses:
+        '200': { description: Event processed, ignored or deduplicated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: Invalid HMAC signature }
+        '404': { description: Provider subscription reference is not linked }
+        '503': { description: Webhook processing is disabled until configured }
   /auth/register:
     post:
       summary: Register a learner account
