@@ -1,11 +1,13 @@
 import type { PropsWithChildren } from "react";
 import { useAuth } from "../auth/AuthContext";
-type Tab = "lessons" | "reviews" | "taxonomy" | "questions" | "users";
+type Tab = "dashboard" | "lessons" | "reviews" | "taxonomy" | "questions" | "users";
 export function AppShell({ activeTab, onNavigate, children }: PropsWithChildren<{ activeTab: Tab; onNavigate: (tab: Tab) => void }>) {
   const { user, logout } = useAuth();
   return <div className="app-shell">
     <aside className="sidebar"><div className="sidebar-brand"><div className="brand-mark small">J</div><div><strong>JIA Admin</strong><span>Academy workspace</span></div></div>
       <div className="sidebar-label">WORKSPACE</div><nav className="side-nav" aria-label="Main navigation">
+        {user?.roles.includes("ADMIN") &&
+          <button className={activeTab === "dashboard" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("dashboard")}><span>▦</span> Dashboard</button>}
         {user?.roles.some(role => role === "EDITOR" || role === "ADMIN") &&
           <button className={activeTab === "lessons" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("lessons")}><span>▤</span> Lessons</button>}
         {user?.roles.some(role => role === "REVIEWER" || role === "ADMIN") &&
