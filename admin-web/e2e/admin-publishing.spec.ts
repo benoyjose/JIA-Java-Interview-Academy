@@ -127,7 +127,7 @@ test("admin can create, submit, review, approve and publish a lesson", async ({ 
   await page.getByRole("button", { name: "Sign in" }).click();
 
   // Admins now land on the analytics dashboard; navigate to the lesson workflow explicitly.
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Lessons", exact: true }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: /Lessons/ }).click();
   await expect(page.getByRole("heading", { name: "Lessons", exact: true })).toBeVisible();
   await page.getByRole("button", { name: /New lesson/ }).click();
   await page.getByLabel("Lesson title").fill("Java Streams");
