@@ -65,7 +65,8 @@ public class AcademyAppRegistryService {
                 WHERE app_code=?
                 """, request.status(), request.minimumSupportedVersion(), request.currentVersion(),
                 request.storeUrl(), request.releaseNotes(), request.status(), request.status(), appCode);
-        return policy(appCode, app.platform(), app.applicationId(), null);
+        AppRow updated = find(appCode);
+        return new ReleasePolicy(updated.appCode(), updated.platform(), updated.applicationId(), updated.displayName(), updated.status(), updated.minimumVersion(), updated.currentVersion(), updated.storeUrl(), updated.releaseNotes(), updated.releasedAt(), "CURRENT");
     }
 
     private AppRow find(String appCode) {
