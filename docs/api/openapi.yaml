@@ -899,7 +899,7 @@ paths:
                   academyCode: { type: string }
                   windowDays: { type: integer, minimum: 1, maximum: 365 }
                   totalLearners: { type: integer, minimum: 0 }
-                  activeLearners: { type: integer, minimum: 0, description: Learners with progress, assessment or review activity in the requested window }
+                  activeLearners: { type: integer, minimum: 0, description: 'Learners with progress, assessment or review activity in the requested window' }
                   lessonsCompleted: { type: integer, minimum: 0, description: Lifetime completed lesson records in this academy }
                   quizAttempts: { type: integer, minimum: 0, description: Submitted attempts within the requested window }
                   averageScorePercent: { type: [number, 'null'], minimum: 0, maximum: 100 }
