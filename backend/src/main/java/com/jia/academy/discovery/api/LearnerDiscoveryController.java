@@ -32,7 +32,7 @@ public class LearnerDiscoveryController {
               FROM technologies t WHERE t.academy_id=? AND t.status='PUBLISHED'
                 AND (t.name ILIKE ? ESCAPE '\\' OR t.slug ILIKE ? ESCAPE '\\')
               UNION ALL
-              SELECT 'CATEGORY',c.slug,c.name,COALESCE(c.description,''),c.slug,1
+              SELECT 'CATEGORY',c.slug,c.name,'',c.slug,1
               FROM categories c JOIN technologies t ON t.id=c.technology_id
               WHERE t.academy_id=? AND t.status='PUBLISHED' AND c.status='PUBLISHED'
                 AND (c.name ILIKE ? ESCAPE '\\' OR c.slug ILIKE ? ESCAPE '\\')
@@ -46,10 +46,19 @@ public class LearnerDiscoveryController {
                   AND NOT EXISTS (SELECT 1 FROM academy_entitlements e WHERE e.user_id=? AND e.academy_id=t.academy_id
                     AND e.entitlement_code=req.entitlement_code AND e.status IN ('ACTIVE','GRACE')
                     AND (e.valid_until IS NULL OR e.valid_until>now())))
+              UNION ALL
+              SELECT 'QUESTION',q.slug,
+                COALESCE(qr.prompt_json->>'text',qr.prompt_json->>'question',qr.prompt_json::text),
+                COALESCE(qr.explanation,''),c.slug,3
+              FROM questions q JOIN question_revisions qr ON qr.question_id=q.id AND qr.revision_number=q.current_revision
+                JOIN technologies t ON t.id=q.technology_id LEFT JOIN categories c ON c.id=q.category_id
+              WHERE q.academy_id=? AND q.status='PUBLISHED' AND t.status='PUBLISHED'
+                AND (qr.prompt_json::text ILIKE ? ESCAPE '\\' OR COALESCE(q.slug,'') ILIKE ? ESCAPE '\\'
+                  OR COALESCE(qr.explanation,'') ILIKE ? ESCAPE '\\')
             ) results ORDER BY rank_score,title LIMIT ?
             """,(rs,n)->new SearchResult(rs.getString("kind"),rs.getString("slug"),rs.getString("title"),
                 rs.getString("summary"),rs.getString("category_slug")),academy,pattern,pattern,academy,pattern,pattern,
-                academy,pattern,pattern,pattern,user.id(),safeLimit);
+                academy,pattern,pattern,pattern,academy,pattern,pattern,pattern,user.id(),safeLimit);
     }
 
     @GetMapping("/recommendations")
