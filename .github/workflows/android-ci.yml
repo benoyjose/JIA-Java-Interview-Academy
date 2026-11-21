@@ -62,14 +62,51 @@ jobs:
       - name: Assemble unsigned release APK
         run: gradle -p android :app:assembleRelease --no-daemon
 
-      - name: Run Compose UI tests on emulator
+
+  android-instrumentation:
+    # Isolate the emulator from lint/release packaging. TCG emulation is CPU-heavy
+    # on GitHub-hosted Linux and must not compete with a Gradle release build.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_I_WANT_MY_TCG: "yes"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
+          accept-android-sdk-licenses: true
+
+      - name: Install compile SDK
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Run Compose UI tests on isolated emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 28
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim"
+          cores: 4
+          emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 4096"
           emulator-boot-timeout: 900
           disable-animations: false
           script: gradle -p android :app:connectedDebugAndroidTest --no-daemon
