@@ -283,7 +283,11 @@ paths:
       operationId: getAcademyNotificationPreferences
       parameters: [{ name: academyCode, in: path, required: true, schema: { type: string } }]
       responses:
-        '200': { description: Preferences, content: { application/json: { schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' } } }
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' }
     put:
       summary: Update learner reminder and quiet-hour preferences
       tags: [Learner Notifications]
@@ -291,9 +295,15 @@ paths:
       parameters: [{ name: academyCode, in: path, required: true, schema: { type: string } }]
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' } } }
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' }
       responses:
-        '200': { description: Preferences saved, content: { application/json: { schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' } } }
+        '200':
+          description: Preferences saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' }
         '400': { $ref: '#/components/responses/BadRequest' }
   /me/academies/{academyCode}/revision-schedule:
     get:
@@ -302,7 +312,13 @@ paths:
       operationId: getAcademyRevisionSchedule
       parameters: [{ name: academyCode, in: path, required: true, schema: { type: string } }]
       responses:
-        '200': { description: Learner revision schedule, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/RevisionDue' } } } }
+        '200':
+          description: Learner revision schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RevisionDue' }
   /me/academies/{academyCode}/revision-schedule/{lessonSlug}/reviewed:
     post:
       summary: Record review and advance spaced-repetition interval
@@ -323,7 +339,13 @@ paths:
         - { name: academyCode, in: path, required: true, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
       responses:
-        '200': { description: Notifications, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LearnerNotification' } } } }
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LearnerNotification' }
   /me/academies/{academyCode}/notifications/{notificationId}/read:
     post:
       summary: Mark an owned academy notification as read
