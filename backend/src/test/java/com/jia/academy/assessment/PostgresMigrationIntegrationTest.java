@@ -181,11 +181,7 @@ class PostgresMigrationIntegrationTest {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt(1)).isEqualTo(1);
             }
-        } catch (Exception ex) {
-            throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
-        }
-    }
-}            try (var rows = statement.executeQuery("""
+            try (var rows = statement.executeQuery("""
                     SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'
                       AND table_name IN ('learner_notification_preferences','learner_revision_schedules','learner_notifications')
                     """)) {
@@ -199,4 +195,7 @@ class PostgresMigrationIntegrationTest {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getInt(1)).isEqualTo(2);
             }
-
+        } catch (Exception ex) {
+            throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
+        }
+    }
