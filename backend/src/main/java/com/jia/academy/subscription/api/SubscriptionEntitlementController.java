@@ -2,6 +2,8 @@ package com.jia.academy.subscription.api;
 
 import com.jia.academy.subscription.service.SubscriptionEntitlementService;
 import com.jia.academy.subscription.service.SubscriptionEntitlementService.Entitlement;
+import com.jia.academy.subscription.service.SubscriptionEntitlementService.SubscriptionSummary;
+import com.jia.academy.subscription.service.SubscriptionEntitlementService.PlanSummary;
 import com.jia.academy.subscription.service.SubscriptionEntitlementService.WebhookResult;
 import com.jia.academy.security.CurrentUser;
 import java.util.List;
@@ -22,6 +24,17 @@ public class SubscriptionEntitlementController {
     public List<Entitlement> entitlements(@AuthenticationPrincipal CurrentUser user,
             @PathVariable String academyCode) {
         return service.entitlements(user, academyCode);
+    }
+
+    @GetMapping("/me/academies/{academyCode}/subscriptions")
+    public List<SubscriptionSummary> subscriptions(@AuthenticationPrincipal CurrentUser user,
+            @PathVariable String academyCode) {
+        return service.subscriptions(user, academyCode);
+    }
+
+    @GetMapping("/academies/{academyCode}/plans")
+    public List<PlanSummary> plans(@PathVariable String academyCode) {
+        return service.plans(academyCode);
     }
 
     @PostMapping("/payments/webhooks/{providerCode}")
