@@ -21,6 +21,8 @@ tags:
     description: Controlled content authoring, review and publication.
   - name: Learning
     description: Authenticated learner progress and saved lessons.
+  - name: Subscriptions
+    description: Academy-scoped subscription and entitlement lifecycle.
 paths:
   /apps/{appCode}/release-policy:
     get:
@@ -162,6 +164,66 @@ paths:
         '401': { description: Invalid HMAC signature }
         '404': { description: Provider subscription reference is not linked }
         '503': { description: Webhook processing is disabled until configured }
+  /me/academies/{academyCode}/entitlements:
+    get:
+      summary: Return current unexpired entitlements for a learner in an academy
+      tags: [Subscriptions]
+      operationId: getAcademyEntitlements
+      parameters:
+        - name: academyCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+      responses:
+        '200':
+          description: Active and grace entitlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [code, status]
+                  properties:
+                    code: { type: string }
+                    status: { type: string, enum: [ACTIVE, GRACE] }
+                    validUntil: { type: [string, 'null'], format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /payments/webhooks/{providerCode}:
+    post:
+      summary: Accept a normalized HMAC-authenticated provider event
+      security: []
+      tags: [Subscriptions]
+      operationId: receivePaymentProviderWebhook
+      parameters:
+        - name: providerCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+        - name: X-Payment-Signature
+          in: header
+          required: true
+          schema: { type: string, pattern: '^sha256=[a-fA-F0-9]{64}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, type, subscriptionId]
+              properties:
+                id: { type: string, maxLength: 180 }
+                type: { type: string, maxLength: 80 }
+                subscriptionId: { type: string, maxLength: 180 }
+                periodEnd: { type: [string, 'null'], format: date-time }
+                entitlementCode: { type: [string, 'null'], maxLength: 80 }
+      responses:
+        '200': { description: Processed, ignored or deduplicated event }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: Invalid webhook signature }
+        '404': { description: Subscription reference is not linked to a platform account }
+        '503': { description: Webhook is not configured }
   /auth/register:
     post:
       summary: Register a learner account
