@@ -9,6 +9,7 @@ val jiaApiBaseUrl = providers.gradleProperty("JIA_API_BASE_URL").orElse("")
 val googleWebClientId = providers.gradleProperty("JIA_GOOGLE_WEB_CLIENT_ID").orElse("")
 val jiaApplicationId = providers.gradleProperty("JIA_APPLICATION_ID").orElse("com.jia.academy.app").get()
 val jiaAppCode = providers.gradleProperty("JIA_APP_CODE").orElse("JIA_ANDROID").get()
+val jiaDisplayName = providers.gradleProperty("JIA_DISPLAY_NAME").orElse("JIA - Java Interview Academy").get()
 val jiaVersionCode = providers.gradleProperty("JIA_VERSION_CODE").orElse("1").get().toInt()
 val jiaVersionName = providers.gradleProperty("JIA_VERSION_NAME").orElse("0.1.0").get()
 
@@ -31,6 +32,7 @@ android {
         targetSdk = 36
         versionCode = jiaVersionCode
         versionName = jiaVersionName
+        resValue("string", "app_name", jiaDisplayName)
         buildConfigField("String", "JIA_APP_CODE", "\"$jiaAppCode\"")
         buildConfigField("String", "JIA_API_BASE_URL", "\"${jiaApiBaseUrl.get()}\"")
         buildConfigField("String", "JIA_GOOGLE_WEB_CLIENT_ID", "\"${googleWebClientId.get()}\"")
