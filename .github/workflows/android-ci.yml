@@ -22,6 +22,8 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      # GitHub-hosted Linux runners do not expose KVM; Android emulator requires TCG fallback.
+      ANDROID_I_WANT_MY_TCG: "yes"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -67,6 +69,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-options: "-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim"
+          emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim"
+          emulator-boot-timeout: 900
           disable-animations: true
           script: gradle -p android :app:connectedDebugAndroidTest --no-daemon
