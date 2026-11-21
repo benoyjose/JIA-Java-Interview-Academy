@@ -152,7 +152,7 @@ public class LearnerDiscoveryController {
                 (prefs.quiet_start<=prefs.quiet_end AND (now() AT TIME ZONE prefs.timezone)::time BETWEEN prefs.quiet_start AND prefs.quiet_end)
                 OR (prefs.quiet_start>prefs.quiet_end AND ((now() AT TIME ZONE prefs.timezone)::time>=prefs.quiet_start
                     OR (now() AT TIME ZONE prefs.timezone)::time<prefs.quiet_end)))
-                THEN (date_trunc('day',now() AT TIME ZONE prefs.timezone)+prefs.quiet_end+
+                THEN (date_trunc('day',now() AT TIME ZONE prefs.timezone)+(prefs.quiet_end-time '00:00')+
                     CASE WHEN prefs.quiet_start>prefs.quiet_end AND (now() AT TIME ZONE prefs.timezone)::time>=prefs.quiet_start
                          THEN interval '1 day' ELSE interval '0 day' END) AT TIME ZONE prefs.timezone
                 ELSE s.due_at END
