@@ -224,6 +224,63 @@ paths:
         '401': { description: Invalid webhook signature }
         '404': { description: Subscription reference is not linked to a platform account }
         '503': { description: Webhook is not configured }
+  /me/academies/{academyCode}/subscriptions:
+    get:
+      summary: List the authenticated learner's subscription status for an academy
+      tags: [Subscriptions]
+      operationId: getAcademySubscriptions
+      parameters:
+        - name: academyCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+      responses:
+        '200':
+          description: Subscription state, including cancellation and renewal period
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [providerCode, planCode, status, cancelAtPeriodEnd]
+                  properties:
+                    providerCode: { type: string }
+                    planCode: { type: string }
+                    status: { type: string, enum: [ACTIVE, GRACE, EXPIRED, CANCELLED, REFUNDED] }
+                    currentPeriodEnd: { type: [string, 'null'], format: date-time }
+                    cancelAtPeriodEnd: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /academies/{academyCode}/plans:
+    get:
+      summary: List active subscription plans for an academy
+      security: []
+      tags: [Subscriptions]
+      operationId: getAcademySubscriptionPlans
+      parameters:
+        - name: academyCode
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+      responses:
+        '200':
+          description: Available active plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [code, name, priceMinor, currency, billingInterval]
+                  properties:
+                    code: { type: string }
+                    name: { type: string }
+                    priceMinor: { type: integer, minimum: 0 }
+                    currency: { type: string, minLength: 3, maxLength: 3 }
+                    billingInterval: { type: string, enum: [MONTHLY, YEARLY, LIFETIME] }
+                    featuresJson: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
   /auth/register:
     post:
       summary: Register a learner account
