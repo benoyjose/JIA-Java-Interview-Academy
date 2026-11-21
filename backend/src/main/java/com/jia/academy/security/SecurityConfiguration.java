@@ -47,6 +47,7 @@ public class SecurityConfiguration {
                     "/api/v1/lessons/**",
                     "/api/v1/content/releases/**",
                     "/api/v1/apps/*/release-policy",
+                    "/api/v1/payments/webhooks/*",
                     "/api/v1/quizzes/availability",
                     "/actuator/health",
                     "/up"
