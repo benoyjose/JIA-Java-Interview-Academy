@@ -109,4 +109,16 @@ jobs:
           emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 4096"
           emulator-boot-timeout: 900
           disable-animations: false
-          script: gradle -p android :app:connectedDebugAndroidTest --no-daemon
+          script: |
+            set +e
+            adb logcat -c
+            gradle -p android :app:connectedDebugAndroidTest --no-daemon --info
+            test_status=$?
+            if [ "$test_status" -ne 0 ]; then
+              echo "=== Instrumentation test result XML ==="
+              find android/app/build/outputs/androidTest-results android/app/build/reports/androidTests -type f 2>/dev/null | sort
+              find android/app/build/outputs/androidTest-results -name '*.xml' -type f -print -exec cat {} \; 2>/dev/null
+              echo "=== Relevant device logcat ==="
+              adb logcat -d -t 6000 2>/dev/null | grep -E -i "AndroidRuntime|FATAL EXCEPTION|Instrumentation|TestRunner|Assertion|Compose|junit|crash|ANR" | tail -n 350 || true
+            fi
+            exit "$test_status"
