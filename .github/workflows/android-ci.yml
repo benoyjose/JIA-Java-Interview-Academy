@@ -113,8 +113,9 @@ jobs:
             set +e
             mkdir -p android/app/build/ci-diagnostics
             adb logcat -c
-            gradle -p android :app:connectedDebugAndroidTest --no-daemon --info 2>&1 | tee android/app/build/ci-diagnostics/gradle-instrumentation.log
-            test_status=${PIPESTATUS[0]}
+            gradle -p android :app:connectedDebugAndroidTest --no-daemon --info > android/app/build/ci-diagnostics/gradle-instrumentation.log 2>&1
+            test_status=$?
+            cat android/app/build/ci-diagnostics/gradle-instrumentation.log
             if [ "$test_status" -ne 0 ]; then
               adb logcat -d -t 12000 > android/app/build/ci-diagnostics/emulator-logcat.txt 2>&1 || true
               echo "=== Test XML failures ==="
