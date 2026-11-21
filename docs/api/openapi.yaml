@@ -11,6 +11,8 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: App Registry
+    description: Registered branded application identities and per-app release compatibility.
   - name: Authentication
     description: Account registration, sign-in and session management.
   - name: Catalogue
@@ -20,6 +22,86 @@ tags:
   - name: Learning
     description: Authenticated learner progress and saved lessons.
 paths:
+  /apps/{appCode}/release-policy:
+    get:
+      summary: Resolve registered application identity and public release compatibility policy
+      security: []
+      tags: [App Registry]
+      operationId: getRegisteredAppReleasePolicy
+      parameters:
+        - name: appCode
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z][A-Z0-9_]{2,39}$'
+        - name: platform
+          in: query
+          required: true
+          schema: { type: string, enum: [ANDROID, IOS] }
+        - name: applicationId
+          in: query
+          required: true
+          schema: { type: string, maxLength: 255 }
+        - name: installedVersion
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{1,5}(\.[0-9]{1,5}){2}$'
+      responses:
+        '200':
+          description: Registered app and release policy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [appCode, platform, applicationId, displayName, status, updateStatus]
+                properties:
+                  appCode: { type: string }
+                  platform: { type: string, enum: [ANDROID, IOS] }
+                  applicationId: { type: string }
+                  displayName: { type: string }
+                  status: { type: string, enum: [PLANNED, ACTIVE] }
+                  minimumSupportedVersion: { type: [string, 'null'] }
+                  currentVersion: { type: [string, 'null'] }
+                  storeUrl: { type: [string, 'null'], format: uri }
+                  releaseNotes: { type: [string, 'null'] }
+                  releasedAt: { type: [string, 'null'], format: date-time }
+                  updateStatus: { type: string, enum: [CURRENT, UPDATE_AVAILABLE, UPDATE_REQUIRED] }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { description: App identity is suspended or retired }
+    put:
+      summary: Update registered app release policy
+      tags: [Content Admin]
+      operationId: updateRegisteredAppReleasePolicy
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: appCode
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z][A-Z0-9_]{2,39}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [PLANNED, ACTIVE, SUSPENDED, RETIRED] }
+                minimumSupportedVersion: { type: [string, 'null'], maxLength: 40 }
+                currentVersion: { type: [string, 'null'], maxLength: 40 }
+                storeUrl: { type: [string, 'null'], format: uri, maxLength: 1000 }
+                releaseNotes: { type: [string, 'null'], maxLength: 5000 }
+      responses:
+        '200': { description: Release policy updated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /auth/register:
     post:
       summary: Register a learner account

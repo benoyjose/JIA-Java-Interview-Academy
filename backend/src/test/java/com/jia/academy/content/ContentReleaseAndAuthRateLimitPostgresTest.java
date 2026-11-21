@@ -17,6 +17,8 @@ import com.jia.academy.content.api.ContentAuthoringDtos.LessonDraftRequest;
 import com.jia.academy.content.api.ContentAuthoringDtos.ReviewDecisionRequest;
 import com.jia.academy.content.service.ContentAuthoringService;
 import com.jia.academy.content.service.ContentReleaseService;
+import com.jia.academy.appregistry.service.AcademyAppRegistryService;
+import com.jia.academy.appregistry.service.AcademyAppRegistryService.ReleaseUpdate;
 import com.jia.academy.content.service.LessonContentValidator;
 import com.jia.academy.security.CurrentUser;
 import java.util.List;
@@ -48,6 +50,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     private static JdbcTemplate jdbc;
     private static ContentAuthoringService authoring;
     private static ContentReleaseService releases;
+    private static AcademyAppRegistryService appRegistry;
     private static AuthRateLimitService rateLimits;
     private static AuthService auth;
     private static TaxonomyAdminService taxonomy;
@@ -67,6 +70,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         ObjectMapper mapper = new ObjectMapper();
         authoring = new ContentAuthoringService(jdbc, mapper, new LessonContentValidator(mapper));
         releases = new ContentReleaseService(jdbc, mapper);
+        appRegistry = new AcademyAppRegistryService(jdbc);
         rateLimits = new AuthRateLimitService(jdbc);
         auth = new AuthService(jdbc, new BCryptPasswordEncoder());
         taxonomy = new TaxonomyAdminService(jdbc);
@@ -257,6 +261,36 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 "SELECT COUNT(*) FROM auth_identities WHERE user_id=?",
                 Integer.class, federatedOnly.id());
         assertThat(remaining).isEqualTo(1);
+    }
+
+    @Test
+    void registeredAppReleasePolicyValidatesIdentityVersionsAndDisabledState() {
+        String appCode = "TEST_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String applicationId = "com.test.academy." + UUID.randomUUID().toString().replace("-", "");
+        jdbc.update("""
+                INSERT INTO academy_apps(id,academy_id,app_code,platform,application_id,display_name,status,
+                    minimum_supported_version,current_version)
+                VALUES (?,?,?,'ANDROID',?,'Registry Test','PLANNED','1.2.0','1.4.0')
+                """, UUID.randomUUID(), UUID.fromString("50000000-0000-0000-0000-000000000001"),
+                appCode, applicationId);
+
+        var planned = appRegistry.policy(appCode, "ANDROID", applicationId, "1.0.0");
+        assertThat(planned.status()).isEqualTo("PLANNED");
+        assertThat(planned.updateStatus()).isEqualTo("UPDATE_REQUIRED");
+        assertThatThrownBy(() -> appRegistry.policy(appCode, "IOS", applicationId, null))
+                .isInstanceOf(ResponseStatusException.class);
+
+        appRegistry.update(appCode, new ReleaseUpdate("ACTIVE", "1.2.0", "1.4.0",
+                "https://apps.example.test/store", "Release candidate"));
+        assertThat(appRegistry.policy(appCode, "ANDROID", applicationId, "1.3.0").updateStatus())
+                .isEqualTo("UPDATE_AVAILABLE");
+        assertThatThrownBy(() -> appRegistry.update(appCode,
+                new ReleaseUpdate("ACTIVE", "2.0.0", "1.4.0", null, null)))
+                .isInstanceOf(ResponseStatusException.class);
+
+        appRegistry.update(appCode, new ReleaseUpdate("SUSPENDED", "1.2.0", "1.4.0", null, null));
+        assertThatThrownBy(() -> appRegistry.policy(appCode, "ANDROID", applicationId, "1.4.0"))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     private static CurrentUser user(String name, String role) {

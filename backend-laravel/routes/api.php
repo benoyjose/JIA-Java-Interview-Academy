@@ -8,10 +8,12 @@ use App\Http\Controllers\Api\V1\QuizController;
 use App\Http\Controllers\Api\V1\LearnerLibraryController;
 use App\Http\Controllers\Api\V1\LessonImportController;
 use App\Http\Controllers\Api\V1\QuestionImportController;
+use App\Http\Controllers\Api\V1\AppReleasePolicyController;
 use App\Http\Middleware\AuthenticateJiaToken;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
+    Route::get('/apps/{appCode}/release-policy', [AppReleasePolicyController::class, 'show']);
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
     Route::post('/auth/federated/google', [FederatedAuthController::class, 'google'])->middleware('throttle:10,1');
@@ -23,6 +25,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/quiz-attempts', [QuizController::class, 'start']);
+        Route::put('/apps/{appCode}/release-policy', [AppReleasePolicyController::class, 'update'])->middleware('jia.permission:releases.manage');
         Route::post('/admin/lessons/import', [LessonImportController::class, 'import'])->middleware('jia.permission:content.create');
         Route::post('/admin/questions/import', [QuestionImportController::class, 'import'])->middleware('jia.permission:content.create');
         Route::post('/quiz-attempts/{attemptId}/answers', [QuizController::class, 'saveAnswers']);
