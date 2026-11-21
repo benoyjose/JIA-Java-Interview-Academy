@@ -23,6 +23,10 @@ tags:
     description: Authenticated learner progress and saved lessons.
   - name: Subscriptions
     description: Academy-scoped subscription and entitlement lifecycle.
+  - name: Learner Discovery
+    description: Academy-scoped search and explainable learning recommendations.
+  - name: Learner Notifications
+    description: Learner revision schedules, preferences and in-app reminders.
 paths:
   /apps/{appCode}/release-policy:
     get:
@@ -220,6 +224,138 @@ paths:
                     currency: { type: string, minLength: 3, maxLength: 3 }
                     billingInterval: { type: string, enum: [MONTHLY, YEARLY, LIFETIME] }
                     featuresJson: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/academies/{academyCode}/search:
+    get:
+      summary: Search published academy curriculum and question metadata
+      tags: [Learner Discovery]
+      operationId: searchAcademyLearningContent
+      parameters:
+        - { name: academyCode, in: path, required: true, schema: { type: string } }
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 100 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Ranked academy search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [type, slug, title, summary]
+                  properties:
+                    type: { type: string, enum: [TECHNOLOGY, CATEGORY, LESSON, QUESTION] }
+                    slug: { type: string }
+                    title: { type: string }
+                    summary: { type: string }
+                    categorySlug: { type: [string, 'null'] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/academies/{academyCode}/recommendations:
+    get:
+      summary: Get deterministic personalized lesson recommendations
+      tags: [Learner Discovery]
+      operationId: getAcademyLearningRecommendations
+      parameters:
+        - { name: academyCode, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 30, default: 12 } }
+      responses:
+        '200':
+          description: Explainable results ranked by bookmarks, progress and curriculum
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [lessonSlug, title, summary, reason]
+                  properties:
+                    lessonSlug: { type: string }
+                    title: { type: string }
+                    summary: { type: string }
+                    categorySlug: { type: string }
+                    reason: { type: string, enum: [BOOKMARKED, CONTINUE_LEARNING, NEXT_IN_TRACK, POPULAR_START] }
+  /me/academies/{academyCode}/notification-preferences:
+    get:
+      summary: Read learner reminder and quiet-hour preferences
+      tags: [Learner Notifications]
+      operationId: getAcademyNotificationPreferences
+      parameters: [{ name: academyCode, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' }
+    put:
+      summary: Update learner reminder and quiet-hour preferences
+      tags: [Learner Notifications]
+      operationId: updateAcademyNotificationPreferences
+      parameters: [{ name: academyCode, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' }
+      responses:
+        '200':
+          description: Preferences saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LearnerNotificationPreferences' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /me/academies/{academyCode}/revision-schedule:
+    get:
+      summary: List spaced-repetition due dates and materialize due reminders
+      tags: [Learner Notifications]
+      operationId: getAcademyRevisionSchedule
+      parameters: [{ name: academyCode, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Learner revision schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RevisionDue' }
+  /me/academies/{academyCode}/revision-schedule/{lessonSlug}/reviewed:
+    post:
+      summary: Record review and advance spaced-repetition interval
+      tags: [Learner Notifications]
+      operationId: recordAcademyLessonReview
+      parameters:
+        - { name: academyCode, in: path, required: true, schema: { type: string } }
+        - { name: lessonSlug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Review recorded }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/academies/{academyCode}/notifications:
+    get:
+      summary: List due in-app notifications
+      tags: [Learner Notifications]
+      operationId: listAcademyLearnerNotifications
+      parameters:
+        - { name: academyCode, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LearnerNotification' }
+  /me/academies/{academyCode}/notifications/{notificationId}/read:
+    post:
+      summary: Mark an owned academy notification as read
+      tags: [Learner Notifications]
+      operationId: markAcademyLearnerNotificationRead
+      parameters:
+        - { name: academyCode, in: path, required: true, schema: { type: string } }
+        - { name: notificationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Notification marked read }
         '404': { $ref: '#/components/responses/NotFound' }
   /auth/register:
     post:
@@ -1658,6 +1794,34 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
   schemas:
+    LearnerNotificationPreferences:
+      type: object
+      required: [remindersEnabled, pushEnabled, timezone]
+      properties:
+        remindersEnabled: { type: boolean }
+        pushEnabled: { type: boolean }
+        quietStart: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        quietEnd: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        timezone: { type: string, maxLength: 80, example: 'Asia/Kolkata' }
+    RevisionDue:
+      type: object
+      required: [lessonSlug, title, stage, dueAt]
+      properties:
+        lessonSlug: { type: string }
+        title: { type: string }
+        stage: { type: integer, minimum: 0, maximum: 5 }
+        dueAt: { type: string, format: date-time }
+    LearnerNotification:
+      type: object
+      required: [id, title, message, payload, status, scheduledAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        payload: { type: string, description: JSON payload serialized by this endpoint }
+        status: { type: string, enum: [PENDING, SENT, READ, SKIPPED] }
+        scheduledAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
     ApiError:
       type: object
       required: [code, message]
