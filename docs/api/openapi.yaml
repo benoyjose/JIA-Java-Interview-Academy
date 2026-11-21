@@ -159,7 +159,7 @@ paths:
                 periodEnd: { type: [string, 'null'], format: date-time }
                 entitlementCode: { type: [string, 'null'], maxLength: 80 }
       responses:
-        '200': { description: Event processed, ignored or deduplicated }
+        '200': { description: 'Event processed, ignored or deduplicated' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { description: Invalid HMAC signature }
         '404': { description: Provider subscription reference is not linked }
