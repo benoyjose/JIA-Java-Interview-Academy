@@ -62,6 +62,8 @@ jobs:
 
       - name: Run Compose UI tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_I_WANT_MY_TCG: "yes"
         with:
           api-level: 35
           target: google_apis
