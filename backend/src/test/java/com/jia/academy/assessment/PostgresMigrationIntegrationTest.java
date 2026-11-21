@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .migrate();
 
         assertThat(result.success).isTrue();
-        assertThat(result.migrationsExecuted).isEqualTo(25);
+        assertThat(result.migrationsExecuted).isEqualTo(26);
 
         try (var connection = POSTGRES.createConnection(""); var statement = connection.createStatement()) {
             try (var rows = statement.executeQuery(
@@ -185,4 +185,18 @@ class PostgresMigrationIntegrationTest {
             throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
         }
     }
-}
+}            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'
+                      AND table_name IN ('learner_notification_preferences','learner_revision_schedules','learner_notifications')
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(3);
+            }
+            try (var rows = statement.executeQuery("""
+                    SELECT COUNT(*) FROM pg_indexes WHERE schemaname='public'
+                      AND indexname IN ('idx_revision_schedule_due','idx_learner_notifications_inbox')
+                    """)) {
+                assertThat(rows.next()).isTrue();
+                assertThat(rows.getInt(1)).isEqualTo(2);
+            }
+
