@@ -41,8 +41,11 @@ fun LessonContentRenderer(raw: String) {
         Text("This lesson uses an unsupported or invalid content format.")
         return
     }
+    // Put the concise interview response before the supporting detail, regardless of authoring order.
+    val orderedBlocks = document.blocks.filterIsInstance<LessonBlock.InterviewAnswer>() +
+        document.blocks.filterNot { it is LessonBlock.InterviewAnswer }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        document.blocks.forEach { block ->
+        orderedBlocks.forEach { block ->
             when (block) {
                 is LessonBlock.Markdown -> LessonTextBlock(block.title, block.body)
                 is LessonBlock.Section -> LessonTextBlock(block.title, block.body)
@@ -160,9 +163,9 @@ private fun InterviewAnswerCard(block: LessonBlock.InterviewAnswer) {
     var expanded by remember(block.key) { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(block.title ?: "Interview answer", style = MaterialTheme.typography.titleMedium)
-            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"),
-            modifier = Modifier.semantics { contentDescription = "Interview answer with ${block.points.size} key points" })
+            Text(block.title ?: "Interview answer", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() })
+            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"))
             block.expandedExplanation?.let {
                 TextButton(onClick = { expanded = !expanded }) {
                     Text(if (expanded) "Hide detailed explanation" else "Show detailed explanation")

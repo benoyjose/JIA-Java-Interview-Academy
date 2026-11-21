@@ -35,6 +35,7 @@ kotlin {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
@@ -48,6 +49,8 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.coil.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
 }
