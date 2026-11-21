@@ -111,14 +111,28 @@ jobs:
           disable-animations: false
           script: |
             set +e
+            mkdir -p android/app/build/ci-diagnostics
             adb logcat -c
-            gradle -p android :app:connectedDebugAndroidTest --no-daemon --info
-            test_status=$?
+            gradle -p android :app:connectedDebugAndroidTest --no-daemon --info 2>&1 | tee android/app/build/ci-diagnostics/gradle-instrumentation.log
+            test_status=${PIPESTATUS[0]}
             if [ "$test_status" -ne 0 ]; then
-              echo "=== Instrumentation test result XML ==="
-              find android/app/build/outputs/androidTest-results android/app/build/reports/androidTests -type f 2>/dev/null | sort
-              find android/app/build/outputs/androidTest-results -name '*.xml' -type f -print -exec cat {} \; 2>/dev/null
-              echo "=== Relevant device logcat ==="
-              adb logcat -d -t 6000 2>/dev/null | grep -E -i "AndroidRuntime|FATAL EXCEPTION|Instrumentation|TestRunner|Assertion|Compose|junit|crash|ANR" | tail -n 350 || true
+              adb logcat -d -t 12000 > android/app/build/ci-diagnostics/emulator-logcat.txt 2>&1 || true
+              echo "=== Test XML failures ==="
+              find android/app/build/outputs/androidTest-results -name '*.xml' -type f -print -exec grep -E -n -C 4 '<failure|<error|testsuite|testcase' {} \; 2>/dev/null || true
+              echo "=== Crash / assertion summary ==="
+              grep -E -i -n -C 5 "AndroidRuntime|FATAL EXCEPTION|Instrumentation|TestRunner|Assertion|Compose|junit|crash|ANR" android/app/build/ci-diagnostics/emulator-logcat.txt | tail -n 500 || true
             fi
             exit "$test_status"
+
+      - name: Upload instrumentation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-instrumentation-diagnostics-${{ github.run_id }}
+          path: |
+            android/app/build/ci-diagnostics/
+            android/app/build/outputs/androidTest-results/
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/connected_android_test_additional_output/
+          if-no-files-found: warn
+          retention-days: 7
