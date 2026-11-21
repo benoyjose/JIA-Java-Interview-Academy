@@ -58,7 +58,7 @@ public class LearnerDiscoveryController {
             ) results ORDER BY rank_score,title LIMIT ?
             """,(rs,n)->new SearchResult(rs.getString("kind"),rs.getString("slug"),rs.getString("title"),
                 rs.getString("summary"),rs.getString("category_slug")),academy,pattern,pattern,academy,pattern,pattern,
-                academy,pattern,pattern,pattern,academy,pattern,pattern,pattern,user.id(),safeLimit);
+                academy,pattern,pattern,pattern,academy,pattern,pattern,pattern,safeLimit);
     }
 
     @GetMapping("/recommendations")
@@ -148,9 +148,13 @@ public class LearnerDiscoveryController {
               'REVISION:'||s.lesson_id||':'||s.stage||':'||to_char(s.due_at AT TIME ZONE 'UTC','YYYYMMDDHH24MI'),
               'Revision reminder', 'Time to revisit '||l.title,
               jsonb_build_object('lessonSlug',l.slug,'stage',s.stage), 'PENDING',
-              CASE WHEN prefs.quiet_start IS NOT NULL AND
-                ((now() AT TIME ZONE prefs.timezone)::time BETWEEN prefs.quiet_start AND prefs.quiet_end)
-                THEN (date_trunc('day',now() AT TIME ZONE prefs.timezone)+prefs.quiet_end) AT TIME ZONE prefs.timezone
+              CASE WHEN prefs.quiet_start IS NOT NULL AND (
+                (prefs.quiet_start<=prefs.quiet_end AND (now() AT TIME ZONE prefs.timezone)::time BETWEEN prefs.quiet_start AND prefs.quiet_end)
+                OR (prefs.quiet_start>prefs.quiet_end AND ((now() AT TIME ZONE prefs.timezone)::time>=prefs.quiet_start
+                    OR (now() AT TIME ZONE prefs.timezone)::time<prefs.quiet_end)))
+                THEN (date_trunc('day',now() AT TIME ZONE prefs.timezone)+prefs.quiet_end+
+                    CASE WHEN prefs.quiet_start>prefs.quiet_end AND (now() AT TIME ZONE prefs.timezone)::time>=prefs.quiet_start
+                         THEN interval '1 day' ELSE interval '0 day' END) AT TIME ZONE prefs.timezone
                 ELSE s.due_at END
             FROM learner_revision_schedules s JOIN lessons l ON l.id=s.lesson_id
             LEFT JOIN learner_notification_preferences prefs ON prefs.user_id=s.user_id AND prefs.academy_id=s.academy_id
