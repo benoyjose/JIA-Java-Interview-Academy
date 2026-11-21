@@ -62,11 +62,11 @@ jobs:
 
       - name: Run Compose UI tests on emulator
         uses: reactivecircus/android-emulator-runner@v2
-        env:
-          ANDROID_I_WANT_MY_TCG: "yes"
         with:
-          api-level: 35
+          api-level: 30
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          emulator-options: "-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim"
+          disable-animations: true
           script: gradle -p android :app:connectedDebugAndroidTest --no-daemon
