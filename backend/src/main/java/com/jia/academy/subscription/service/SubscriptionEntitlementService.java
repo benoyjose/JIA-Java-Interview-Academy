@@ -54,6 +54,37 @@ public class SubscriptionEntitlementService {
                 """, (rs, n) -> rs.getInt(1), userId, academyId, code).isEmpty();
     }
 
+    @Transactional(readOnly = true)
+    public List<SubscriptionSummary> subscriptions(CurrentUser user, String academyCode) {
+        UUID academyId = academyId(user, academyCode);
+        return jdbc.query("""
+                SELECT s.provider_code,p.code AS plan_code,s.status,s.current_period_end,
+                       s.cancel_at_period_end
+                FROM academy_subscriptions s
+                JOIN academy_subscription_plans p ON p.id=s.plan_id AND p.academy_id=s.academy_id
+                WHERE s.user_id=? AND s.academy_id=?
+                ORDER BY s.created_at DESC LIMIT 50
+                """, (rs, n) -> new SubscriptionSummary(rs.getString("provider_code"),
+                rs.getString("plan_code"),rs.getString("status"),
+                rs.getTimestamp("current_period_end")==null?null:rs.getTimestamp("current_period_end").toInstant(),
+                rs.getBoolean("cancel_at_period_end")), user.id(), academyId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PlanSummary> plans(String academyCode) {
+        if (academyCode == null || !academyCode.matches("[A-Z][A-Z0-9_]{1,39}")) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Academy not found");
+        }
+        return jdbc.query("""
+                SELECT p.code,p.name,p.price_minor,p.currency,p.billing_interval,p.features::text
+                FROM academy_subscription_plans p JOIN academies a ON a.id=p.academy_id
+                WHERE a.code=? AND a.status='ACTIVE' AND p.status='ACTIVE'
+                ORDER BY p.price_minor,p.code
+                """, (rs,n)->new PlanSummary(rs.getString("code"),rs.getString("name"),
+                rs.getLong("price_minor"),rs.getString("currency"),rs.getString("billing_interval"),
+                rs.getString("features")), academyCode);
+    }
+
     @Transactional
     public WebhookResult acceptWebhook(String providerCode, String signature, String rawBody) {
         if (webhookSecret.isBlank()) {
@@ -175,6 +206,8 @@ public class SubscriptionEntitlementService {
     }
 
     public record Entitlement(String code, String status, java.time.Instant validUntil) {}
+    public record SubscriptionSummary(String providerCode, String planCode, String status, java.time.Instant currentPeriodEnd, boolean cancelAtPeriodEnd) {}
+    public record PlanSummary(String code, String name, long priceMinor, String currency, String billingInterval, String featuresJson) {}
     public record WebhookResult(String status, String eventId) {}
     public record ProviderEvent(String id, String type, String subscriptionId,
             String periodEnd, String entitlementCode) {}
