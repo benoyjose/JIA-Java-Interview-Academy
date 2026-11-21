@@ -199,3 +199,4 @@ class PostgresMigrationIntegrationTest {
             throw new AssertionError("Unable to verify migrated PostgreSQL schema", ex);
         }
     }
+}
