@@ -18,4 +18,6 @@ ALTER TABLE academy_apps
     ADD CONSTRAINT chk_academy_app_version_length
         CHECK (minimum_supported_version IS NULL OR length(minimum_supported_version) <= 40),
     ADD CONSTRAINT chk_academy_app_current_version_length
-        CHECK (current_version IS NULL OR length(current_version) <= 40);
+        CHECK (current_version IS NULL OR length(current_version) <= 40),
+    CONSTRAINT chk_academy_app_release_notes_length
+        CHECK (release_notes IS NULL OR length(release_notes) <= 5000);
