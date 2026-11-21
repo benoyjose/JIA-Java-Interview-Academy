@@ -876,6 +876,48 @@ paths:
       responses:
         '200': { description: 'Revision history, newest first' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /admin/analytics/summary:
+    get:
+      summary: Get aggregate learner and assessment analytics for the administrator's default academy
+      tags: [Content Admin]
+      operationId: getAcademyAdminAnalyticsSummary
+      parameters:
+        - name: windowDays
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 365, default: 30 }
+      responses:
+        '200':
+          description: Academy-scoped aggregate metrics; contains no learner-identifying information
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [academyId, academyCode, windowDays, totalLearners, activeLearners, lessonsCompleted, quizAttempts, scoredAttempts, topTopics]
+                properties:
+                  academyId: { type: string, format: uuid }
+                  academyCode: { type: string }
+                  windowDays: { type: integer, minimum: 1, maximum: 365 }
+                  totalLearners: { type: integer, minimum: 0 }
+                  activeLearners: { type: integer, minimum: 0, description: 'Learners with progress, assessment or review activity in the requested window' }
+                  lessonsCompleted: { type: integer, minimum: 0, description: Lifetime completed lesson records in this academy }
+                  quizAttempts: { type: integer, minimum: 0, description: Submitted attempts within the requested window }
+                  averageScorePercent: { type: [number, 'null'], minimum: 0, maximum: 100 }
+                  scoredAttempts: { type: integer, minimum: 0 }
+                  topTopics:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      required: [topicSlug, topicName, attempts]
+                      properties:
+                        topicSlug: { type: string }
+                        topicName: { type: string }
+                        attempts: { type: integer, minimum: 0 }
+                        averageScorePercent: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /admin/users:
     get:
       summary: Search users for access administration
