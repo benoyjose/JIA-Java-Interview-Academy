@@ -52,7 +52,7 @@ public class LearnerDiscoveryController {
                 COALESCE(qr.explanation,''),c.slug,3
               FROM questions q JOIN question_revisions qr ON qr.question_id=q.id AND qr.revision_number=q.current_revision
                 JOIN technologies t ON t.id=q.technology_id LEFT JOIN categories c ON c.id=q.category_id
-              WHERE q.academy_id=? AND q.status='PUBLISHED' AND t.status='PUBLISHED'
+              WHERE q.academy_id=? AND q.academy_id=t.academy_id AND q.status='PUBLISHED' AND t.status='PUBLISHED' AND (q.category_id IS NULL OR c.status='PUBLISHED')
                 AND (qr.prompt_json::text ILIKE ? ESCAPE '\\' OR COALESCE(q.slug,'') ILIKE ? ESCAPE '\\'
                   OR COALESCE(qr.explanation,'') ILIKE ? ESCAPE '\\')
             ) results ORDER BY rank_score,title LIMIT ?
