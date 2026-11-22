@@ -29,6 +29,13 @@ class LessonContentValidatorTest {
     }
 
     @Test
+    void rejectsMissingOrNonNumericSchemaVersionAndMissingBlocks() {
+        assertThrows(ResponseStatusException.class, () -> validator.validate("{\"blocks\":[]}"));
+        assertThrows(ResponseStatusException.class, () -> validator.validate("{\"schemaVersion\":\"1\",\"blocks\":[]}"));
+        assertThrows(ResponseStatusException.class, () -> validator.validate("{\"schemaVersion\":1}"));
+    }
+
+    @Test
     void rejectsUnsupportedSchemaVersion() {
         assertThrows(ResponseStatusException.class, () -> validator.validate(
             "{\"schemaVersion\":2,\"blocks\":[]}"));
