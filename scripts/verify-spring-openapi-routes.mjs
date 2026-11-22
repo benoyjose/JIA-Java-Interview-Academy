@@ -57,7 +57,7 @@ console.log("Verified " + springRoutes.size + " Spring Boot route/method mapping
 const laravelRouteFile = "backend-laravel/routes/api.php";
 const laravelSource = fs.readFileSync(laravelRouteFile, "utf8");
 const laravelRoutes = new Set();
-const laravelMappingPattern = /Route::(get|post|put|patch|delete)\\s*\\(\\s*['"]([^'"]+)['"]/g;
+const laravelMappingPattern = /Route::(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/g;
 for (const match of laravelSource.matchAll(laravelMappingPattern)) {
   const method = match[1].toLowerCase();
   const route = match[2];
