@@ -25,6 +25,48 @@ final class JIAClientModelTests: XCTestCase {
         XCTAssertEqual(token.user.roles, ["LEARNER"])
     }
 
+
+    func testQuizQuestionAndSelfReviewResultDecodeSharedAssessmentContract() throws {
+        let questionJSON = """
+        {
+          "position":1,
+          "questionType":"CODING",
+          "prompt":{"text":"Implement a safe retry","code":{"language":"java","source":"return retry();"}},
+          "options":[],
+          "hint":"Consider idempotency"
+        }
+        """.data(using: .utf8)!
+        let question = try JSONDecoder().decode(JIAQuizQuestion.self, from: questionJSON)
+        XCTAssertTrue(question.requiresTextResponse)
+        XCTAssertEqual(question.prompt.code?.language, "java")
+
+        let resultJSON = """
+        {
+          "attemptId":"70000000-0000-0000-0000-000000000001",
+          "questionCount":1,
+          "correctCount":0,
+          "gradedQuestionCount":0,
+          "selfReviewQuestionCount":1,
+          "scorePercent":0,
+          "timedOut":false,
+          "answers":[{"position":1,"isCorrect":null,"requiresSelfReview":true,"explanation":"Review against rubric"}]
+        }
+        """.data(using: .utf8)!
+        let result = try JSONDecoder().decode(JIAQuizResultResponse.self, from: resultJSON)
+        XCTAssertEqual(result.selfReviewQuestionCount, 1)
+        XCTAssertNil(result.answers.first?.isCorrect)
+        XCTAssertTrue(result.answers.first?.requiresSelfReview == true)
+    }
+
+    func testQuizHistoryMapsBackendIdField() throws {
+        let json = """
+        {"id":"70000000-0000-0000-0000-000000000002","difficulty":"EXPERT","mode":"TIMED_MOCK","questionCount":20,"correctCount":15,"scorePercent":75.0,"status":"SUBMITTED"}
+        """.data(using: .utf8)!
+        let history = try JSONDecoder().decode(JIAQuizHistoryItem.self, from: json)
+        XCTAssertEqual(history.mode, .timedMock)
+        XCTAssertEqual(history.questionCount, 20)
+    }
+
     func testTechnologyDecodesSharedCatalogueContract() throws {
         let json = """
         {"id":"10000000-0000-0000-0000-000000000001","slug":"core-java","name":"Core Java","description":"Java fundamentals","sortOrder":1}

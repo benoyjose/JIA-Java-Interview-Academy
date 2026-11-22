@@ -46,6 +46,11 @@ public struct JIAAppShell: View {
                         Label("Account", systemImage: "person.crop.circle")
                     }
                 }
+                ToolbarItem(placement: .automatic) {
+                    NavigationLink { JIAQuizView(client: client, session: authSession) } label: {
+                        Label("Quiz", systemImage: "checklist")
+                    }
+                }
             }
             .task { await authSession.restoreSession() }
             .task { await load() }

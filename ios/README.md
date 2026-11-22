@@ -44,3 +44,9 @@ The native app shell now exposes an account screen using the shared Spring authe
 - Public catalogue and lesson browsing remains available without authentication.
 
 This is a first parity slice, not full iOS parity. Quiz/mock assessment, learner progress/bookmarks, offline content sync and the maintained parity checklist remain separate follow-up work.
+
+## Assessment parity increment
+
+The native SwiftUI quiz feature now consumes the shared assessment API for practice, timed mock, daily challenge and weak-area modes. It supports objective selection, free-response coding/SQL/debugging/scenario prompts, result/rubric display, history, question count and timed-mock duration. The timed mock uses the server deadline and automatically submits at expiry.
+
+This is an incremental feature parity slice. Resume/abandon and filtered topic selection are being aligned with the current backend PR; progress/bookmarks and offline sync remain outstanding.
