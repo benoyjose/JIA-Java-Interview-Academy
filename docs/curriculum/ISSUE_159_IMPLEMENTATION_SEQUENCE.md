@@ -23,8 +23,8 @@ Track authored, technically reviewed, imported, approved and published states se
 - [x] Spring container, Boot, transactions and security — PR #163 merged; review/import/publish pending.
 - [x] [JPA, Hibernate, SQL and data engineering](persistence/01-jpa-hibernate-sql-and-data-engineering.md) — PR #164 merged; review/import/publish pending.
 - [x] [Microservices, resilience, consistency and sagas](distributed-systems/01-microservices-resilience-consistency-and-sagas.md) — PR #166 merged; review/import/publish pending.
-- [x] [Kafka, RabbitMQ and event-driven systems](messaging/01-kafka-rabbitmq-event-driven-systems.md) — authored in current PR; review/import/publish pending.
-- [ ] System design and architecture.
+- [x] [Kafka, RabbitMQ and event-driven systems](messaging/01-kafka-rabbitmq-event-driven-systems.md) — PR #167 merged; review/import/publish pending.
+- [x] [System design, capacity, reliability and multi-region](system-design/01-system-design-capacity-reliability-multiregion.md) — authored in current PR; review/import/publish pending.
 - [ ] Cloud, Kubernetes and delivery.
 - [ ] Observability, security and leadership.
 
