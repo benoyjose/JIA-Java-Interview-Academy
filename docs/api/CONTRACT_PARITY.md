@@ -6,6 +6,14 @@
 **Primary production backend:** Spring Boot  
 **Deployment rule:** one active backend implementation writes to the canonical database at a time.
 
+## Contract completion status
+
+The OpenAPI route inventory is now complete for the **implemented** Spring Boot and Laravel routes. CI runs the Spring controller/OpenAPI and Laravel route/OpenAPI coverage check, OpenAPI lint, and unique operation-ID validation. Shared `error-response-parity.json` fixtures are consumed by both backends; HTTP tests cover successful JSON responses, validation errors, authentication failures, permission denial, not-found and sanitized server errors.
+
+This is contract completeness for the implemented surface, not a claim that both backends have identical feature sets. The active production implementation is Spring Boot. Laravel remains a secondary compatibility backend, and the feature/authorization/session differences below are explicitly deferred. Mobile and admin clients must use the normative Spring contract and must not branch on an inactive backend.
+
+The remaining items below are **feature parity work**, not undocumented routes or a reason to dual-write. Close parity gaps only with matching route behavior, permission tests and release evidence.
+
 ## Spring Boot route coverage
 
 Every Spring MVC controller route under `backend/src/main/java` must be represented by the OpenAPI document. The `verify-spring-openapi-routes.mjs` CI check extracts class-level and method-level Spring mapping annotations and fails if a route is undocumented. This is a route-presence gate; it does not replace request/response schema, authorization or integration tests.
