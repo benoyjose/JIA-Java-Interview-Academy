@@ -82,6 +82,22 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void rejectsDuplicatePendingReviewSubmissionWithoutCreatingAnotherTask() {
+        String slug = "duplicate-review-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Review once"));
+        UUID firstTask = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+
+        assertThatThrownBy(() -> service.submitForReview(editor, draft.id()))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(409));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM content_review_tasks WHERE lesson_id=?",
+                Integer.class, draft.id())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT status FROM content_review_tasks WHERE id=?",
+                String.class, firstTask)).isEqualTo("PENDING");
+    }
+
+    @Test
     void publishedLessonStaysLiveUntilApprovedRevisionIsPromoted() {
         String slug = "published-revision-" + UUID.randomUUID();
         var initial = service.createDraft(editor, request(slug, "Published title v1"));
