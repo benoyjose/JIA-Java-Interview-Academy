@@ -116,6 +116,44 @@ class LearningServiceAcademyIsolationPostgresTest {
                 """, Integer.class, learner.id(), otherLessonId)).isEqualTo(1);
     }
 
+    @Test
+    void progressUpdatesAreIdempotentMonotonicAndCompletionCannotRegress() {
+        UUID technologyId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        UUID lessonId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+        String slug = "progress-contract-" + UUID.randomUUID();
+        jdbc.update("INSERT INTO technologies(id,academy_id,slug,name,sort_order,status) VALUES (?,?,'progress-tech','Progress Tech',2,'PUBLISHED')",
+                technologyId, JIA_ID);
+        jdbc.update("INSERT INTO categories(id,technology_id,slug,name,sort_order,status) VALUES (?,?,'progress-category','Progress Category',2,'PUBLISHED')",
+                categoryId, technologyId);
+        jdbc.update("""
+                INSERT INTO lessons(id,category_id,slug,title,summary,difficulty,content_json,
+                    content_revision,source_type,status)
+                VALUES (?,?,?,'Progress contract',NULL,'BEGINNER','{}'::jsonb,1,'ADMIN_AUTHORED','DRAFT')
+                """, lessonId, categoryId, slug);
+        jdbc.update("""
+                INSERT INTO lesson_revisions(id,lesson_id,revision_number,title,summary,difficulty,
+                    content_json,source_type,changed_by,change_note)
+                VALUES (?,?,1,'Progress contract',NULL,'BEGINNER','{}'::jsonb,'ADMIN_AUTHORED',?,'test')
+                """, revisionId, lessonId, learner.id());
+        jdbc.update("UPDATE lessons SET status='PUBLISHED',published_revision_id=? WHERE id=?", revisionId, lessonId);
+
+        var partial = learning.updateProgress(learner, slug,
+                new LearningService.ProgressRequest(1, BigDecimal.valueOf(45), null));
+        var completed = learning.updateProgress(learner, slug,
+                new LearningService.ProgressRequest(1, BigDecimal.valueOf(100), null));
+        var stale = learning.updateProgress(learner, slug,
+                new LearningService.ProgressRequest(1, BigDecimal.valueOf(20), null));
+
+        assertThat(partial.progressPercent()).isEqualByComparingTo("45");
+        assertThat(completed.status()).isEqualTo("COMPLETED");
+        assertThat(stale.progressPercent()).isEqualByComparingTo("100");
+        assertThat(stale.status()).isEqualTo("COMPLETED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM learner_lesson_progress WHERE user_id=? AND lesson_id=?",
+                Integer.class, learner.id(), lessonId)).isEqualTo(1);
+    }
+
     private static void assertNotFound(Runnable action) {
         assertThatThrownBy(action::run)
                 .isInstanceOf(ResponseStatusException.class)
