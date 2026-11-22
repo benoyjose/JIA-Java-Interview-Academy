@@ -203,6 +203,19 @@ class QuizControllerPostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempts WHERE user_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=CURRENT_DATE", Integer.class, USER_ONE)).isEqualTo(1);
     }
 
+
+    @Test
+    void dailyChallengeCannotBeStartedAgainAfterCompletionForThatUtcDay() {
+        Map<String,Object> daily=controller.start(learnerOne,
+                Map.of("difficulty","BEGINNER","questionCount",2,"mode","DAILY_CHALLENGE"));
+        UUID attemptId=(UUID) daily.get("attemptId");
+        controller.submit(learnerOne,attemptId,answers(1,2));
+        assertThatThrownBy(() -> controller.start(learnerOne,
+                Map.of("difficulty","BEGINNER","questionCount",2,"mode","DAILY_CHALLENGE")))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+    }
+
     @Test
     void weakAreaModeUsesLearnerPerformanceAndCreatesAnAttempt() {
         UUID previousAttempt = startAttempt();
