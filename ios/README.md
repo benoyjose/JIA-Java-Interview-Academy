@@ -50,3 +50,7 @@ This is a first parity slice, not full iOS parity. Quiz/mock assessment, learner
 The native SwiftUI quiz feature now consumes the shared assessment API for practice, timed mock, daily challenge and weak-area modes. It supports objective selection, free-response coding/SQL/debugging/scenario prompts, result/rubric display, history, question count and timed-mock duration. The timed mock uses the server deadline and automatically submits at expiry.
 
 This is an incremental feature parity slice. Resume/abandon and filtered topic selection are being aligned with the current backend PR; progress/bookmarks and offline sync remain outstanding.
+
+### Assessment continuity
+
+The iOS assessment client now supports technology/category-filtered question selection, filtered availability, restoring saved single/multi-select and text responses from an in-progress attempt, resuming today's active daily challenge, and abandoning attempts from history. These operations use the same authenticated API and ownership/status rules as Android.

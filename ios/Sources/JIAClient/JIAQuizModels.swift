@@ -47,6 +47,30 @@ public struct JIAQuizQuestion: Codable, Sendable, Equatable, Identifiable {
     public var allowsMultipleSelection: Bool { questionType == "MULTI_SELECT" }
 }
 
+public struct JIAQuizSavedResponse: Codable, Sendable, Equatable {
+    public let value: String?
+    public let values: [String]?
+}
+
+public struct JIAQuizSavedAnswer: Codable, Sendable, Equatable, Identifiable {
+    public let position: Int
+    public let response: JIAQuizSavedResponse
+    public let timeSpentMs: Int?
+    public var id: Int { position }
+}
+
+public struct JIAQuizTopic: Sendable, Identifiable, Equatable {
+    public let technologySlug: String
+    public let categorySlug: String
+    public let label: String
+    public var id: String { technologySlug + "/" + categorySlug }
+}
+
+public struct JIAQuizAvailability: Codable, Sendable, Equatable {
+    public let difficulty: String
+    public let availableQuestionCount: Int
+}
+
 public struct JIAQuizAttemptResponse: Codable, Sendable, Equatable {
     public let attemptId: UUID
     public let difficulty: String
@@ -55,6 +79,7 @@ public struct JIAQuizAttemptResponse: Codable, Sendable, Equatable {
     public let deadlineAt: String?
     public let durationLimitSeconds: Int?
     public let questions: [JIAQuizQuestion]
+    public let savedAnswers: [JIAQuizSavedAnswer]?
 }
 
 public struct JIAQuizAnswerResult: Codable, Sendable, Equatable, Identifiable {

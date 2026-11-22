@@ -6,6 +6,9 @@ public struct JIAQuizView: View {
     @State private var selectedMode: JIAQuizMode = .practice
     @State private var difficulty = "PROFESSIONAL"
     @State private var questionCount = 10
+    @State private var topicOptions: [JIAQuizTopic] = []
+    @State private var selectedTopicID: String?
+    @State private var availableQuestionCount = 0
     @State private var durationSeconds = 1800
     @State private var remainingSeconds: Int?
     @State private var attempt: JIAQuizAttemptResponse?
@@ -103,7 +106,7 @@ public struct JIAQuizView: View {
                     Button(loading ? "Submitting…" : "Submit answers") {
                         Task { await submit() }
                     }
-                    .disabled(loading || (attempt.mode != .timedMock && answers.count < attempt.questions.count))
+                    .disabled(loading || answers.count < attempt.questions.count)
                     Button("Abandon attempt", role: .destructive) {
                         Task { await abandon() }
                     }
@@ -119,9 +122,15 @@ public struct JIAQuizView: View {
                             Text(level.capitalized).tag(level)
                         }
                     }
+                    Picker("Topic", selection: $selectedTopicID) {
+                        Text("All topics").tag(String?.none)
+                        ForEach(topicOptions) { topic in Text(topic.label).tag(Optional(topic.id)) }
+                    }
                     Picker("Questions", selection: $questionCount) {
                         ForEach([5, 10, 20], id: \.self) { count in Text("\(count)").tag(count) }
                     }
+                    Text("Available for this selection: \(availableQuestionCount)")
+                        .font(.footnote).foregroundStyle(.secondary)
                     if selectedMode == .timedMock {
                         Picker("Duration", selection: $durationSeconds) {
                             Text("15 minutes").tag(900)
@@ -132,7 +141,7 @@ public struct JIAQuizView: View {
                     Button(loading ? "Starting…" : "Start \(selectedMode.title.lowercased())") {
                         Task { await start() }
                     }
-                    .disabled(loading || !session.isSignedIn)
+                    .disabled(loading || !session.isSignedIn || availableQuestionCount == 0)
                 }
                 Section("Recent attempts") {
                     Button("Load history") { Task { await loadHistory() } }
@@ -141,6 +150,10 @@ public struct JIAQuizView: View {
                             Text("\(item.mode.title) · \(item.difficulty)")
                             Text("\(item.correctCount ?? 0)/\(item.questionCount) · \(item.scorePercent.map { String(format: "%.1f%%", $0) } ?? item.status)")
                                 .font(.footnote).foregroundStyle(.secondary)
+                            if item.status == "IN_PROGRESS" {
+                                Button("Resume") { Task { await resume(item) } }
+                                Button("Abandon", role: .destructive) { Task { await abandon(item.attemptId) } }
+                            }
                         }
                     }
                 }
@@ -150,7 +163,10 @@ public struct JIAQuizView: View {
             }
         }
         .navigationTitle("Quiz & Mock Interview")
-        .task { await session.refreshIfNeeded() }
+        .task { await session.refreshIfNeeded(); await loadTopics() }
+        .task(id: "\(difficulty)|\(selectedTopicID ?? "all")") {
+            await loadAvailability()
+        }
         .task(id: attempt?.deadlineAt) {
             guard let current = attempt, current.mode == .timedMock,
                   let deadline = parsedDeadline(current.deadlineAt) else {
@@ -187,19 +203,111 @@ public struct JIAQuizView: View {
     }
 
     private func start() async {
+        await session.refreshIfNeeded()
         guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        let topic = topicOptions.first { $0.id == selectedTopicID }
+        let requestedCount = min(questionCount, availableQuestionCount)
+        guard requestedCount > 0 else { errorMessage = "No published questions match this topic and difficulty."; return }
         loading = true
         errorMessage = nil
         defer { loading = false }
         do {
-            let body = StartRequest(difficulty: difficulty, questionCount: questionCount,
-                mode: selectedMode, durationSeconds: selectedMode == .timedMock ? durationSeconds : nil)
+            let body = StartRequest(difficulty: difficulty, questionCount: requestedCount,
+                mode: selectedMode, durationSeconds: selectedMode == .timedMock ? durationSeconds : nil,
+                technologySlug: topic?.technologySlug, categorySlug: topic?.categorySlug)
             let data = try JSONEncoder().encode(body)
             let started: JIAQuizAttemptResponse = try await client.request(
                 "/api/v1/quiz-attempts", token: token, method: "POST", body: data)
-            attempt = started
-            answers = [:]
+            if selectedMode == .dailyChallenge {
+                let restored: JIAQuizAttemptResponse = try await client.request(
+                    "/api/v1/quiz-attempts/\(started.attemptId)", token: token)
+                attempt = restored
+                restoreAnswers(from: restored)
+            } else {
+                attempt = started
+                answers = [:]
+            }
             result = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadTopics() async {
+        do {
+            let technologies: [JIATechnology] = try await client.request("/api/v1/technologies")
+            var result: [JIAQuizTopic] = []
+            for technology in technologies {
+                let categories: [JIACategory] = try await client.request(
+                    "/api/v1/technologies/\(technology.slug)/categories")
+                result += categories.map {
+                    JIAQuizTopic(technologySlug: technology.slug, categorySlug: $0.slug,
+                                 label: "\(technology.name) / \($0.name)")
+                }
+            }
+            topicOptions = result.sorted {
+                $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadAvailability() async {
+        guard attempt == nil else { return }
+        let topic = topicOptions.first { $0.id == selectedTopicID }
+        var query = [URLQueryItem(name: "difficulty", value: difficulty)]
+        if let topic {
+            query.append(URLQueryItem(name: "technologySlug", value: topic.technologySlug))
+            query.append(URLQueryItem(name: "categorySlug", value: topic.categorySlug))
+        }
+        var components = URLComponents()
+        components.queryItems = query
+        let suffix = components.percentEncodedQuery.map { "?" + $0 } ?? ""
+        do {
+            let response: JIAQuizAvailability = try await client.request(
+                "/api/v1/quizzes/availability\(suffix)")
+            availableQuestionCount = response.availableQuestionCount
+        } catch {
+            availableQuestionCount = 0
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func resume(_ item: JIAQuizHistoryItem) async {
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        loading = true
+        defer { loading = false }
+        do {
+            let restored: JIAQuizAttemptResponse = try await client.request(
+                "/api/v1/quiz-attempts/\(item.attemptId)", token: token)
+            attempt = restored
+            restoreAnswers(from: restored)
+            result = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func restoreAnswers(from attempt: JIAQuizAttemptResponse) {
+        let saved = attempt.savedAnswers ?? []
+        answers = Dictionary(uniqueKeysWithValues: saved.compactMap { row -> (Int, Set<String>)? in
+            let values = Set(row.response.values ?? row.response.value.map { [$0] } ?? [])
+            return values.isEmpty ? nil : (row.position, values)
+        })
+    }
+
+    private func abandon(_ id: UUID) async {
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        loading = true
+        defer { loading = false }
+        do {
+            let _: EmptyResponse = try await client.request(
+                "/api/v1/quiz-attempts/\(id)/abandon", token: token, method: "POST", body: Data("{}".utf8))
+            history.removeAll { $0.attemptId == id }
+            if attempt?.attemptId == id { attempt = nil; answers = [:] }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -260,6 +368,8 @@ public struct JIAQuizView: View {
         let questionCount: Int
         let mode: JIAQuizMode
         let durationSeconds: Int?
+        let technologySlug: String?
+        let categorySlug: String?
     }
     private struct EmptyResponse: Decodable {}
 }
