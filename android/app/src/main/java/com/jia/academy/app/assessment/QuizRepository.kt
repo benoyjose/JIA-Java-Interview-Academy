@@ -131,10 +131,11 @@ class QuizRepository(private val context: Context? = null) {
 
     suspend fun start(baseUrl: String, token: String, difficulty: String, count: Int = 10,
         mode: JiaQuizMode = JiaQuizMode.PRACTICE, durationSeconds: Int = 1800,
-        categorySlug: String? = null): JiaQuizAttempt =
+        categorySlug: String? = null, technologySlug: String? = null): JiaQuizAttempt =
         withContext(Dispatchers.IO) {
             val body = JSONObject().put("difficulty", difficulty).put("questionCount", count).put("mode", mode.apiValue)
             categorySlug?.takeIf(String::isNotBlank)?.let { body.put("categorySlug", it) }
+            technologySlug?.takeIf(String::isNotBlank)?.let { body.put("technologySlug", it) }
             if (mode == JiaQuizMode.TIMED_MOCK) body.put("durationSeconds", durationSeconds)
             val json = JSONObject(request(baseUrl, "/quiz-attempts", token, "POST", body))
             val questionsJson = json.getJSONArray("questions")
