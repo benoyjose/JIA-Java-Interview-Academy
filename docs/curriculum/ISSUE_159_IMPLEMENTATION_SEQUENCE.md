@@ -5,7 +5,7 @@ This file tracks implementation batches for the advanced curriculum epic. It is 
 ## Existing baseline
 
 - The repository's `docs/JIA_JAVA_CURRICULUM.md` is a broad topic coverage blueprint.
-- The existing Java foundations question bank is a reviewed-in-progress draft asset, not a complete deep lesson library.
+- The existing Java foundations question bank is a draft asset, not a complete deep lesson library.
 - Content must follow `docs/CONTENT_MODEL.md`, preserve provenance and remain unpublished until editorial approval.
 
 ## Domain delivery order
@@ -23,16 +23,22 @@ This file tracks implementation batches for the advanced curriculum epic. It is 
 | 9 | Cloud, Kubernetes & delivery | Container runtime, K8s operations, AWS, CI/CD, GitOps and release safety |
 | 10 | Observability, security & leadership | Metrics/logs/traces, incidents, threat modeling, architecture and technical leadership |
 
+## Lesson delivery status
+
+- [x] Batch 1 draft: [Java Memory Model, Happens-Before and Safe Publication](advanced-java/01-java-memory-model-and-safe-publication.md) — merged in PR #160; review/import/publish still pending.
+- [x] Batch 2 draft: [Collections, Generics and Stream Pipelines](advanced-java/02-collections-generics-and-streams.md) — authored in current PR; technical review/import/publish pending.
+- [ ] Batch 3: JVM internals and performance diagnostics.
+- [ ] Batch 4: Spring core and Spring Boot.
+- [ ] Batch 5: JPA, SQL and data engineering.
+- [ ] Batch 6: Microservices and distributed systems.
+- [ ] Batch 7: Kafka and RabbitMQ.
+- [ ] Batch 8: System design and architecture.
+- [ ] Batch 9: Cloud, Kubernetes and delivery.
+- [ ] Batch 10: Observability, security and engineering leadership.
+
 ## Per-lesson quality gate
 
-Each lesson must provide: measurable objectives; prerequisites; version scope; concept and internals; executable examples or explicitly marked pseudocode; failure modes; production trade-offs; hands-on exercise and solution/rubric; beginner-to-architect interview questions; concise spoken answer; detailed answer; assessment/revision links; provenance; review state.
-
-## Current first authored lesson
-
-- [x] Draft: Advanced Java — Java Memory Model, Happens-Before and Safe Publication
-- [ ] Technical review against JLS and concurrency API contracts
-- [ ] Content-model/import integration and validator coverage
-- [ ] Editorial approval and publication (separate from merge)
+Each lesson must provide measurable objectives; prerequisites; version scope; concept and internals; executable examples or explicitly marked pseudocode; failure modes; production trade-offs; hands-on exercise and solution/rubric; beginner-to-architect interview questions; concise spoken answer; detailed answer; assessment/revision links; provenance; review state.
 
 ## Completion reporting
 
