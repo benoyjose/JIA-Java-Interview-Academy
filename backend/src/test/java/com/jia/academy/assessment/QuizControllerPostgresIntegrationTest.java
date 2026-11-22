@@ -473,6 +473,8 @@ class QuizControllerPostgresIntegrationTest {
                 .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
 
         assertThat(controller.abandon(learnerOne, attemptId).get("status")).isEqualTo("ABANDONED");
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, attemptId))
+                .isEqualTo("ABANDONED");
         assertThat(controller.abandon(learnerOne, attemptId).get("status")).isEqualTo("ABANDONED");
         assertThatThrownBy(() -> controller.resume(learnerOne, attemptId))
                 .isInstanceOf(ResponseStatusException.class)
