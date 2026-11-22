@@ -69,3 +69,19 @@ public struct JIALessonSummary: Codable, Sendable, Identifiable, Equatable {
     public let difficulty: String
     public let contentRevision: Int
 }
+
+public struct JIALessonProgress: Codable, Sendable, Equatable {
+    public let lessonSlug: String
+    public let contentRevision: Int
+    public let status: String
+    public let progressPercent: Double
+    public let lastPosition: [String: String]?
+    public let updatedAt: String
+}
+
+public struct JIABookmark: Codable, Sendable, Equatable, Identifiable {
+    public let lessonSlug: String
+    public let title: String
+    public let createdAt: String
+    public var id: String { lessonSlug }
+}
