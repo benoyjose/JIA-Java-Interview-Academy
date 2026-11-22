@@ -1,0 +1,45 @@
+name: Container image build
+
+on:
+  pull_request:
+    paths:
+      - "backend/Dockerfile"
+      - "backend/**"
+      - "admin-web/Dockerfile"
+      - "admin-web/**"
+      - "admin-web/infra/nginx.conf"
+      - ".github/workflows/container-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/Dockerfile"
+      - "backend/**"
+      - "admin-web/Dockerfile"
+      - "admin-web/**"
+      - "admin-web/infra/nginx.conf"
+      - ".github/workflows/container-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-api-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+  build-admin-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./admin-web
+          file: ./admin-web/Dockerfile
+          push: false
