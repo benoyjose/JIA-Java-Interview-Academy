@@ -274,11 +274,14 @@ public class QuizController {
         else if (submitted.keySet().stream().anyMatch(p -> !expectedPositions.contains(p))) throw badRequest("Answer position is not part of this attempt");
 
         int correct = 0;
+        int selfReviewCount = 0;
         List<Map<String, Object>> results = new ArrayList<>();
         for (GradingRow row : rows) {
             Map<String, Object> response = submitted.getOrDefault(row.position(), Map.of());
             Map<String, Object> answer = readMap(row.answerJson());
-            boolean isCorrect = submitted.containsKey(row.position()) && isCorrect(row.questionType(), response, answer);
+            boolean requiresSelfReview = QuizAnswerEvaluator.requiresSelfReview(row.questionType());
+            boolean isCorrect = !requiresSelfReview && submitted.containsKey(row.position()) && isCorrect(row.questionType(), response, answer);
+            if (requiresSelfReview) selfReviewCount++;
             if (isCorrect) correct++;
             Object time = null;
             if (timedMock) {
@@ -298,16 +301,19 @@ public class QuizController {
                   marks_awarded=EXCLUDED.marks_awarded,
                   time_spent_ms=EXCLUDED.time_spent_ms,
                   answered_at=EXCLUDED.answered_at
-                """, attemptId, row.position(), writeJson(response), isCorrect, isCorrect ? 1 : 0,
+                """, attemptId, row.position(), writeJson(response), requiresSelfReview ? null : Boolean.valueOf(isCorrect),
+                    requiresSelfReview ? null : Integer.valueOf(isCorrect ? 1 : 0),
                     time instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("position", row.position());
-            result.put("isCorrect", isCorrect);
+            result.put("isCorrect", requiresSelfReview ? null : isCorrect);
+            result.put("requiresSelfReview", requiresSelfReview);
             result.put("explanation", row.explanation());
             results.add(result);
         }
         int total = rows.size();
-        double score = total == 0 ? 0 : Math.round((correct * 10000.0) / total) / 100.0;
+        int gradedCount = total - selfReviewCount;
+        double score = gradedCount == 0 ? 0 : Math.round((correct * 10000.0) / gradedCount) / 100.0;
         Instant submittedAt = Instant.now();
         jdbc.update("""
             UPDATE quiz_attempts SET status='SUBMITTED', correct_count=?, score_percent=?,
@@ -318,6 +324,8 @@ public class QuizController {
         result.put("difficulty", attempt.difficulty());
         result.put("questionCount", total);
         result.put("correctCount", correct);
+        result.put("gradedQuestionCount", gradedCount);
+        result.put("selfReviewQuestionCount", selfReviewCount);
         result.put("scorePercent", score);
         result.put("submittedAt", submittedAt.toString());
         result.put("timedOut", timedOut);
