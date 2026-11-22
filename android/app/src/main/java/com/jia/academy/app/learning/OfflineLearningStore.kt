@@ -83,7 +83,7 @@ class OfflineLearningStore(context: Context) :
     fun cacheLesson(lesson: LessonDetail, expectedChecksum: String? = null) {
         val content = lesson.contentJson ?: return
         require(content.length <= MAX_CONTENT_CHARS) { "Lesson content exceeds the offline cache limit" }
-        val checksum = OfflineContentChecksum.OfflineContentChecksum.sha256(content)
+        val checksum = OfflineContentChecksum.sha256(content)
         if (expectedChecksum != null) {
             require(checksum.equals(expectedChecksum, ignoreCase = true)) {
                 "Lesson checksum verification failed"
