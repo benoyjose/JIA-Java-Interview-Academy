@@ -67,11 +67,19 @@ public class QuizController {
         if ("DAILY_CHALLENGE".equals(mode)) {
             jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))",
                     rs -> {}, user.id().toString());
-            List<UUID> existing = jdbc.query("""
-                SELECT id FROM quiz_attempts
+            List<Map<String,Object>> existing = jdbc.query("""
+                SELECT id,status FROM quiz_attempts
                 WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
-                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), academyId);
-            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst(), user.id(), academyId);
+                """, (rs,n) -> Map.of("id",rs.getObject("id",UUID.class),"status",rs.getString("status")), user.id(), academyId);
+            if (!existing.isEmpty()) {
+                UUID existingId=(UUID) existing.getFirst().get("id");
+                String existingStatus=(String) existing.getFirst().get("status");
+                if (!"IN_PROGRESS".equals(existingStatus)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Today's daily challenge is already " + existingStatus.toLowerCase(Locale.ROOT));
+                }
+                return dailyChallengeResponse(existingId, user.id(), academyId);
+            }
         }
 
         String sql = """
