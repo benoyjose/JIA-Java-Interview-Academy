@@ -17,4 +17,13 @@ class ProgressMergePolicyTest {
         assertEquals(80.0, merged.progressPercent, 0.0)
         assertEquals(10L, merged.updatedAt)
     }
+    @Test fun preservesCompletedProgressAndStrictlyAdvancesTimestampForRepeatedEvents() {
+        val current = ProgressSnapshot(7, 100.0, "{\"section\":4}", 500L)
+        val merged = ProgressMergePolicy.merge(current, 6, 10.0, null, 500L)
+        assertEquals(7, merged.contentRevision)
+        assertEquals(100.0, merged.progressPercent, 0.0)
+        assertEquals("{\"section\":4}", merged.lastPositionJson)
+        assertEquals(501L, merged.updatedAt)
+    }
+
 }
