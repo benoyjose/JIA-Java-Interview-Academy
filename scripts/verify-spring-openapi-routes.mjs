@@ -54,24 +54,24 @@ if (missing.length > 0) {
 
 // OpenAPI operation IDs are used by generated clients. Require one per
 // documented operation and enforce uniqueness before SDK generation.
-const specText = lines.join("\\n");
+const specText = lines.join("\n");
 const operationIds = [];
-const operationLinePattern = /^    (get|post|put|patch|delete):\\s*$/gm;
+const operationLinePattern = /^    (get|post|put|patch|delete):\s*$/gm;
 const operationLines = [...specText.matchAll(operationLinePattern)];
 for (let index = 0; index < operationLines.length; index += 1) {
   const match = operationLines[index];
   const startIndex = match.index + match[0].length;
   const next = operationLines[index + 1];
-  const nextPath = specText.slice(startIndex).search(/^  \\//m);
+  const nextPath = specText.slice(startIndex).search(/^  \//m);
   const nextComponents = specText.slice(startIndex).search(/^components:/m);
   const candidates = [next ? next.index : specText.length,
     nextPath >= 0 ? startIndex + nextPath : specText.length,
     nextComponents >= 0 ? startIndex + nextComponents : specText.length];
   const blockEnd = Math.min(...candidates.filter(value => value > match.index));
   const block = specText.slice(startIndex, blockEnd);
-  const id = block.match(/^\\s{6}operationId:\\s*([A-Za-z0-9_.-]+)\\s*$/m)?.[1];
+  const id = block.match(/^\s{6}operationId:\s*([A-Za-z0-9_.-]+)\s*$/m)?.[1];
   if (!id) {
-    console.error("OpenAPI operation is missing operationId at line " + (specText.slice(0, match.index).split("\\n").length));
+    console.error("OpenAPI operation is missing operationId at line " + (specText.slice(0, match.index).split("\n").length));
     process.exit(1);
   }
   operationIds.push(id);
