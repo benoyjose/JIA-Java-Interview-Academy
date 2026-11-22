@@ -65,6 +65,6 @@ internal object SessionMaterialValidator {
         require(accessToken.isNotBlank()) { "accessToken must not be blank" }
         require(refreshToken.isNotBlank()) { "refreshToken must not be blank" }
         require(expiresAt.isNotBlank()) { "expiresAt must not be blank" }
-        require(org.json.JSONObject(userJson).length() >= 0) { "user must be a JSON object" }
+        org.json.JSONObject(userJson) // Reject malformed or non-object JSON before encrypting session data.
     }
 }
