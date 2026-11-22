@@ -176,9 +176,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                                     CodeSnippet(question.codeLanguage, question.codeSource)
                                 }
                                 val multi = question.questionType == "MULTI_SELECT"
-                                val freeResponse = question.questionType in setOf(
-                                    "OUTPUT_PREDICTION", "DEBUGGING", "CODING", "SQL", "SCENARIO"
-                                )
+                                val freeResponse = question.questionType.requiresFreeResponse()
                                 if (freeResponse) {
                                     val label = when (question.questionType) {
                                         "OUTPUT_PREDICTION" -> "Enter the program output"
@@ -317,7 +315,11 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                             error = null
                             val count = minOf(10, availability?.availableQuestionCount ?: 0)
                             scope.launch {
-                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds) }
+                                runCatching {
+                                    val started = quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode,
+                                        JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds)
+                                    if (selectedMode == JiaQuizMode.DAILY_CHALLENGE) quizRepository.resume(BuildConfig.JIA_API_BASE_URL, token, started.id) else started
+                                }
                                     .onSuccess { restored -> attempt = restored; answers = restored.savedAnswers; answerBaseTimeMs = restored.savedTimeSpentMs; answerStartedAt = restored.savedAnswers.keys.associateWith { android.os.SystemClock.elapsedRealtime() }; result = null }
                                     .onFailure { error = it.message ?: "Unable to start quiz." }
                                 loading = false
