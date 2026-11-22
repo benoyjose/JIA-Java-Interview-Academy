@@ -66,7 +66,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
         ? currentToken : await rotateStoredToken();
       if (rotatedToken) response = await send(path, init, rotatedToken);
     }
-  } catch {
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
     throw new ApiError("Unable to reach the JIA API. Check your connection and try again.", 0);
   }
   if (response.status === 401 && originalToken) {
