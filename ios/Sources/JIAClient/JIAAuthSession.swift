@@ -97,6 +97,7 @@ public final class JIAAuthSession: ObservableObject {
     }
 
     public var isSignedIn: Bool { accessToken != nil && user != nil }
+    public var canUseLearnerFeatures: Bool { isSignedIn || !(tokenStore.load() ?? "").isEmpty }
 
     public func signIn(email: String, password: String) async {
         errorMessage = nil
@@ -119,11 +120,13 @@ public final class JIAAuthSession: ObservableObject {
             let body = try JSONEncoder().encode(RefreshRequest(refreshToken: refreshToken))
             let response: JIATokenResponse = try await client.request("/api/v1/auth/refresh", method: "POST", body: body)
             accept(response)
+        } catch let error as JIAAPIError {
+            if case .httpStatus(let status) = error, status == 401 || status == 403 {
+                signOutLocally()
+            }
+            // A transport failure is an offline state, not proof that the refresh token is invalid.
+            errorMessage = nil
         } catch {
-            tokenStore.clear()
-            accessToken = nil
-            user = nil
-            expiresAt = nil
             errorMessage = nil
         }
     }
@@ -135,9 +138,14 @@ public final class JIAAuthSession: ObservableObject {
             let body = try JSONEncoder().encode(RefreshRequest(refreshToken: refreshToken))
             let response: JIATokenResponse = try await client.request("/api/v1/auth/refresh", method: "POST", body: body)
             accept(response)
+        } catch let error as JIAAPIError {
+            if case .httpStatus(let status) = error, status == 401 || status == 403 {
+                signOutLocally()
+                errorMessage = "Your session expired. Please sign in again."
+            }
+            // Preserve the refresh token on network/server failures so queued changes survive offline launches.
         } catch {
-            signOutLocally()
-            errorMessage = "Your session expired. Please sign in again."
+            // Keep local credentials and queued work; retry when connectivity returns.
         }
     }
 
