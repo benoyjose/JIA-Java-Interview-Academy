@@ -3,7 +3,8 @@ package com.jia.academy.app.learning
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.withTransaction
 import com.jia.academy.app.catalogue.LessonDetail
 
 data class PendingBookmark(val lessonSlug: String, val bookmarked: Boolean, val updatedAt: Long)
@@ -31,9 +32,13 @@ data class PendingLessonProgress(
 )
 
 /** Small transactional cache for last-known-good lessons and queued learner progress. */
-class OfflineLearningStore(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "jia-offline-learning.db", null, 2) {
+class OfflineLearningStore(context: Context) : AutoCloseable {
     private val appContext = context.applicationContext
+    private val database = JIAOfflineRoomDatabase.open(appContext)
+    private val writableDatabase: SupportSQLiteDatabase get() = database.openHelper.writableDatabase
+    private val readableDatabase: SupportSQLiteDatabase get() = database.openHelper.readableDatabase
+
+    override fun close() = database.close()
 
     fun downloadsOnMeteredNetwork(): Boolean =
         appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
@@ -42,44 +47,6 @@ class OfflineLearningStore(context: Context) :
     fun setDownloadsOnMeteredNetwork(enabled: Boolean) {
         appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
             .edit().putBoolean("downloads_on_metered_network", enabled).apply()
-    }
-
-    override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("""
-            CREATE TABLE cached_lessons (
-                slug TEXT PRIMARY KEY NOT NULL,
-                id TEXT NOT NULL,
-                title TEXT NOT NULL,
-                summary TEXT,
-                difficulty TEXT NOT NULL,
-                content_revision INTEGER NOT NULL,
-                source_type TEXT NOT NULL,
-                content_json TEXT NOT NULL,
-                checksum TEXT NOT NULL,
-                cached_at INTEGER NOT NULL
-            )
-        """.trimIndent())
-        db.execSQL("""
-            CREATE TABLE pending_progress (
-                lesson_slug TEXT PRIMARY KEY NOT NULL,
-                content_revision INTEGER NOT NULL,
-                progress_percent REAL NOT NULL CHECK(progress_percent >= 0 AND progress_percent <= 100),
-                last_position_json TEXT,
-                updated_at INTEGER NOT NULL
-            )
-        """.trimIndent())
-        createBookmarkTables(db)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Schema changes must be additive and versioned; never drop learner-owned queued activity.
-        if (oldVersion < 2) createBookmarkTables(db)
-    }
-
-    private fun createBookmarkTables(db: SQLiteDatabase) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS offline_bookmarks (lesson_slug TEXT PRIMARY KEY NOT NULL, is_bookmarked INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE IF NOT EXISTS pending_bookmarks (lesson_slug TEXT PRIMARY KEY NOT NULL, is_bookmarked INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE IF NOT EXISTS sync_diagnostics (id INTEGER PRIMARY KEY CHECK(id=1), last_attempt_at INTEGER, last_success_at INTEGER, last_error TEXT, synced_progress_count INTEGER NOT NULL DEFAULT 0, synced_bookmark_count INTEGER NOT NULL DEFAULT 0)")
     }
 
     fun cacheLesson(lesson: LessonDetail, expectedChecksum: String? = null) {
@@ -91,50 +58,26 @@ class OfflineLearningStore(context: Context) :
                 "Lesson checksum verification failed"
             }
         }
-        val values = ContentValues().apply {
-            put("slug", lesson.slug)
-            put("id", lesson.id)
-            put("title", lesson.title)
-            put("summary", lesson.summary)
-            put("difficulty", lesson.difficulty)
-            put("content_revision", lesson.contentRevision)
-            put("source_type", lesson.sourceType)
-            put("content_json", content)
-            put("checksum", checksum)
-            put("cached_at", System.currentTimeMillis())
-        }
-        writableDatabase.insertWithOnConflict("cached_lessons", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        database.cachedLessonDao().replace(CachedLessonEntity(
+            slug = lesson.slug, id = lesson.id, title = lesson.title, summary = lesson.summary,
+            difficulty = lesson.difficulty, contentRevision = lesson.contentRevision,
+            sourceType = lesson.sourceType, contentJson = content, checksum = checksum,
+            cachedAt = System.currentTimeMillis()
+        ))
     }
 
-    fun cachedLesson(slug: String): LessonDetail? =
-        readableDatabase.query(
-            "cached_lessons",
-            arrayOf("id", "slug", "title", "summary", "difficulty", "content_revision", "source_type", "content_json", "checksum"),
-            "slug=?",
-            arrayOf(slug),
-            null, null, null
-        ).use { cursor ->
-            if (!cursor.moveToFirst()) return null
-            val content = cursor.getString(7)
-            if (!OfflineContentChecksum.sha256(content).equals(cursor.getString(8), ignoreCase = true)) {
-                writableDatabase.delete("cached_lessons", "slug=?", arrayOf(slug))
-                return null
-            }
-            LessonDetail(
-                cursor.getString(0), cursor.getString(1), cursor.getString(2),
-                cursor.getString(3), cursor.getString(4), cursor.getInt(5),
-                cursor.getString(6), content
-            )
+    fun cachedLesson(slug: String): LessonDetail? {
+        val row = database.cachedLessonDao().find(slug) ?: return null
+        if (!OfflineContentChecksum.sha256(row.contentJson).equals(row.checksum, ignoreCase = true)) {
+            database.cachedLessonDao().delete(slug)
+            return null
         }
+        return LessonDetail(row.id, row.slug, row.title, row.summary, row.difficulty,
+            row.contentRevision, row.sourceType, row.contentJson)
+    }
 
     fun hasCachedLesson(slug: String, expectedChecksum: String): Boolean =
-        readableDatabase.query(
-            "cached_lessons",
-            arrayOf("content_json", "checksum"),
-            "slug=?",
-            arrayOf(slug),
-            null, null, null
-        ).use { cursor ->
+        readableDatabase.query("SELECT content_json, checksum FROM cached_lessons WHERE slug=?", arrayOf(slug)).use { cursor ->
             if (!cursor.moveToFirst()) false
             else {
                 val content = cursor.getString(0)
@@ -168,13 +111,7 @@ class OfflineLearningStore(context: Context) :
         db.beginTransaction()
         try {
             var existing: ProgressSnapshot? = null
-            db.query(
-                "pending_progress",
-                arrayOf("content_revision", "progress_percent", "last_position_json", "updated_at"),
-                "lesson_slug=?",
-                arrayOf(lessonSlug),
-                null, null, null
-            ).use { cursor ->
+            db.query("SELECT content_revision, progress_percent, last_position_json, updated_at FROM pending_progress WHERE lesson_slug=?", arrayOf(lessonSlug)).use { cursor ->
                 if (cursor.moveToFirst()) existing = ProgressSnapshot(cursor.getInt(0), cursor.getDouble(1), cursor.getString(2), cursor.getLong(3))
             }
             val merged = ProgressMergePolicy.merge(existing, contentRevision, progressPercent, lastPositionJson, System.currentTimeMillis())
@@ -210,7 +147,7 @@ class OfflineLearningStore(context: Context) :
         db.beginTransaction()
         try {
             val now = System.currentTimeMillis()
-            val existing = db.rawQuery("SELECT updated_at FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
+            val existing = db.query("SELECT updated_at FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
                 if (it.moveToFirst()) it.getLong(0) else 0L
             }
             val updatedAt = maxOf(now, existing + 1L)
@@ -227,18 +164,17 @@ class OfflineLearningStore(context: Context) :
     }
 
     fun isBookmarked(lessonSlug: String): Boolean =
-        readableDatabase.rawQuery("SELECT is_bookmarked FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
+        readableDatabase.query("SELECT is_bookmarked FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
             it.moveToFirst() && it.getInt(0) == 1
         }
 
     fun bookmarkedSlugs(): Set<String> =
-        readableDatabase.rawQuery("SELECT lesson_slug FROM offline_bookmarks WHERE is_bookmarked=1", null).use {
+        readableDatabase.query("SELECT lesson_slug FROM offline_bookmarks WHERE is_bookmarked=1", emptyArray()).use {
             buildSet { while (it.moveToNext()) add(it.getString(0)) }
         }
 
     fun pendingBookmarks(): List<PendingBookmark> =
-        readableDatabase.query("pending_bookmarks", arrayOf("lesson_slug","is_bookmarked","updated_at"),
-            null,null,null,null,"updated_at ASC").use { cursor ->
+        readableDatabase.query("SELECT lesson_slug, is_bookmarked, updated_at FROM pending_bookmarks ORDER BY updated_at ASC", emptyArray()).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) add(PendingBookmark(cursor.getString(0),cursor.getInt(1)==1,cursor.getLong(2)))
             }
@@ -251,13 +187,13 @@ class OfflineLearningStore(context: Context) :
 
     fun recordSyncAttempt() {
         val values = ContentValues().apply { put("id",1); put("last_attempt_at",System.currentTimeMillis()) }
-        writableDatabase.insertWithOnConflict("sync_diagnostics",null,values,SQLiteDatabase.CONFLICT_IGNORE)
+        writableDatabase.insert("sync_diagnostics",SQLiteDatabase.CONFLICT_IGNORE,values)
         writableDatabase.update("sync_diagnostics",values,"id=1",null)
     }
 
     fun recordSyncSuccess(progressCount: Int, bookmarkCount: Int) {
-        writableDatabase.insertWithOnConflict("sync_diagnostics",null,
-            ContentValues().apply { put("id",1) },SQLiteDatabase.CONFLICT_IGNORE)
+        writableDatabase.insert("sync_diagnostics",SQLiteDatabase.CONFLICT_IGNORE,
+            ContentValues().apply { put("id",1) })
         val values = ContentValues().apply {
             put("last_success_at",System.currentTimeMillis()); putNull("last_error")
             put("synced_progress_count",progressCount); put("synced_bookmark_count",bookmarkCount)
@@ -275,8 +211,7 @@ class OfflineLearningStore(context: Context) :
     }
 
     fun syncDiagnostics(): OfflineSyncDiagnostics? =
-        readableDatabase.query("sync_diagnostics",arrayOf("last_attempt_at","last_success_at","last_error","synced_progress_count","synced_bookmark_count"),
-            "id=1",null,null,null,null).use { cursor ->
+        readableDatabase.query("SELECT last_attempt_at, last_success_at, last_error, synced_progress_count, synced_bookmark_count FROM sync_diagnostics WHERE id=1", emptyArray()).use { cursor ->
             if (!cursor.moveToFirst()) null else OfflineSyncDiagnostics(
                 if (cursor.isNull(0)) null else cursor.getLong(0),
                 if (cursor.isNull(1)) null else cursor.getLong(1),
@@ -284,11 +219,7 @@ class OfflineLearningStore(context: Context) :
         }
 
     fun pendingProgress(): List<PendingLessonProgress> =
-        readableDatabase.query(
-            "pending_progress",
-            arrayOf("lesson_slug", "content_revision", "progress_percent", "last_position_json", "updated_at"),
-            null, null, null, null, "updated_at ASC"
-        ).use { cursor ->
+        readableDatabase.query("SELECT lesson_slug, content_revision, progress_percent, last_position_json, updated_at FROM pending_progress ORDER BY updated_at ASC", emptyArray()).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) add(
                     PendingLessonProgress(
