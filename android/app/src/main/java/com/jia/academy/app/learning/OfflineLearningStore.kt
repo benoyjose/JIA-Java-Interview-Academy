@@ -11,6 +11,16 @@ data class PendingBookmark(val lessonSlug: String, val bookmarked: Boolean, val 
 
 data class OfflineSyncDiagnostics(val lastAttemptAt: Long?, val lastSuccessAt: Long?, val lastError: String?, val syncedProgressCount: Int, val syncedBookmarkCount: Int)
 
+
+internal data class ProgressSnapshot(val contentRevision: Int, val progressPercent: Double, val lastPositionJson: String?, val updatedAt: Long)
+internal object ProgressMergePolicy {
+    fun merge(current: ProgressSnapshot?, revision: Int, percent: Double, position: String?, now: Long): ProgressSnapshot =
+        ProgressSnapshot(maxOf(revision, current?.contentRevision ?: revision),
+            maxOf(percent, current?.progressPercent ?: percent),
+            position ?: current?.lastPositionJson,
+            maxOf(now, (current?.updatedAt ?: (now - 1L)) + 1L))
+}
+
 data class PendingLessonProgress(
     val lessonSlug: String,
     val contentRevision: Int,
@@ -145,10 +155,7 @@ class OfflineLearningStore(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            var mergedRevision = contentRevision
-            var mergedPercent = progressPercent
-            var mergedPosition = lastPositionJson
-            var updatedAt = System.currentTimeMillis()
+            var existing: ProgressSnapshot? = null
             db.query(
                 "pending_progress",
                 arrayOf("content_revision", "progress_percent", "last_position_json", "updated_at"),
@@ -156,19 +163,15 @@ class OfflineLearningStore(context: Context) :
                 arrayOf(lessonSlug),
                 null, null, null
             ).use { cursor ->
-                if (cursor.moveToFirst()) {
-                    mergedRevision = maxOf(contentRevision, cursor.getInt(0))
-                    mergedPercent = maxOf(progressPercent, cursor.getDouble(1))
-                    if (mergedPosition == null) mergedPosition = cursor.getString(2)
-                    updatedAt = maxOf(updatedAt, cursor.getLong(3) + 1L)
-                }
+                if (cursor.moveToFirst()) existing = ProgressSnapshot(cursor.getInt(0), cursor.getDouble(1), cursor.getString(2), cursor.getLong(3))
             }
+            val merged = ProgressMergePolicy.merge(existing, contentRevision, progressPercent, lastPositionJson, System.currentTimeMillis())
             val values = ContentValues().apply {
                 put("lesson_slug", lessonSlug)
-                put("content_revision", mergedRevision)
-                put("progress_percent", mergedPercent)
-                put("last_position_json", mergedPosition)
-                put("updated_at", updatedAt)
+                put("content_revision", merged.contentRevision)
+                put("progress_percent", merged.progressPercent)
+                put("last_position_json", merged.lastPositionJson)
+                put("updated_at", merged.updatedAt)
             }
             db.insertWithOnConflict("pending_progress", null, values, SQLiteDatabase.CONFLICT_REPLACE)
             db.setTransactionSuccessful()
