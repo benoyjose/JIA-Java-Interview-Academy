@@ -2,6 +2,7 @@ package com.jia.academy.content;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.auth.service.AuthRateLimitService;
@@ -284,11 +285,11 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     void loginDoesNotRevealWhetherAnAccountExists() {
         String email="enumeration-"+UUID.randomUUID()+"@example.test";
         auth.register(new RegisterRequest("Enumeration Test",email,"long-secure-test-password"));
-        var known=assertThatThrownBy(() -> auth.login(new LoginRequest(email,"wrong-password","test-device")))
-                .isInstanceOf(ResponseStatusException.class).actual();
-        var unknown=assertThatThrownBy(() -> auth.login(new LoginRequest(
-                "missing-"+UUID.randomUUID()+"@example.test","wrong-password","test-device")))
-                .isInstanceOf(ResponseStatusException.class).actual();
+        Throwable known=catchThrowable(() -> auth.login(new LoginRequest(email,"wrong-password","test-device")));
+        Throwable unknown=catchThrowable(() -> auth.login(new LoginRequest(
+                "missing-"+UUID.randomUUID()+"@example.test","wrong-password","test-device")));
+        assertThat(known).isInstanceOf(ResponseStatusException.class);
+        assertThat(unknown).isInstanceOf(ResponseStatusException.class);
         assertThat(((ResponseStatusException)known).getStatusCode().value()).isEqualTo(401);
         assertThat(((ResponseStatusException)unknown).getStatusCode().value()).isEqualTo(401);
         assertThat(known.getMessage()).isEqualTo(unknown.getMessage());
