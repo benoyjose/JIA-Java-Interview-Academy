@@ -21,7 +21,9 @@ final class ApiErrorHttpParityTest extends TestCase
 
         config(['app.debug' => false]);
 
-        Route::get('/api/__parity/success', function () {\n            return response()->json(['ok' => true]);\n        });\n\n        Route::post('/api/__parity/validation', function (Request $request) {
+        Route::get('/api/__parity/success', function () {\n            return response()->json(['ok' => true]);\n        });
+
+        Route::post('/api/__parity/validation', function (Request $request) {
             Validator::make($request->all(), ['name' => ['required', 'string']])->validate();
 
             return response()->json(['ok' => true]);
