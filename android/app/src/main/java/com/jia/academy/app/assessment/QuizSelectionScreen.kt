@@ -94,7 +94,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
             val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
             if (!token.isNullOrBlank()) {
                 delay(500)
-                runCatching { quizRepository.saveAnswers(BuildConfig.JIA_API_BASE_URL, token, current, answers) }
+                runCatching { quizRepository.saveAnswers(BuildConfig.JIA_API_BASE_URL, token, current, answers, elapsedForAnswers) }
                     .onFailure { error = it.message ?: "Unable to save timed mock progress." }
             }
         }
@@ -109,7 +109,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                     val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                     if (!token.isNullOrBlank()) {
                         loading = true
-                        runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt!!, answers) }
+                        runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt!!, answers, elapsedForAnswers) }
                             .onSuccess { result = it }
                             .onFailure { error = it.message ?: "Timed mock expired; unable to submit saved answers." }
                         loading = false
@@ -122,6 +122,9 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     }
     val answeredCount = activeAttempt?.questions?.count { !answers[it.position].isNullOrEmpty() } ?: 0
     val totalQuestions = activeAttempt?.questions?.size ?: 0
+    val elapsedForAnswers = answerStartedAt.mapValues { (_, started) ->
+        (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
+    }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Java practice", style = MaterialTheme.typography.headlineSmall)
         when {
@@ -234,7 +237,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                         loading = true
                         error = null
                         scope.launch {
-                            runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt, answers) }
+                            runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt, answers, elapsedForAnswers) }
                                 .onSuccess { result = it }.onFailure { error = it.message ?: "Unable to submit quiz." }
                             loading = false
                         }
