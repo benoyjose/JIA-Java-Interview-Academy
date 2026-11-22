@@ -2049,10 +2049,11 @@ components:
               explanation: { type: string }
     QuizAttemptSummary:
       type: object
-      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, startedAt, status]
+      required: [attemptId, difficulty, mode, questionCount, correctCount, scorePercent, startedAt, status]
       properties:
         attemptId: { type: string, format: uuid }
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string, enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA] }
         technologySlug: { type: [string, 'null'] }
         categorySlug: { type: [string, 'null'] }
         questionCount: { type: integer }
