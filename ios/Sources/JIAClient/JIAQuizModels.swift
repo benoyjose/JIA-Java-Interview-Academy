@@ -88,4 +88,8 @@ public struct JIAQuizHistoryItem: Codable, Sendable, Equatable, Identifiable {
     public let scorePercent: Double?
     public let status: String
     public var id: UUID { attemptId }
+    enum CodingKeys: String, CodingKey {
+        case attemptId = "id"
+        case difficulty, mode, questionCount, correctCount, scorePercent, status
+    }
 }
