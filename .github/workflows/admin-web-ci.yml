@@ -20,7 +20,7 @@ jobs:
           cache: npm
           cache-dependency-path: admin-web/package.json
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Verify runner Chrome
         run: google-chrome --version
       - name: Type-check
