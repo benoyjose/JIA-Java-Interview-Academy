@@ -32,7 +32,7 @@ class LessonViewModel(private val repository: CatalogueRepository) : ViewModel()
                     if (requestGuard.isCurrent(generation)) _state.value = LessonLoadState(lesson = it)
                 }
                 .onFailure {
-                    if (generation == requestGeneration && it !is kotlinx.coroutines.CancellationException) {
+                    if (requestGuard.isCurrent(generation) && it !is kotlinx.coroutines.CancellationException) {
                         _state.value = LessonLoadState(error = it.message ?: "Unable to load lesson.")
                     }
                 }
