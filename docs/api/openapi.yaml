@@ -2029,12 +2029,14 @@ components:
           items: { $ref: '#/components/schemas/QuizQuestion' }
     QuizAttemptResult:
       type: object
-      required: [attemptId, difficulty, questionCount, correctCount, scorePercent, submittedAt, timedOut]
+      required: [attemptId, difficulty, questionCount, correctCount, gradedQuestionCount, selfReviewQuestionCount, scorePercent, submittedAt, timedOut]
       properties:
         attemptId: { type: string, format: uuid }
         difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
         questionCount: { type: integer }
         correctCount: { type: integer }
+        gradedQuestionCount: { type: integer, minimum: 0 }
+        selfReviewQuestionCount: { type: integer, minimum: 0 }
         scorePercent: { type: number, minimum: 0, maximum: 100 }
         submittedAt: { type: string, format: date-time }
         timedOut: { type: boolean }
@@ -2042,10 +2044,11 @@ components:
           type: array
           items:
             type: object
-            required: [position, isCorrect, explanation]
+            required: [position, isCorrect, requiresSelfReview, explanation]
             properties:
               position: { type: integer }
-              isCorrect: { type: boolean }
+              isCorrect: { type: [boolean, 'null'], description: Null when rubric-based self-review is required. }
+              requiresSelfReview: { type: boolean }
               explanation: { type: string }
     QuizAttemptSummary:
       type: object
