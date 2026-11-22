@@ -10,6 +10,6 @@
 Importing into a live academy requires a category with slug `java-language-fundamentals` and normal editorial approval.
 
 
-`java-foundations-question-bank-v1.json` is a 12-question original Java foundations seed batch covering Beginner through Expert and SINGLE_SELECT, MULTI_SELECT and TRUE_FALSE. It conforms to `question-import-v1` and is intended for the Spring Boot admin question import endpoint described in [QUESTION_IMPORT.md](../../QUESTION_IMPORT.md).
+`java-foundations-question-bank-v1.json` is a 100-question original Java foundations seed bank covering Beginner through Expert and SINGLE_SELECT, MULTI_SELECT and TRUE_FALSE. It conforms to `question-import-v1` and is intended for the Spring Boot admin question import endpoint described in [QUESTION_IMPORT.md](../../QUESTION_IMPORT.md).
 
-**Editorial status:** seed content is authored but not editorially approved. Every record imports as `DRAFT`; review explanations and version-sensitive details before approval. The file is a starter bank, not a curriculum coverage completion claim. It contains no external references or copied interview questions.
+**Editorial status:** seed content is authored but not editorially approved. Every record imports as `DRAFT`; review explanations and version-sensitive details before approval. The file is a broad starter bank, not a curriculum coverage completion claim. The expanded set includes a range of Java syntax, object-oriented programming, collections, streams, concurrency, JVM/runtime, and modern language/API topics. It contains no external references or copied interview questions.
