@@ -57,11 +57,12 @@ public struct JIAQuizAttemptResponse: Codable, Sendable, Equatable {
     public let questions: [JIAQuizQuestion]
 }
 
-public struct JIAQuizAnswerResult: Codable, Sendable, Equatable {
+public struct JIAQuizAnswerResult: Codable, Sendable, Equatable, Identifiable {
     public let position: Int
     public let isCorrect: Bool?
     public let requiresSelfReview: Bool
     public let explanation: String?
+    public var id: Int { position }
 }
 
 public struct JIAQuizResultResponse: Codable, Sendable, Equatable {
