@@ -32,7 +32,7 @@ public final class JIAOfflineActivityQueue: @unchecked Sendable {
                                lastPosition: [String: JIAJSONValue]) {
         var state = load()
         let current = state.progress[slug]
-        let isNewerRevision = current == nil || revision >= current!.contentRevision
+        let isNewerRevision = current.map { revision >= $0.contentRevision } ?? true
         state.progress[slug] = JIAQueuedProgress(
             lessonSlug: slug,
             contentRevision: max(revision, current?.contentRevision ?? revision),
