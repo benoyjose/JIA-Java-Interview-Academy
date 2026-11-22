@@ -21,7 +21,7 @@ final class ApiErrorHttpParityTest extends TestCase
 
         config(['app.debug' => false]);
 
-        Route::post('/api/__parity/validation', function (Request $request) {
+        Route::get('/api/__parity/success', function () {\n            return response()->json(['ok' => true]);\n        });\n\n        Route::post('/api/__parity/validation', function (Request $request) {
             Validator::make($request->all(), ['name' => ['required', 'string']])->validate();
 
             return response()->json(['ok' => true]);
@@ -40,7 +40,7 @@ final class ApiErrorHttpParityTest extends TestCase
         });
     }
 
-    public function test_missing_authentication_returns_contract_401(): void
+    public function test_success_returns_shared_json_contract(): void\n    {\n        $this->getJson('/api/__parity/success')->assertOk()->assertExactJson(['ok' => true]);\n    }\n\n    public function test_missing_authentication_returns_contract_401(): void
     {
         $this->getJson('/api/v1/auth/me')
             ->assertUnauthorized()
