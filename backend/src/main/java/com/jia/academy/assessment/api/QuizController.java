@@ -412,11 +412,16 @@ public class QuizController {
         List<Map<String, Object>> levels = new ArrayList<>();
         for (String level : LEVELS) {
             var rows = jdbc.query("""
-                SELECT COUNT(*) AS attempts, COALESCE(SUM(question_count),0) AS questions_attempted,
+                SELECT COUNT(*) AS attempts, COALESCE(SUM(graded_count),0) AS questions_attempted,
                        COALESCE(SUM(correct_count),0) AS correct_answers,
-                       ROUND((SUM(correct_count)::numeric / NULLIF(SUM(question_count),0))*100,2) AS accuracy_percent, MAX(score_percent) AS best_score_percent,
-                       MAX(submitted_at) AS latest_attempt_at
-                FROM quiz_attempts WHERE user_id=? AND academy_id=? AND difficulty=? AND status='SUBMITTED'
+                       ROUND((SUM(correct_count)::numeric / NULLIF(SUM(graded_count),0))*100,2) AS accuracy_percent,
+                       MAX(score_percent) AS best_score_percent, MAX(submitted_at) AS latest_attempt_at
+                FROM (
+                    SELECT a.id,a.correct_count,a.score_percent,a.submitted_at,COUNT(aa.is_correct) AS graded_count
+                    FROM quiz_attempts a LEFT JOIN quiz_attempt_answers aa ON aa.attempt_id=a.id
+                    WHERE a.user_id=? AND a.academy_id=? AND a.difficulty=? AND a.status='SUBMITTED'
+                    GROUP BY a.id,a.correct_count,a.score_percent,a.submitted_at
+                ) scored_attempts
                 """, (rs,n) -> {
                     Map<String,Object> item = new LinkedHashMap<>();
                     item.put("difficulty", level);
@@ -433,8 +438,11 @@ public class QuizController {
         }
         List<Map<String,Object>> topics = jdbc.query("""
             SELECT t.slug AS technology_slug, c.slug AS category_slug, a.difficulty,
-                   COUNT(*) AS attempts, ROUND((SUM(a.correct_count)::numeric / NULLIF(SUM(a.question_count),0))*100,2) AS accuracy_percent
+                   COUNT(DISTINCT a.id) AS attempts,
+                   ROUND((SUM(CASE WHEN aa.is_correct IS TRUE THEN 1 ELSE 0 END)::numeric
+                       / NULLIF(COUNT(aa.is_correct),0))*100,2) AS accuracy_percent
             FROM quiz_attempts a
+            LEFT JOIN quiz_attempt_answers aa ON aa.attempt_id=a.id
             LEFT JOIN technologies t ON t.id=a.technology_id
             LEFT JOIN categories c ON c.id=a.category_id
             WHERE a.user_id=? AND a.academy_id=? AND a.status='SUBMITTED'
