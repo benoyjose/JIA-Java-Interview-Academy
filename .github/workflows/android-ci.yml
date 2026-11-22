@@ -18,12 +18,11 @@ permissions:
 
 jobs:
   android-build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      # GitHub-hosted Linux runners do not expose KVM; Android emulator requires TCG fallback.
-      ANDROID_I_WANT_MY_TCG: "yes"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -62,10 +61,31 @@ jobs:
       - name: Assemble unsigned release APK
         run: gradle -p android :app:assembleRelease --no-daemon
 
+      - name: Upload Android unit test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-lint-reports-${{ github.run_id }}
+          path: |
+            android/app/build/reports/tests/**
+            android/app/build/reports/lint-results*
+            android/app/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Android APK artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks-${{ github.run_id }}
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
 
   android-instrumentation:
-    # Isolate the emulator from lint/release packaging. TCG emulation is CPU-heavy
-    # on GitHub-hosted Linux and must not compete with a Gradle release build.
+    # Keep emulator execution isolated from packaging. Hosted runners use TCG when KVM is unavailable.
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     env:
