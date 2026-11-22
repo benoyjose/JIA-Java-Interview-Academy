@@ -11,14 +11,16 @@ public struct JIACategoryListView: View {
     let technology: JIATechnology
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
+    let offlineStore: JIAOfflineContentStore
     @State private var categories: [JIACategory] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession) {
+    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
         self.technology = technology
         self.client = client
         self.session = session
+        self.offlineStore = offlineStore
     }
 
     public var body: some View {
@@ -32,7 +34,7 @@ public struct JIACategoryListView: View {
             }
             ForEach(categories) { category in
                 NavigationLink(category.name) {
-                    JIALessonListView(category: category, client: client, session: session)
+                    JIALessonListView(category: category, client: client, session: session, offlineStore: offlineStore)
                 }
             }
         }
@@ -56,14 +58,16 @@ public struct JIALessonListView: View {
     let category: JIACategory
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
+    let offlineStore: JIAOfflineContentStore
     @State private var lessons: [JIALessonSummary] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession) {
+    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
         self.category = category
         self.client = client
         self.session = session
+        self.offlineStore = offlineStore
     }
 
     public var body: some View {
@@ -77,7 +81,7 @@ public struct JIALessonListView: View {
             }
             ForEach(lessons) { lesson in
                 NavigationLink {
-                    JIALessonDetailView(lesson: lesson, client: client, session: session)
+                    JIALessonDetailView(lesson: lesson, client: client, session: session, offlineStore: offlineStore)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(lesson.title).font(.headline)
@@ -112,23 +116,31 @@ public struct JIALessonDetailView: View {
     let lesson: JIALessonSummary
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
+    let offlineStore: JIAOfflineContentStore
     @State private var content: JIALessonContent?
     @State private var loading = true
     @State private var errorMessage: String?
     @State private var isBookmarked = false
     @State private var savedProgress = 0.0
     @State private var progressToSave = 0.0
+    @State private var isOfflineContent = false
 
-    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession) {
+    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
         self.lesson = lesson
         self.client = client
         self.session = session
+        self.offlineStore = offlineStore
     }
 
     public var body: some View {
         Group {
             if loading { ProgressView("Loading lesson") }
-            else if let content { JIALessonReaderView(content: content) }
+            else if let content {
+                VStack(alignment: .leading, spacing: 8) {
+                    if isOfflineContent { Label("Offline saved content", systemImage: "wifi.slash").font(.caption).foregroundStyle(.secondary) }
+                    JIALessonReaderView(content: content)
+                }
+            }
             else if let errorMessage { ContentUnavailableView("Unable to load lesson", systemImage: "exclamationmark.triangle", description: Text(errorMessage)) }
             else { ContentUnavailableView("Lesson content unavailable", systemImage: "doc.text") }
         }
@@ -224,7 +236,18 @@ public struct JIALessonDetailView: View {
                 throw JIAAPIError.invalidResponse
             }
             content = try JSONDecoder().decode(JIALessonContent.self, from: data)
+            isOfflineContent = false
             errorMessage = nil
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            if let cached = offlineStore.cachedLesson(slug: lesson.slug),
+               let data = cached.contentJson.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode(JIALessonContent.self, from: data) {
+                content = decoded
+                isOfflineContent = true
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }

@@ -3,6 +3,9 @@ import SwiftUI
 @MainActor
 public struct JIAAppShell: View {
     private let client: JIAAPIClient
+    private let offlineStore: JIAOfflineContentStore
+    @State private var isSyncingOffline = false
+    @State private var offlineSyncMessage: String?
     @State private var technologies: [JIATechnology] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -10,6 +13,7 @@ public struct JIAAppShell: View {
 
     public init(client: JIAAPIClient) {
         self.client = client
+        self.offlineStore = JIAOfflineContentStore()
         _authSession = StateObject(wrappedValue: JIAAuthSession(client: client))
     }
 
@@ -27,7 +31,7 @@ public struct JIAAppShell: View {
                 } else {
                     List(technologies) { technology in
                         NavigationLink {
-                            JIACategoryListView(technology: technology, client: client, session: authSession)
+                            JIACategoryListView(technology: technology, client: client, session: authSession, offlineStore: offlineStore)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(technology.name).font(.headline)
@@ -51,10 +55,36 @@ public struct JIAAppShell: View {
                         Label("Quiz", systemImage: "checklist")
                     }
                 }
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        isSyncingOffline = true
+                        Task {
+                            let service = JIAOfflineSyncService(client: client, store: offlineStore)
+                            do {
+                                _ = try await service.syncLatestRelease()
+                                offlineSyncMessage = service.statusMessage
+                            } catch {
+                                offlineSyncMessage = "Offline download failed. The previous release remains active: \(error.localizedDescription)"
+                            }
+                            isSyncingOffline = false
+                        }
+                    } label: {
+                        Label(isSyncingOffline ? "Downloading…" : "Offline",
+                              systemImage: isSyncingOffline ? "arrow.down.circle" : "arrow.down.to.line")
+                    }
+                    .disabled(isSyncingOffline)
+                }
             }
             .task { await authSession.restoreSession() }
             .task { await load() }
             .refreshable { await load() }
+            .overlay(alignment: .bottom) {
+                if let offlineSyncMessage {
+                    Text(offlineSyncMessage).font(.footnote).padding(12)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                        .padding().onTapGesture { self.offlineSyncMessage = nil }
+                }
+            }
         }
     }
 
