@@ -20,6 +20,7 @@ permissions:
 jobs:
   php-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:18.7
@@ -85,4 +86,14 @@ jobs:
         run: find backend-laravel -type f -name '*.php' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l
       - name: Laravel unit and HTTP parity tests
         working-directory: backend-laravel
-        run: vendor/bin/phpunit --bootstrap vendor/autoload.php tests
+        run: |
+          mkdir -p build/test-reports
+          vendor/bin/phpunit --bootstrap vendor/autoload.php tests --log-junit build/test-reports/phpunit.xml
+      - name: Upload Laravel test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laravel-test-reports-${{ github.run_id }}
+          path: backend-laravel/build/test-reports/**
+          if-no-files-found: ignore
+          retention-days: 14
