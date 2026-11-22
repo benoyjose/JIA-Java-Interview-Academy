@@ -367,6 +367,21 @@ class QuizControllerPostgresIntegrationTest {
         assertThat(valid.get("durationLimitSeconds")).isEqualTo(900);
     }
 
+    @Test
+    void timedMockSubmissionAfterDeadlineUsesSavedAnswersAndMarksTimedOut() {
+        Map<String, Object> started = controller.start(learnerOne, Map.of(
+                "difficulty", "BEGINNER", "questionCount", 2, "mode", "TIMED_MOCK",
+                "durationSeconds", 900));
+        UUID id = (UUID) started.get("attemptId");
+        controller.saveAnswers(learnerOne, id, answers(1));
+        jdbc.update("UPDATE quiz_attempts SET deadline_at=? WHERE id=?",
+                Timestamp.from(Instant.now().minusSeconds(1)), id);
+        Map<String, Object> submitted = controller.submit(learnerOne, id, answers(2));
+        assertThat(submitted.get("timedOut")).isEqualTo(true);
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, id))
+                .isEqualTo("SUBMITTED");
+    }
+
     private UUID startAttempt() {
         return (UUID) startResponse().get("attemptId");
     }
