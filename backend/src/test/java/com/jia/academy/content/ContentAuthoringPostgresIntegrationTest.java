@@ -427,6 +427,20 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void reviewerCannotCreateOrPublishAuthoringContent() {
+        String slug = "reviewer-write-denied-" + UUID.randomUUID();
+        assertThatThrownBy(() -> service.createDraft(reviewer, request(slug, "Reviewer draft")))
+                .isInstanceOf(ResponseStatusException.class);
+        var draft = service.createDraft(editor, request(slug, "Editor draft"));
+        assertThatThrownBy(() -> service.publish(reviewer, draft.id()))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
+                .isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id IS NULL FROM lessons WHERE id=?",
+                Boolean.class, draft.id())).isTrue();
+    }
+
+    @Test
     void rollbackCreatesANewRevisionAndNeverOverwritesPublishedContent() {
         String slug = "rollback-" + UUID.randomUUID();
         var initial = service.createDraft(editor, request(slug, "Version one"));
