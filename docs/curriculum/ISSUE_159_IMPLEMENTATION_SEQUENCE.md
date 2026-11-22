@@ -24,8 +24,8 @@ Track authored, technically reviewed, imported, approved and published states se
 - [x] [JPA, Hibernate, SQL and data engineering](persistence/01-jpa-hibernate-sql-and-data-engineering.md) — PR #164 merged; review/import/publish pending.
 - [x] [Microservices, resilience, consistency and sagas](distributed-systems/01-microservices-resilience-consistency-and-sagas.md) — PR #166 merged; review/import/publish pending.
 - [x] [Kafka, RabbitMQ and event-driven systems](messaging/01-kafka-rabbitmq-event-driven-systems.md) — PR #167 merged; review/import/publish pending.
-- [x] [System design, capacity, reliability and multi-region](system-design/01-system-design-capacity-reliability-multiregion.md) — authored in current PR; review/import/publish pending.
-- [ ] Cloud, Kubernetes and delivery.
+- [x] [System design, capacity, reliability and multi-region](system-design/01-system-design-capacity-reliability-multiregion.md) — PR #168 merged; review/import/publish pending.
+- [x] [Docker, Kubernetes, cloud, CI/CD and GitOps](platform/01-docker-kubernetes-cloud-cicd-gitops.md) — authored in current PR; review/import/publish pending.
 - [ ] Observability, security and leadership.
 
 ## Lesson quality gate
