@@ -352,6 +352,21 @@ class QuizControllerPostgresIntegrationTest {
                 "{\"correctValues\":[\"A\"]}", "A is correct");
     }
 
+    @Test
+    void timedMockRejectsDurationsOutsideClientChoicesAndAcceptsSupportedValues() {
+        for (int invalid : List.of(60, 901, 21600)) {
+            assertThatThrownBy(() -> controller.start(learnerOne, Map.of(
+                    "difficulty", "BEGINNER", "questionCount", 1, "mode", "TIMED_MOCK",
+                    "durationSeconds", invalid)))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(400));
+        }
+        Map<String, Object> valid = controller.start(learnerOne, Map.of(
+                "difficulty", "BEGINNER", "questionCount", 1, "mode", "TIMED_MOCK",
+                "durationSeconds", 900));
+        assertThat(valid.get("durationLimitSeconds")).isEqualTo(900);
+    }
+
     private UUID startAttempt() {
         return (UUID) startResponse().get("attemptId");
     }
