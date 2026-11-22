@@ -4,7 +4,7 @@ public struct JIACategory: Codable, Sendable, Identifiable, Equatable {
     public let id: UUID
     public let slug: String
     public let name: String
-    public let technologySlug: String
+    public let technologySlug: String?
 }
 
 public struct JIACategoryListView: View {
