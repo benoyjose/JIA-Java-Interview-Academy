@@ -131,6 +131,11 @@ public final class JIAAuthSession: ObservableObject {
         }
     }
 
+    public func ensureAccessToken() async {
+        if accessToken == nil { await restoreSession() }
+        else { await refreshIfNeeded() }
+    }
+
     public func refreshIfNeeded() async {
         guard let expiresAt, expiresAt.timeIntervalSinceNow < 60,
               let refreshToken = tokenStore.load(), !refreshToken.isEmpty else { return }
