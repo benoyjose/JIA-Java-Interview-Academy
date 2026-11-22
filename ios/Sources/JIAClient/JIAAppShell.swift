@@ -69,7 +69,7 @@ public struct JIAAppShell: View {
                             } catch {
                                 messages.append("Content download failed; prior release remains active: \(error.localizedDescription)")
                             }
-                            await authSession.refreshIfNeeded()
+                            await authSession.ensureAccessToken()
                             if let token = authSession.accessToken {
                                 let activity = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
                                 let report = await activity.syncPending(token: token)
