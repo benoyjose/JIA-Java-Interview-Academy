@@ -20,7 +20,8 @@ internal object ProgressMergePolicy {
             position ?: current?.lastPositionJson,
             maxOf(now, (current?.updatedAt ?: (now - 1L)) + 1L))
 }
-\ndata class PendingLessonProgress(
+
+data class PendingLessonProgress(
     val lessonSlug: String,
     val contentRevision: Int,
     val progressPercent: Double,
