@@ -175,7 +175,7 @@ public struct JIALessonDetailView: View {
     }
 
     private func loadLearnerState() async {
-        await session.refreshIfNeeded()
+        await session.ensureAccessToken()
         if let token = session.accessToken {
             do {
                 let progress: [JIALessonProgress] = try await client.request(
@@ -206,7 +206,7 @@ public struct JIALessonDetailView: View {
         offlineActivityQueue.enqueueProgress(slug: lesson.slug, revision: lesson.contentRevision,
             percent: progressToSave, lastPosition: ["source": .string("ios-reader-slider")])
         savedProgress = progressToSave
-        await session.refreshIfNeeded()
+        await session.ensureAccessToken()
         guard let token = session.accessToken else {
             errorMessage = "Progress saved locally; it will sync after reconnecting."
             return
@@ -223,7 +223,7 @@ public struct JIALessonDetailView: View {
         let desired = !isBookmarked
         offlineActivityQueue.enqueueBookmark(slug: lesson.slug, bookmarked: desired)
         isBookmarked = desired
-        await session.refreshIfNeeded()
+        await session.ensureAccessToken()
         guard let token = session.accessToken else {
             errorMessage = "Bookmark saved locally; it will sync after reconnecting."
             return
