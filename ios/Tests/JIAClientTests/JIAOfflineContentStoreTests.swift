@@ -19,7 +19,7 @@ final class JIAOfflineContentStoreTests: XCTestCase {
     }
 
     func testVerifiedReleaseActivatesAndCanBeReadOffline() throws {
-        let json = """{"schemaVersion":1,"blocks":[{"type":"text","text":"offline"}]}"""
+        let json = #"{"schemaVersion":1,"blocks":[{"type":"text","text":"offline"}]}"#
         let lesson = JIAReleasedLesson(slug: "java-memory", contentRevision: 3, contentJson: json)
         let release = manifest(version: 1, slug: lesson.slug, revision: 3, content: json)
 
@@ -31,12 +31,12 @@ final class JIAOfflineContentStoreTests: XCTestCase {
     }
 
     func testChecksumFailureDoesNotSwitchActiveRelease() throws {
-        let v1Json = """{"blocks":["stable"]}"""
+        let v1Json = #"{"blocks":["stable"]}"#
         let v1 = JIAReleasedLesson(slug: "stable-lesson", contentRevision: 1, contentJson: v1Json)
         try store.activate(manifest(version: 1, slug: v1.slug, revision: 1, content: v1Json),
                            lessons: [v1.slug: v1])
 
-        let v2Json = """{"blocks":["tampered"]}"""
+        let v2Json = #"{"blocks":["tampered"]}"#
         let v2 = JIAReleasedLesson(slug: v1.slug, contentRevision: 2, contentJson: v2Json)
         let badManifest = manifest(version: 2, slug: v1.slug, revision: 2, content: "different payload")
 
@@ -48,7 +48,7 @@ final class JIAOfflineContentStoreTests: XCTestCase {
     }
 
     func testMissingPayloadOrRevisionMismatchLeavesPreviousReleaseActive() throws {
-        let content = """{"blocks":["known-good"]}"""
+        let content = #"{"blocks":["known-good"]}"#
         let item = JIAReleasedLesson(slug: "lesson-x", contentRevision: 1, contentJson: content)
         try store.activate(manifest(version: 1, slug: item.slug, revision: 1, content: content),
                            lessons: [item.slug: item])
@@ -60,7 +60,7 @@ final class JIAOfflineContentStoreTests: XCTestCase {
     }
 
     func testReleaseRejectsUnsafeSlugsAndInvalidRevision() throws {
-        let content = """{"ok":true}"""
+        let content = #"{"ok":true}"#
         let unsafe = JIAContentReleaseItem(id: UUID(), slug: "../escape", title: "Unsafe",
             contentRevision: 1, checksum: JIAOfflineContentStore.sha256(content))
         let release = JIAContentRelease(version: 1, createdAt: "now", items: [unsafe])
