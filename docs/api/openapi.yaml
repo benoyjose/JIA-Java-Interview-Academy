@@ -1243,11 +1243,75 @@ paths:
               schema: { $ref: '#/components/schemas/QuizAttemptStart' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /quiz-attempts/{attemptId}:
+    get:
+      summary: Resume an owned in-progress attempt with its question snapshot and saved responses
+      tags: [Assessments]
+      operationId: resumeQuizAttempt
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: In-progress attempt and saved answer state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [attemptId, difficulty, mode, status, questionCount, questions, savedAnswers]
+                properties:
+                  attemptId: { type: string, format: uuid }
+                  difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+                  mode: { type: string, enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA] }
+                  status: { type: string, const: IN_PROGRESS }
+                  questionCount: { type: integer }
+                  durationLimitSeconds: { type: [integer, 'null'] }
+                  deadlineAt: { type: [string, 'null'], format: date-time }
+                  challengeDate: { type: [string, 'null'], format: date }
+                  startedAt: { type: string, format: date-time }
+                  questions: { type: array, items: { $ref: '#/components/schemas/QuizQuestion' } }
+                  savedAnswers:
+                    type: array
+                    items:
+                      type: object
+                      required: [position, response]
+                      properties:
+                        position: { type: integer }
+                        response: { type: object, additionalProperties: true }
+                        timeSpentMs: { type: [integer, 'null'], minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    post:
+      summary: Abandon an owned in-progress attempt
+      tags: [Assessments]
+      operationId: abandonQuizAttempt
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Attempt marked abandoned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [attemptId, status]
+                properties:
+                  attemptId: { type: string, format: uuid }
+                  status: { type: string, const: ABANDONED }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /quiz-attempts/{attemptId}/answers:
     post:
-      summary: Save partial answers for an active timed mock attempt
+      summary: Save partial answers for an active attempt
       tags: [Assessments]
-      operationId: saveTimedMockAnswers
+      operationId: saveQuizAttemptAnswers
       parameters:
         - name: attemptId
           in: path
