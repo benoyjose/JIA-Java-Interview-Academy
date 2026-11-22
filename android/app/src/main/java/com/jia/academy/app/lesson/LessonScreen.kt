@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -17,9 +19,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collect
+import org.json.JSONObject
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jia.academy.app.BuildConfig
@@ -43,13 +50,42 @@ fun LessonScreen(
     val error = lessonState.error
     var progressMessage by remember(slug) { mutableStateOf<String?>(null) }
     var bookmarked by remember(slug) { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    var readingPositionRestored by remember(slug) { mutableStateOf(false) }
     var syncDiagnostics by remember { mutableStateOf<com.jia.academy.app.learning.OfflineSyncDiagnostics?>(null) }
     LaunchedEffect(slug) {
         bookmarked = OfflineLearningStore(context).isBookmarked(slug)
         syncDiagnostics = OfflineLearningStore(context).syncDiagnostics()
         lessonViewModel.load(BuildConfig.JIA_API_BASE_URL, slug)
     }
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LaunchedEffect(lesson?.slug) {
+        if (lesson?.slug == slug && !readingPositionRestored) {
+            scrollState.scrollTo(OfflineLearningStore(context).readingOffset(slug))
+            readingPositionRestored = true
+        }
+    }
+    LaunchedEffect(slug, lesson?.contentRevision, readingPositionRestored) {
+        val currentLesson = lesson ?: return@LaunchedEffect
+        if (!readingPositionRestored) return@LaunchedEffect
+        snapshotFlow { scrollState.value }
+            .distinctUntilChanged()
+            .debounce(900)
+            .collect { offset ->
+                val store = OfflineLearningStore(context)
+                store.saveReadingOffset(slug, offset)
+                if (!com.jia.academy.app.auth.SecureSessionStore(context).accessToken().isNullOrBlank()) {
+                    val position = JSONObject()
+                        .put("scrollOffsetPx", offset)
+                        .put("contentRevision", currentLesson.contentRevision)
+                        .toString()
+                    store.enqueueProgressAndSchedule(
+                        context, BuildConfig.JIA_API_BASE_URL, slug,
+                        currentLesson.contentRevision, 0.0, position
+                    )
+                }
+            }
+    }
+    Column(modifier.fillMaxSize().verticalScroll(scrollState).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
             loading -> CircularProgressIndicator()
             error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
