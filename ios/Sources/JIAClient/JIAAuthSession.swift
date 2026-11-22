@@ -111,7 +111,8 @@ public final class JIAAuthSession: ObservableObject {
     }
 
     public func restoreSession() async {
-        guard let refreshToken = tokenStore.load(), !refreshToken.isEmpty else { return }
+        guard accessToken == nil, !isRestoring,
+              let refreshToken = tokenStore.load(), !refreshToken.isEmpty else { return }
         isRestoring = true
         defer { isRestoring = false }
         do {
