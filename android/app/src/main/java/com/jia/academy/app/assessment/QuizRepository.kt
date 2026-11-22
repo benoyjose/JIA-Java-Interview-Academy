@@ -50,7 +50,8 @@ data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scor
     val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
 data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String, val mode: String = "PRACTICE")
 data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
-data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>)
+data class JiaQuizTopicPerformance(val technologySlug: String?, val categorySlug: String?, val difficulty: String, val attempts: Int, val accuracyPercent: Double?)
+data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>, val topics: List<JiaQuizTopicPerformance> = emptyList())
 
 data class JiaLessonProgress(
     val lessonSlug: String, val contentRevision: Int, val status: String,
@@ -253,7 +254,14 @@ class QuizRepository(private val context: Context? = null) {
                 if (item.isNull("accuracyPercent")) null else item.getDouble("accuracyPercent"),
                 if (item.isNull("bestScorePercent")) null else item.getDouble("bestScorePercent"))
         }
-        JiaQuizPerformance(levels)
+        val topicArray = json.optJSONArray("byTopic") ?: JSONArray()
+        val topics = (0 until topicArray.length()).map { i ->
+            val item = topicArray.getJSONObject(i)
+            JiaQuizTopicPerformance(item.optString("technologySlug").takeIf(String::isNotBlank),
+                item.optString("categorySlug").takeIf(String::isNotBlank), item.getString("difficulty"),
+                item.getInt("attempts"), if (item.isNull("accuracyPercent")) null else item.getDouble("accuracyPercent"))
+        }
+        JiaQuizPerformance(levels, topics)
     }
 
     suspend fun history(baseUrl: String, token: String): List<JiaQuizHistoryItem> = withContext(Dispatchers.IO) {
