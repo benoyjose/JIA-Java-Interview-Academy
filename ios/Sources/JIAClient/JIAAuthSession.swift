@@ -143,8 +143,7 @@ public final class JIAAuthSession: ObservableObject {
 
     public func signOut() async {
         if let accessToken {
-            _ = try? await client.request("/api/v1/auth/logout", token: accessToken, method: "POST",
-                                         as: EmptyResponse.self)
+            _ = try? await client.perform("/api/v1/auth/logout", token: accessToken, method: "POST")
         }
         signOutLocally()
     }
