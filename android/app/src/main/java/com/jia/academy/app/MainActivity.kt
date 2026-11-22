@@ -3,6 +3,7 @@ package com.jia.academy.app
 import com.jia.academy.app.catalogue.*
 import com.jia.academy.app.learning.OfflineLearningStore
 import com.jia.academy.app.lesson.LessonScreen
+import com.jia.academy.app.navigation.BrowseRoute
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -71,14 +72,6 @@ import java.net.URLEncoder
 import java.time.Duration
 import java.time.Instant
 
-private sealed interface BrowseRoute {
-    data object Home : BrowseRoute
-    data object QuizSelection : BrowseRoute
-    data object Authentication : BrowseRoute
-    data class Categories(val technology: Technology) : BrowseRoute
-    data class Lessons(val category: Category, val technology: Technology) : BrowseRoute
-    data class Lesson(val slug: String, val title: String) : BrowseRoute
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
