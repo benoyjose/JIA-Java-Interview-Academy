@@ -108,7 +108,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
 
     @Test
     void loginRateLimitSharesIpBudgetAcrossAccountsAndSuccessfulLoginDoesNotResetIt() {
-        String ip = "198.51.100." + (10 + java.util.concurrent.ThreadLocalRandom.current().nextInt(200));
+        String ip = "rate-limit-test-" + UUID.randomUUID();
         for (int attempt = 0; attempt < 10; attempt++) {
             rateLimits.checkAndRecord(ip, "account-" + attempt + "@example.test");
         }
