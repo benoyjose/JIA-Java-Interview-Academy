@@ -51,6 +51,7 @@ final class CurriculumImportValidator
                 if (! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) $errors[] = "$path.slug has invalid format";
             }
             if (! is_string($lesson['title'] ?? null) || trim($lesson['title']) === '') $errors[] = "$path.title must be non-empty";
+            if (! in_array($lesson['difficulty'] ?? null, ['BEGINNER','NOVICE','PROFESSIONAL','EXPERT'], true)) $errors[] = "$path.difficulty is unsupported";
             $this->validateContent($lesson['content'] ?? null, "$path.content", $errors);
             $this->validateProvenance($lesson['provenance'] ?? null, "$path.provenance", $errors);
         }
@@ -75,6 +76,12 @@ final class CurriculumImportValidator
                 $key = $category.'/'.$slug;
                 if (isset($questionKeys[$key])) $errors[] = "$path.slug duplicates '$key'";
                 $questionKeys[$key] = true;
+            }
+            if (! in_array($question['questionType'] ?? null, ['SINGLE_SELECT','MULTI_SELECT','TRUE_FALSE'], true)) $errors[] = "$path.questionType is unsupported";
+            if (! in_array($question['difficulty'] ?? null, ['BEGINNER','NOVICE','PROFESSIONAL','EXPERT'], true)) $errors[] = "$path.difficulty is unsupported";
+            $prompt = $question['prompt'] ?? null;
+            if (! is_array($prompt) || ! is_string($prompt['text'] ?? null) || trim($prompt['text']) === '') {
+                $errors[] = "$path.prompt.text is required";
             }
             $options = $question['options'] ?? null;
             $optionValues = [];
