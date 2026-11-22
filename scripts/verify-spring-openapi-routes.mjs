@@ -53,3 +53,26 @@ if (missing.length > 0) {
 }
 
 console.log("Verified " + springRoutes.size + " Spring Boot route/method mappings against OpenAPI.");
+
+const laravelRouteFile = "backend-laravel/routes/api.php";
+const laravelSource = fs.readFileSync(laravelRouteFile, "utf8");
+const laravelRoutes = new Set();
+const laravelMappingPattern = /Route::(get|post|put|patch|delete)\\s*\\(\\s*['"]([^'"]+)['"]/g;
+for (const match of laravelSource.matchAll(laravelMappingPattern)) {
+  const method = match[1].toLowerCase();
+  const route = match[2];
+  // Laravel's api.php is mounted at /api; the file's v1 group supplies the
+  // remaining prefix. OpenAPI paths intentionally omit the common /api/v1.
+  const versionedRoute = route.startsWith("/v1/") ? route.slice(3) : route;
+  laravelRoutes.add(method + " " + versionedRoute);
+}
+
+const undocumentedLaravel = [...laravelRoutes]
+  .filter((route) => !documentedRoutes.has(route))
+  .sort();
+if (undocumentedLaravel.length > 0) {
+  console.error("Laravel API routes missing from OpenAPI:");
+  for (const route of undocumentedLaravel) console.error("  - " + route);
+  process.exit(1);
+}
+console.log("Verified " + laravelRoutes.size + " Laravel route/method mappings against OpenAPI.");
