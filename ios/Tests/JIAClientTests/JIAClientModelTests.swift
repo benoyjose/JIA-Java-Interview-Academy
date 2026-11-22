@@ -29,4 +29,12 @@ final class JIAClientModelTests: XCTestCase {
     func testAPIErrorPreservesHTTPStatus() {
         XCTAssertEqual(JIAAPIError.httpStatus(401), JIAAPIError.httpStatus(401))
     }
+    func testLessonSummaryDecodesMissingOptionalSummary() throws {
+        let json = """
+        {"id":"10000000-0000-0000-0000-000000000002","slug":"streams","title":"Streams","difficulty":"BEGINNER","contentRevision":1}
+        """.data(using: .utf8)!
+        let lesson = try JSONDecoder().decode(JIALessonSummary.self, from: json)
+        XCTAssertNil(lesson.summary)
+        XCTAssertEqual(lesson.contentRevision, 1)
+    }
 }
