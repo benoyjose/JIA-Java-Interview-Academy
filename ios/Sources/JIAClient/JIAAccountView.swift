@@ -55,6 +55,5 @@ public struct JIAAccountView: View {
             }
         }
         .navigationTitle("Account")
-        .task { await session.restoreSession() }
     }
 }
