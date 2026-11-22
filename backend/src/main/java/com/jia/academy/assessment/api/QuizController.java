@@ -399,8 +399,8 @@ public class QuizController {
             """,(rs,n)->rs.getString("status"),attemptId,user.id(),academyId);
         if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Quiz attempt not found");
         String status=rows.getFirst();
-        String nextStatus=abandonedStatus(status);
-        if("ABANDONED".equals(nextStatus)) return Map.of("attemptId",attemptId,"status",nextStatus);
+        if("ABANDONED".equals(status)) return Map.of("attemptId",attemptId,"status",status);
+        if(!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Submitted attempt cannot be abandoned");
         int updated=jdbc.update("""
                 UPDATE quiz_attempts SET status='ABANDONED',submitted_at=?
                 WHERE id=?
