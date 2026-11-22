@@ -401,8 +401,16 @@ public class QuizController {
         String status=rows.getFirst();
         String nextStatus=abandonedStatus(status);
         if("ABANDONED".equals(nextStatus)) return Map.of("attemptId",attemptId,"status",nextStatus);
-        jdbc.update("UPDATE quiz_attempts SET status='ABANDONED',submitted_at=? WHERE id=? AND user_id=? AND academy_id=?",
-                Timestamp.from(Instant.now()),attemptId,user.id(),academyId);
+        int updated=jdbc.update("""
+                UPDATE quiz_attempts SET status='ABANDONED',submitted_at=?
+                WHERE id=? AND status='IN_PROGRESS'
+                """,Timestamp.from(Instant.now()),attemptId);
+        if(updated==0) {
+            String currentStatus=jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?",String.class,attemptId);
+            String resolved=abandonedStatus(currentStatus);
+            if("ABANDONED".equals(resolved)) return Map.of("attemptId",attemptId,"status",resolved);
+        }
+        if(updated!=1) throw new ResponseStatusException(HttpStatus.CONFLICT,"Quiz attempt could not be abandoned");
         return Map.of("attemptId",attemptId,"status","ABANDONED");
     }
 
