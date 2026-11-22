@@ -443,7 +443,7 @@ public class QuizController {
         if (limit < 1 || limit > 100) throw badRequest("limit must be between 1 and 100");
         if (difficulty != null && !LEVELS.contains(difficulty)) throw badRequest("Invalid difficulty");
         String sql = """
-            SELECT a.id,a.difficulty,t.slug AS technology_slug,c.slug AS category_slug,a.question_count,
+            SELECT a.id,a.difficulty,a.mode,t.slug AS technology_slug,c.slug AS category_slug,a.question_count,
                    a.correct_count,a.score_percent,a.started_at,a.status
             FROM quiz_attempts a LEFT JOIN technologies t ON t.id=a.technology_id
             LEFT JOIN categories c ON c.id=a.category_id
@@ -454,6 +454,7 @@ public class QuizController {
             Map<String,Object> item = new LinkedHashMap<>();
             item.put("attemptId", rs.getObject("id", UUID.class));
             item.put("difficulty", rs.getString("difficulty"));
+            item.put("mode", rs.getString("mode"));
             item.put("technologySlug", rs.getString("technology_slug"));
             item.put("categorySlug", rs.getString("category_slug"));
             item.put("questionCount", rs.getInt("question_count"));
