@@ -131,7 +131,7 @@
           "collision-allowed"
         ]
       },
-      "explanation": "mutable-key-safe",
+      "explanation": "The contract requires equal objects to have equal hash codes; hash collisions between unequal objects are permitted.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -165,7 +165,7 @@
           "ambiguity"
         ]
       },
-      "explanation": "performance",
+      "explanation": "Null values would make a null result ambiguous between absence and a present mapping, complicating concurrent retrieval.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -199,7 +199,7 @@
           "thenCompose"
         ]
       },
-      "explanation": "complete",
+      "explanation": "thenCompose maps a result to another CompletionStage and flattens it; thenApply performs a value transformation.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -233,7 +233,7 @@
           "unmodifiable"
         ]
       },
-      "explanation": "parallel",
+      "explanation": "Stream.toList() returns an unmodifiable list; it does not promise a particular implementation class.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -297,7 +297,7 @@
           "unreachable"
         ]
       },
-      "explanation": "large",
+      "explanation": "An object is eligible when it is no longer reachable from GC roots through strong references.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -331,7 +331,7 @@
           "visibility"
         ]
       },
-      "explanation": "mutual-exclusion",
+      "explanation": "volatile provides visibility and ordering guarantees for that field, but does not make compound operations such as increment atomic.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -382,29 +382,29 @@
       },
       "options": [
         {
-          "value": "equal-same-hash",
-          "label": "Equal objects must have equal hash codes."
+          "value": "stateless",
+          "label": "Prefer stateless behavioral parameters."
         },
         {
-          "value": "same-hash-equal",
-          "label": "Objects with equal hash codes must be equal."
+          "value": "shared-write",
+          "label": "Mutate one shared ArrayList from parallel forEach."
         },
         {
-          "value": "mutable-key-safe",
-          "label": "Changing equality fields of a stored key is safe."
+          "value": "collector",
+          "label": "Use an appropriate collector to accumulate results."
         },
         {
-          "value": "collision-allowed",
-          "label": "Unequal objects may share a hash code."
+          "value": "order-assumption",
+          "label": "Assume parallel side effects execute in encounter order."
         }
       ],
       "answer": {
         "correctValues": [
-          "equal-same-hash",
-          "collision-allowed"
+          "stateless",
+          "collector"
         ]
       },
-      "explanation": "avoid-shared-mutation",
+      "explanation": "Avoid shared mutable state and side effects in stream behavioral parameters; prefer stateless functions and collectors.",
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
@@ -2954,6 +2954,804 @@
       "provenance": {
         "sourceType": "ADMIN_AUTHORED",
         "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-operation-removes-matching-elements-from-a-collection-using-a-predicate",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which operation removes matching elements from a collection using a predicate?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "removeIf"
+        },
+        {
+          "value": "choice-2",
+          "label": "filter"
+        },
+        {
+          "value": "choice-3",
+          "label": "deleteWhere"
+        },
+        {
+          "value": "choice-4",
+          "label": "map"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Collection.removeIf accepts a Predicate and removes matching elements.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-map-computeifabsent-do-when-the-key-is-absent-or-mapped-to-null",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does Map.computeIfAbsent do when the key is absent or mapped to null?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "Always overwrites an existing non-null value"
+        },
+        {
+          "value": "choice-3",
+          "label": "Removes the key"
+        },
+        {
+          "value": "choice-4",
+          "label": "Runs the mapping function for every key"
+        },
+        {
+          "value": "choice-1",
+          "label": "Computes a value and associates it if the result is non-null"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "The mapping function is applied when no non-null mapping exists.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-statement-about-weakhashmap-keys-is-correct",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which statement about WeakHashMap keys is correct?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "Values are weak references too by definition"
+        },
+        {
+          "value": "choice-4",
+          "label": "It is a concurrent map"
+        },
+        {
+          "value": "choice-1",
+          "label": "Entries may disappear when keys are no longer strongly reachable"
+        },
+        {
+          "value": "choice-2",
+          "label": "Keys are permanently retained"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Weak keys allow entries to be reclaimed when keys are otherwise unreachable.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-main-purpose-of-the-copyonwritearraylist",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the main purpose of the CopyOnWriteArrayList?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "Sorted concurrent keys"
+        },
+        {
+          "value": "choice-1",
+          "label": "Read-heavy workloads with infrequent mutations"
+        },
+        {
+          "value": "choice-2",
+          "label": "High-frequency writes with no allocation"
+        },
+        {
+          "value": "choice-3",
+          "label": "Lock-free arithmetic"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Mutations copy the backing array, making iteration snapshot-based and reads inexpensive.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-an-atomicinteger-provide",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does an AtomicInteger provide?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Atomic operations on an integer value"
+        },
+        {
+          "value": "choice-2",
+          "label": "A lock for an entire object graph"
+        },
+        {
+          "value": "choice-3",
+          "label": "A volatile array of integers"
+        },
+        {
+          "value": "choice-4",
+          "label": "Automatic persistence"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "AtomicInteger uses atomic update operations suitable for concurrent counters.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-operation-on-a-stream-is-a-short-circuiting-terminal-operation",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which operation on a stream is a short-circuiting terminal operation?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "sorted"
+        },
+        {
+          "value": "choice-3",
+          "label": "map"
+        },
+        {
+          "value": "choice-4",
+          "label": "peek"
+        },
+        {
+          "value": "choice-1",
+          "label": "anyMatch"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "anyMatch may stop as soon as a matching element is found.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-contract-of-comparator-compare-a-b-when-a-and-b-are-equal-in-ordering",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the contract of Comparator.compare(a,b) when a and b are equal in ordering?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "It must return 1"
+        },
+        {
+          "value": "choice-4",
+          "label": "It must throw"
+        },
+        {
+          "value": "choice-1",
+          "label": "It returns zero"
+        },
+        {
+          "value": "choice-2",
+          "label": "It must return -1"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "A comparator returns a negative, zero or positive result according to ordering.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-string-intern-provide",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does String.intern() provide?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "A UTF-8 byte array"
+        },
+        {
+          "value": "choice-1",
+          "label": "A canonical representation from the string pool"
+        },
+        {
+          "value": "choice-2",
+          "label": "A mutable string"
+        },
+        {
+          "value": "choice-3",
+          "label": "A thread lock"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Interning returns the canonical pooled string for equal contents.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-benefit-of-a-primitive-stream-such-as-intstream",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the benefit of a primitive stream such as IntStream?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Primitive-specialized operations can avoid boxing in many pipelines"
+        },
+        {
+          "value": "choice-2",
+          "label": "It stores only strings"
+        },
+        {
+          "value": "choice-3",
+          "label": "It guarantees parallel execution"
+        },
+        {
+          "value": "choice-4",
+          "label": "It disables terminal operations"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "IntStream and related types operate on primitive values.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-class-s-static-initializer-execute-relative-to-initialization",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a class's static initializer execute relative to initialization?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "On every instance method call"
+        },
+        {
+          "value": "choice-3",
+          "label": "Only during garbage collection"
+        },
+        {
+          "value": "choice-4",
+          "label": "Before class loading"
+        },
+        {
+          "value": "choice-1",
+          "label": "During class initialization, before normal use completes"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Class initialization runs static initializers under JVM initialization rules.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-a-java-agent",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of a Java agent?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "Manage SQL schemas only"
+        },
+        {
+          "value": "choice-4",
+          "label": "Provide automatic thread termination"
+        },
+        {
+          "value": "choice-1",
+          "label": "Instrument or transform classes using JVM instrumentation facilities"
+        },
+        {
+          "value": "choice-2",
+          "label": "Replace the Java compiler"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Agents can transform bytecode during class loading or retransformation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-can-cause-a-class-loader-memory-leak-in-an-application-server",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What can cause a class-loader memory leak in an application server?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "Only primitive fields are retained"
+        },
+        {
+          "value": "choice-1",
+          "label": "References prevent an obsolete class loader and its classes from being reclaimed"
+        },
+        {
+          "value": "choice-2",
+          "label": "Class loaders are always immortal"
+        },
+        {
+          "value": "choice-3",
+          "label": "Every static field is automatically cleared"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Thread locals, static references and threads can retain application class loaders.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-distinction-between-stack-overflow-and-heap-exhaustion",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the distinction between stack overflow and heap exhaustion?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Stack overflow exhausts thread call-stack space; heap exhaustion cannot allocate objects"
+        },
+        {
+          "value": "choice-2",
+          "label": "They are the same JVM error"
+        },
+        {
+          "value": "choice-3",
+          "label": "Heap exhaustion means too many threads only"
+        },
+        {
+          "value": "choice-4",
+          "label": "Stack overflow means disk is full"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "StackOverflowError and OutOfMemoryError commonly reflect different memory areas.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-is-using-a-thread-pool-generally-preferable-to-creating-unbounded-threads-per-task",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Why is using a thread pool generally preferable to creating unbounded threads per task?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "It makes every task synchronous"
+        },
+        {
+          "value": "choice-3",
+          "label": "It guarantees no task failures"
+        },
+        {
+          "value": "choice-4",
+          "label": "It removes scheduling"
+        },
+        {
+          "value": "choice-1",
+          "label": "It bounds resource usage and amortizes thread creation overhead"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Pools control concurrency and reuse workers; sizing and queue policy still matter.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-countdownlatch-allow",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a CountDownLatch allow?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "A lock that is always reentrant"
+        },
+        {
+          "value": "choice-4",
+          "label": "A queue sorted by priority"
+        },
+        {
+          "value": "choice-1",
+          "label": "Threads to wait until a count reaches zero"
+        },
+        {
+          "value": "choice-2",
+          "label": "A count to increase after reaching zero"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "CountDownLatch is a one-shot synchronization aid.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-property-does-a-semaphore-regulate",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Which property does a Semaphore regulate?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "Class initialization"
+        },
+        {
+          "value": "choice-1",
+          "label": "The number of concurrent permits available"
+        },
+        {
+          "value": "choice-2",
+          "label": "Object equality"
+        },
+        {
+          "value": "choice-3",
+          "label": "Thread stack size"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "A semaphore can limit concurrent access to a resource.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-key-distinction-between-a-monitor-lock-and-a-readwritelock",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the key distinction between a monitor lock and a ReadWriteLock?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "A read-write lock can permit multiple readers while excluding writers"
+        },
+        {
+          "value": "choice-2",
+          "label": "A monitor allows unlimited writers"
+        },
+        {
+          "value": "choice-3",
+          "label": "ReadWriteLock is not thread-safe"
+        },
+        {
+          "value": "choice-4",
+          "label": "It is only usable with primitive values"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "ReadWriteLock separates shared read access from exclusive write access.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-defensive-copy-protect-in-an-immutable-api",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a defensive copy protect in an immutable API?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "The API from compilation"
+        },
+        {
+          "value": "choice-3",
+          "label": "The JVM from class loading"
+        },
+        {
+          "value": "choice-4",
+          "label": "A method from exceptions"
+        },
+        {
+          "value": "choice-1",
+          "label": "Internal state from mutation through caller-owned mutable references"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Copying mutable inputs/outputs prevents external aliasing from changing state.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-the-functionalinterface-annotation",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of the @FunctionalInterface annotation?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "It creates a thread"
+        },
+        {
+          "value": "choice-4",
+          "label": "It makes an interface sealed"
+        },
+        {
+          "value": "choice-1",
+          "label": "It requests compiler validation of the single-abstract-method contract"
+        },
+        {
+          "value": "choice-2",
+          "label": "It makes methods asynchronous"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "The annotation is optional but catches accidental extra abstract methods.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-behavior-of-list-of-with-a-null-element",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the behavior of List.of() with a null element?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "It stores null as Optional.empty"
+        },
+        {
+          "value": "choice-1",
+          "label": "It throws NullPointerException"
+        },
+        {
+          "value": "choice-2",
+          "label": "It silently drops null"
+        },
+        {
+          "value": "choice-3",
+          "label": "It creates a mutable list"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "The unmodifiable factory collections reject null elements.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-java-s-switch-expression-require-from-its-result-producing-branches",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does Java's switch expression require from its result-producing branches?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Each branch must produce a value or complete abruptly"
+        },
+        {
+          "value": "choice-2",
+          "label": "Every branch must call break"
+        },
+        {
+          "value": "choice-3",
+          "label": "It can return different unrelated statements without values"
+        },
+        {
+          "value": "choice-4",
+          "label": "It must be used only on integers"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Switch expressions yield a value and must be exhaustive for their selector domain.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
       },
       "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
     }
