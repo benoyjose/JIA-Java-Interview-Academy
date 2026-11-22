@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
-import org.json.JSONObject
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jia.academy.app.BuildConfig
@@ -74,10 +73,7 @@ fun LessonScreen(
                 val store = OfflineLearningStore(context)
                 store.saveReadingOffset(slug, offset)
                 if (!com.jia.academy.app.auth.SecureSessionStore(context).accessToken().isNullOrBlank()) {
-                    val position = JSONObject()
-                        .put("scrollOffsetPx", offset)
-                        .put("contentRevision", currentLesson.contentRevision)
-                        .toString()
+                    val position = LessonReadingPositionCodec.encode(offset, currentLesson.contentRevision)
                     store.enqueueProgressAndSchedule(
                         context, BuildConfig.JIA_API_BASE_URL, slug,
                         currentLesson.contentRevision, 0.0, position
