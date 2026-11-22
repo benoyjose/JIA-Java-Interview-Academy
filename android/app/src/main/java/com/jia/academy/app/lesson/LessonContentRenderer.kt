@@ -165,12 +165,14 @@ private fun InterviewAnswerCard(block: LessonBlock.InterviewAnswer) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(block.title ?: "Interview answer", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() })
-            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"))
+            Text(block.points.mapIndexed { index, point -> "${index + 1}. $point" }.joinToString("\n"),
+                modifier = Modifier.semantics { contentDescription = "Interview answer with ${block.points.size} key points" })
             block.expandedExplanation?.let {
                 TextButton(onClick = { expanded = !expanded }) {
                     Text(if (expanded) "Hide detailed explanation" else "Show detailed explanation")
                 }
-                if (expanded) Text(it, style = MaterialTheme.typography.bodyMedium)
+                if (expanded) Text(it, style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.semantics { contentDescription = "Detailed explanation" })
             }
         }
     }
