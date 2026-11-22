@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class QuizController {
     private static final UUID JIA_ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000001");
     private static final List<String> LEVELS = List.of("BEGINNER", "NOVICE", "PROFESSIONAL", "EXPERT");
+    private static final Set<Integer> TIMED_MOCK_DURATIONS_SECONDS = Set.of(900, 1800, 3600);
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -54,8 +55,8 @@ public class QuizController {
         if ("TIMED_MOCK".equals(mode)) {
             Object rawDuration = body.get("durationSeconds");
             if (!(rawDuration instanceof Number number) || number.doubleValue() != number.intValue()
-                    || number.intValue() < 60 || number.intValue() > 21600) {
-                throw badRequest("durationSeconds must be between 60 and 21600");
+                    || !TIMED_MOCK_DURATIONS_SECONDS.contains(number.intValue())) {
+                throw badRequest("durationSeconds must be one of 900, 1800 or 3600 seconds");
             }
             durationLimitSeconds = number.intValue();
         } else if (!"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
