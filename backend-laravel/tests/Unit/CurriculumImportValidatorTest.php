@@ -49,6 +49,14 @@ final class CurriculumImportValidatorTest extends TestCase
         self::assertContains('$.questions[0].questionType is unsupported', $errors);
     }
 
+    public function test_checked_in_java_foundations_sample_passes_the_import_validator(): void
+    {
+        $samplePath = dirname(__DIR__, 3).'/docs/curriculum/samples/java-foundations-import-v1.json';
+        self::assertFileExists($samplePath);
+        $sample = json_decode(file_get_contents($samplePath), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame([], (new CurriculumImportValidator())->validate($sample, ['java-language-fundamentals']));
+    }
+
     private function bundle(): array
     {
         return [
