@@ -88,7 +88,14 @@ public struct JIAAppShell: View {
                     .disabled(isSyncingOffline)
                 }
             }
-            .task { await authSession.restoreSession() }
+            .task {
+                await authSession.restoreSession()
+                await authSession.refreshIfNeeded()
+                if let token = authSession.accessToken {
+                    let activity = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+                    _ = await activity.syncPending(token: token)
+                }
+            }
             .task { await load() }
             .refreshable { await load() }
             .overlay(alignment: .bottom) {
