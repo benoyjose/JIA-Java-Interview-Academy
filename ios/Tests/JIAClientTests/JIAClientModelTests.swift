@@ -65,4 +65,17 @@ final class JIAClientModelTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(JIALessonContent.self, from: missingType))
     }
 
+    func testCategoryAndLessonListModelsDecodeCatalogueResponses() throws {
+        let categoryJSON = """
+        {"id":"20000000-0000-0000-0000-000000000001","slug":"streams","name":"Streams"}
+        """.data(using: .utf8)!
+        let category = try JSONDecoder().decode(JIACategory.self, from: categoryJSON)
+        XCTAssertEqual(category.slug, "streams")
+        XCTAssertNil(category.technologySlug)
+
+        let lessonJSON = """
+        {"id":"30000000-0000-0000-0000-000000000001","slug":"stream-map","title":"Stream map","difficulty":"BEGINNER","contentRevision":1}
+        """.data(using: .utf8)!
+        XCTAssertEqual(try JSONDecoder().decode(JIALessonSummary.self, from: lessonJSON).slug, "stream-map")
+    }
 }
