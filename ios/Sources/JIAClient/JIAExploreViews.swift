@@ -10,13 +10,15 @@ public struct JIACategory: Codable, Sendable, Identifiable, Equatable {
 public struct JIACategoryListView: View {
     let technology: JIATechnology
     let client: JIAAPIClient
+    @ObservedObject var session: JIAAuthSession
     @State private var categories: [JIACategory] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(technology: JIATechnology, client: JIAAPIClient) {
+    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession) {
         self.technology = technology
         self.client = client
+        self.session = session
     }
 
     public var body: some View {
@@ -30,7 +32,7 @@ public struct JIACategoryListView: View {
             }
             ForEach(categories) { category in
                 NavigationLink(category.name) {
-                    JIALessonListView(category: category, client: client)
+                    JIALessonListView(category: category, client: client, session: session)
                 }
             }
         }
@@ -53,13 +55,15 @@ public struct JIACategoryListView: View {
 public struct JIALessonListView: View {
     let category: JIACategory
     let client: JIAAPIClient
+    @ObservedObject var session: JIAAuthSession
     @State private var lessons: [JIALessonSummary] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(category: JIACategory, client: JIAAPIClient) {
+    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession) {
         self.category = category
         self.client = client
+        self.session = session
     }
 
     public var body: some View {
@@ -73,7 +77,7 @@ public struct JIALessonListView: View {
             }
             ForEach(lessons) { lesson in
                 NavigationLink {
-                    JIALessonDetailView(lesson: lesson, client: client)
+                    JIALessonDetailView(lesson: lesson, client: client, session: session)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(lesson.title).font(.headline)
@@ -107,13 +111,18 @@ private struct JIAFullLesson: Decodable, Sendable {
 public struct JIALessonDetailView: View {
     let lesson: JIALessonSummary
     let client: JIAAPIClient
+    @ObservedObject var session: JIAAuthSession
     @State private var content: JIALessonContent?
     @State private var loading = true
     @State private var errorMessage: String?
+    @State private var isBookmarked = false
+    @State private var savedProgress = 0.0
+    @State private var progressToSave = 0.0
 
-    public init(lesson: JIALessonSummary, client: JIAAPIClient) {
+    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession) {
         self.lesson = lesson
         self.client = client
+        self.session = session
     }
 
     public var body: some View {
@@ -124,7 +133,27 @@ public struct JIALessonDetailView: View {
             else { ContentUnavailableView("Lesson content unavailable", systemImage: "doc.text") }
         }
         .navigationTitle(lesson.title)
-        .task { await load() }
+        .task { await load(); await loadLearnerState() }
+        .toolbar {
+            if session.isSignedIn {
+                ToolbarItem(placement: .automatic) {
+                    Button { Task { await toggleBookmark() } } label: {
+                        Label(isBookmarked ? "Remove bookmark" : "Bookmark lesson",
+                              systemImage: isBookmarked ? "bookmark.fill" : "bookmark")
+                    }
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if session.isSignedIn {
+                HStack {
+                    Text("Progress")
+                    Slider(value: $progressToSave, in: 0...100, step: 5)
+                    Text("\(Int(progressToSave))%")
+                    Button("Save") { Task { await saveProgress() } }
+                }.padding().background(.regularMaterial)
+            }
+        }
     }
 
     private func load() async {
