@@ -1,34 +1,28 @@
 # Issue #159 — Curriculum implementation sequence
 
-This file tracks implementation batches for the advanced curriculum epic. It is an execution plan, not a claim that the lessons listed are already authored or published.
-
-## Existing baseline
-
-- `docs/JIA_JAVA_CURRICULUM.md` is the broad coverage blueprint.
-- The 100-question Java foundations bank is a question set, not a deep lesson library.
-- Content follows `docs/CONTENT_MODEL.md`, preserves provenance and remains unpublished until editorial approval.
+This is a delivery tracker, not a claim that lessons are published. The repository's curriculum blueprint is broad; this epic authors detailed lesson content.
 
 ## Domain delivery order
 
-| Batch | Domain | Minimum deep coverage |
+| Batch | Domain | Coverage |
 |---|---|---|
-| 1 | Java Memory Model & concurrency | Happens-before, data races, volatile, monitors, safe publication, atomics, executors, virtual threads |
-| 2 | Collections, Generics & Streams | Contracts/internals, complexity, type erasure, collectors, parallel-stream hazards |
-| 3 | JVM & performance | Class loading, JIT, heap/GC, JFR, profiling and production diagnosis |
-| 4 | Spring core & Boot | IoC lifecycle, auto-configuration, MVC, security, configuration and observability |
-| 5 | JPA, SQL & data | Persistence context, fetch plans, transactions, indexing, query plans and migration |
+| 1 | Java Memory Model & concurrency | Happens-before, races, volatile, monitors, publication, atomics |
+| 2 | Collections, Generics & Streams | Contracts, internals, complexity, erasure, collectors, parallelism |
+| 3 | JVM & performance | Class loading, JIT, memory, GC, JFR and production diagnosis |
+| 4 | Spring core & Boot | IoC lifecycle, auto-configuration, MVC, transactions, security, readiness |
+| 5 | JPA, SQL & data | Persistence context, fetch plans, transactions, indexing, query plans, migrations |
 | 6 | Microservices & distributed systems | Resilience, idempotency, consistency, outbox, saga, failure recovery |
-| 7 | Kafka & RabbitMQ | Delivery guarantees, partitioning, consumer behavior, retry/DLQ and operations |
-| 8 | System design & architecture | Requirements, capacity, trade-offs, high availability, multi-region and design case studies |
-| 9 | Cloud, Kubernetes & delivery | Container runtime, K8s operations, AWS, CI/CD, GitOps and release safety |
-| 10 | Observability, security & leadership | Metrics/logs/traces, incidents, threat modeling, architecture and technical leadership |
+| 7 | Kafka & RabbitMQ | Delivery guarantees, partitioning, consumers, retry/DLQ, operations |
+| 8 | System design & architecture | Requirements, capacity, trade-offs, HA, multi-region and design cases |
+| 9 | Cloud, Kubernetes & delivery | Containers, K8s, AWS, CI/CD, GitOps, release safety |
+| 10 | Observability, security & leadership | Telemetry, incidents, threat modelling, architecture, leadership |
 
-## Lesson delivery status
+## Authored lesson drafts
 
-- [x] Batch 1 draft: [Java Memory Model, Happens-Before and Safe Publication](advanced-java/01-java-memory-model-and-safe-publication.md) — merged in PR #160; review/import/publish pending.
-- [x] Batch 2 draft: [Collections, Generics and Stream Pipelines](advanced-java/02-collections-generics-and-streams.md) — merged in PR #161; review/import/publish pending.
-- [x] Batch 3 draft: [JVM Internals, Garbage Collection and Performance Diagnosis](advanced-java/03-jvm-internals-gc-and-performance.md) — authored in current PR; technical review/import/publish pending.
-- [ ] Batch 4: Spring core and Spring Boot.
+- [x] Batch 1: [Java Memory Model, Happens-Before and Safe Publication](advanced-java/01-java-memory-model-and-safe-publication.md) — merged PR #160; review/import/publish pending.
+- [x] Batch 2: [Collections, Generics and Stream Pipelines](advanced-java/02-collections-generics-and-streams.md) — merged PR #161; review/import/publish pending.
+- [x] Batch 3: [JVM Internals, GC and Performance Diagnosis](advanced-java/03-jvm-internals-gc-and-performance.md) — merged PR #162; review/import/publish pending.
+- [x] Batch 4: [Spring Container, Boot, Transactions and Security](spring/01-spring-container-boot-transactions-security.md) — authored in current PR; review/import/publish pending.
 - [ ] Batch 5: JPA, SQL and data engineering.
 - [ ] Batch 6: Microservices and distributed systems.
 - [ ] Batch 7: Kafka and RabbitMQ.
@@ -36,10 +30,10 @@ This file tracks implementation batches for the advanced curriculum epic. It is 
 - [ ] Batch 9: Cloud, Kubernetes and delivery.
 - [ ] Batch 10: Observability, security and engineering leadership.
 
-## Per-lesson quality gate
+## Required lesson quality gate
 
-Each lesson must provide measurable objectives; prerequisites; version scope; concept and internals; executable examples or explicitly marked pseudocode; failure modes; production trade-offs; hands-on exercise and solution/rubric; beginner-to-architect interview questions; concise spoken answer; detailed answer; assessment/revision links; provenance; review state.
+Each lesson includes measurable outcomes, prerequisites, version scope, internals, examples or clearly labelled pseudocode, failure modes, production trade-offs, exercises/solutions, junior-to-architect interview questions, concise and expanded answers, assessment links, provenance and review state.
 
-## Completion reporting
+## Status accounting
 
-Report authored, reviewed, imported and published counts separately. A merged Markdown draft is not a published lesson.
+Track authored, technically reviewed, imported, approved and published counts separately. A merged Markdown draft is not a published lesson. Follow `docs/CONTENT_MODEL.md` and retain provenance; publication remains a separate review action.
