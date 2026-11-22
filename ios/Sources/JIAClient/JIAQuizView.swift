@@ -106,7 +106,7 @@ public struct JIAQuizView: View {
                     Button(loading ? "Submitting…" : "Submit answers") {
                         Task { await submit() }
                     }
-                    .disabled(loading || (attempt.mode != .timedMock && answers.count < attempt.questions.count))
+                    .disabled(loading || answers.count < attempt.questions.count)
                     Button("Abandon attempt", role: .destructive) {
                         Task { await abandon() }
                     }
@@ -218,8 +218,15 @@ public struct JIAQuizView: View {
             let data = try JSONEncoder().encode(body)
             let started: JIAQuizAttemptResponse = try await client.request(
                 "/api/v1/quiz-attempts", token: token, method: "POST", body: data)
-            attempt = started
-            answers = [:]
+            if selectedMode == .dailyChallenge {
+                let restored: JIAQuizAttemptResponse = try await client.request(
+                    "/api/v1/quiz-attempts/\(started.attemptId)", token: token)
+                attempt = restored
+                restoreAnswers(from: restored)
+            } else {
+                attempt = started
+                answers = [:]
+            }
             result = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -276,15 +283,19 @@ public struct JIAQuizView: View {
             let restored: JIAQuizAttemptResponse = try await client.request(
                 "/api/v1/quiz-attempts/\(item.attemptId)", token: token)
             attempt = restored
+            restoreAnswers(from: restored)
             result = nil
-            let saved = restored.savedAnswers ?? []
-            answers = Dictionary(uniqueKeysWithValues: saved.compactMap { row -> (Int, Set<String>)? in
-                let values = Set(row.response.values ?? row.response.value.map { [$0] } ?? [])
-                return values.isEmpty ? nil : (row.position, values)
-            })
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func restoreAnswers(from attempt: JIAQuizAttemptResponse) {
+        let saved = attempt.savedAnswers ?? []
+        answers = Dictionary(uniqueKeysWithValues: saved.compactMap { row -> (Int, Set<String>)? in
+            let values = Set(row.response.values ?? row.response.value.map { [$0] } ?? [])
+            return values.isEmpty ? nil : (row.position, values)
+        })
     }
 
     private func abandon(_ id: UUID) async {
