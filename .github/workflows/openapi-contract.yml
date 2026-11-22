@@ -5,6 +5,8 @@ on:
     paths:
       - 'docs/api/openapi.yaml'
       - '.github/workflows/openapi-contract.yml'
+      - 'scripts/verify-spring-openapi-routes.mjs'
+      - 'backend-laravel/routes/api.php'
   push:
     branches: [main]
     paths:
