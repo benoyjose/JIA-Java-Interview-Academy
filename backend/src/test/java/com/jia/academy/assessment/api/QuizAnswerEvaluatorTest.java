@@ -27,7 +27,7 @@ class QuizAnswerEvaluatorTest {
     void malformedEmptyAndMissingResponsesAreIncorrectNotExceptions() {
         Map<String, Object> answer = Map.of("correctValues", java.util.List.of("yes"));
         assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT", Map.of(), answer)).isFalse();
-        assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT", Map.of("value", (Object) null), answer)).isFalse();
+        assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT", java.util.Collections.singletonMap("value", null), answer)).isFalse();
         assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT", Map.of("values", java.util.List.of()), answer)).isFalse();
         assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT", Map.of("value", "yes"), Map.of())).isFalse();
         assertThat(QuizAnswerEvaluator.isCorrect("MULTI_SELECT", Map.of("values", java.util.List.of("yes")), Map.of("correctValues", java.util.List.of() ))).isFalse();
