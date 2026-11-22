@@ -107,6 +107,19 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     }
 
     @Test
+    void loginRateLimitSharesIpBudgetAcrossAccountsAndSuccessfulLoginDoesNotResetIt() {
+        String ip = "198.51.100." + (10 + java.util.concurrent.ThreadLocalRandom.current().nextInt(200));
+        for (int attempt = 0; attempt < 10; attempt++) {
+            rateLimits.checkAndRecord(ip, "account-" + attempt + "@example.test");
+        }
+        // A successful sign-in clears only the account bucket, never the shared IP bucket.
+        rateLimits.clear(ip, "account-0@example.test");
+        assertThatThrownBy(() -> rateLimits.checkAndRecord(ip, "new-account@example.test"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Too many sign-in attempts");
+    }
+
+    @Test
     void contentReleaseKeepsExactPublishedRevisionAvailableAfterNewerPublication() {
         String slug = "release-snapshot-" + UUID.randomUUID();
         var draft = authoring.createDraft(editor, request(slug, "Version one"));
