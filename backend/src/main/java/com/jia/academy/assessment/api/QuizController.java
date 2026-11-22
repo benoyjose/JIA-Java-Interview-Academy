@@ -164,11 +164,12 @@ public class QuizController {
                 attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         Object[] attempt = attempts.getFirst();
-        if (!"TIMED_MOCK".equals(attempt[0])) throw badRequest("Answer autosave is only available for timed mock attempts");
         if (!"IN_PROGRESS".equals(attempt[1])) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
-        Timestamp deadline = (Timestamp) attempt[2];
-        if (deadline == null || !Instant.now().isBefore(deadline.toInstant())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
+        if ("TIMED_MOCK".equals(attempt[0])) {
+            Timestamp deadline = (Timestamp) attempt[2];
+            if (deadline == null || !Instant.now().isBefore(deadline.toInstant())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
+            }
         }
         Set<Integer> positions = new HashSet<>();
         Set<Integer> expectedPositions = new HashSet<>(jdbc.queryForList(
@@ -314,6 +315,81 @@ public class QuizController {
         result.put("timedOut", timedOut);
         result.put("answers", results);
         return result;
+    }
+
+    @GetMapping("/quiz-attempts/{attemptId}")
+    public Map<String,Object> resume(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID attemptId) {
+        requireUser(user);
+        UUID academyId = primaryAcademyId(user);
+        var rows = jdbc.query("""
+            SELECT id,difficulty,mode,status,question_count,duration_limit_seconds,deadline_at,challenge_date,started_at
+            FROM quiz_attempts WHERE id=? AND user_id=? AND academy_id=?
+            """, (rs,n) -> {
+                Map<String,Object> item = new LinkedHashMap<>();
+                item.put("attemptId", rs.getObject("id", UUID.class));
+                item.put("difficulty", rs.getString("difficulty"));
+                item.put("mode", rs.getString("mode"));
+                item.put("status", rs.getString("status"));
+                item.put("questionCount", rs.getInt("question_count"));
+                item.put("durationLimitSeconds", rs.getObject("duration_limit_seconds"));
+                item.put("deadlineAt", rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant().toString());
+                item.put("challengeDate", rs.getString("challenge_date"));
+                item.put("startedAt", rs.getTimestamp("started_at").toInstant().toString());
+                return item;
+            }, attemptId,user.id(),academyId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
+        Map<String,Object> response=rows.getFirst();
+        if (!"IN_PROGRESS".equals(response.get("status"))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only in-progress attempts can be resumed");
+        }
+        List<Map<String,Object>> questions=jdbc.query("""
+            SELECT aq.position,q.id AS question_id,aq.question_revision_id AS revision_id,
+                   q.question_type,qr.prompt_json::text AS prompt_json,qr.options_json::text AS options_json,qr.hint,q.difficulty
+            FROM quiz_attempt_questions aq JOIN questions q ON q.id=aq.question_id
+            JOIN question_revisions qr ON qr.id=aq.question_revision_id
+            WHERE aq.attempt_id=? ORDER BY aq.position
+            """,(rs,n)->{
+                Map<String,Object> item=new LinkedHashMap<>();
+                item.put("position",rs.getInt("position"));
+                item.put("questionId",rs.getObject("question_id",UUID.class));
+                item.put("revisionId",rs.getObject("revision_id",UUID.class));
+                item.put("questionType",rs.getString("question_type"));
+                item.put("prompt",json(rs.getString("prompt_json")));
+                item.put("options",json(rs.getString("options_json")));
+                item.put("hint",rs.getString("hint"));
+                item.put("difficulty",rs.getString("difficulty"));
+                return item;
+            },attemptId);
+        List<Map<String,Object>> saved=jdbc.query("""
+            SELECT position,response_json::text AS response_json,time_spent_ms
+            FROM quiz_attempt_answers WHERE attempt_id=? ORDER BY position
+            """,(rs,n)->{
+                Map<String,Object> item=new LinkedHashMap<>();
+                item.put("position",rs.getInt("position"));
+                item.put("response",readMap(rs.getString("response_json")));
+                item.put("timeSpentMs",rs.getObject("time_spent_ms"));
+                return item;
+            },attemptId);
+        response.put("questions",questions);
+        response.put("savedAnswers",saved);
+        return response;
+    }
+
+    @PostMapping("/quiz-attempts/{attemptId}/abandon")
+    @Transactional
+    public Map<String,Object> abandon(@AuthenticationPrincipal CurrentUser user,@PathVariable UUID attemptId) {
+        requireUser(user);
+        UUID academyId=primaryAcademyId(user);
+        var rows=jdbc.query("""
+            SELECT status FROM quiz_attempts WHERE id=? AND user_id=? AND academy_id=? FOR UPDATE
+            """,(rs,n)->rs.getString("status"),attemptId,user.id(),academyId);
+        if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Quiz attempt not found");
+        String status=rows.getFirst();
+        if("ABANDONED".equals(status)) return Map.of("attemptId",attemptId,"status","ABANDONED");
+        if(!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Submitted attempt cannot be abandoned");
+        jdbc.update("UPDATE quiz_attempts SET status='ABANDONED',submitted_at=? WHERE id=? AND user_id=? AND academy_id=?",
+                Timestamp.from(Instant.now()),attemptId,user.id(),academyId);
+        return Map.of("attemptId",attemptId,"status","ABANDONED");
     }
 
     @GetMapping("/me/quiz-performance")
