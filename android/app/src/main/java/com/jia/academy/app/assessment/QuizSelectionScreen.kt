@@ -37,9 +37,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-@Composable
 private data class QuizTopicOption(val technologySlug: String, val categorySlug: String, val label: String)
 
+@Composable
 private fun CodeSnippet(language: String?, source: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -98,7 +98,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                     QuizTopicOption(technology.slug, category.slug, "${technology.name} / ${category.name}")
                 }
             }.sortedBy { it.label }
-        }.onSuccess { topicOptions = listOf(null to "All topics") + it }
+        }.onSuccess { topicOptions = it }
     }
 
     LaunchedEffect(selected, selectedTopic) {
