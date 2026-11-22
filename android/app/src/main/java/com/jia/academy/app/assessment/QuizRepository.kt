@@ -39,7 +39,8 @@ data class JiaQuizQuestion(
 )
 data class JiaQuizAttempt(
     val id: String, val difficulty: String, val questions: List<JiaQuizQuestion>,
-    val mode: JiaQuizMode, val deadlineAt: String?, val durationLimitSeconds: Int?, val challengeDate: String?
+    val mode: JiaQuizMode, val deadlineAt: String?, val durationLimitSeconds: Int?, val challengeDate: String?,
+    val savedAnswers: Map<Int, Set<String>> = emptyMap(), val savedTimeSpentMs: Map<Int, Long> = emptyMap()
 )
 data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double,
     val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
