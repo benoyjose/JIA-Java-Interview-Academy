@@ -60,7 +60,9 @@ class LessonContentRendererTest {
             MaterialTheme { LessonContentRenderer(raw) }
         }
 
-        composeRule.onNodeWithText("Use constructor injection.").assertExists()
+        // Renderer intentionally numbers answer bullets (e.g. "1. Use constructor injection."),
+        // so assert the visible phrase as a substring instead of requiring an exact Text node.
+        composeRule.onNodeWithText("Use constructor injection.", substring = true).assertExists()
         composeRule.onNodeWithText("It makes dependencies explicit and supports immutability.")
             .assertDoesNotExist()
         composeRule.onNodeWithText("Show detailed explanation").performClick()
