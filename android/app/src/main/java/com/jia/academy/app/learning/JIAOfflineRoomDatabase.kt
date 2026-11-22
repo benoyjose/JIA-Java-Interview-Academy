@@ -146,7 +146,12 @@ abstract class JIAOfflineRoomDatabase : RoomDatabase() {
         // Version 2 is the deployed SQLiteOpenHelper schema. Version 3 adopts Room metadata
         // without changing any existing table or learner-owned rows.
         val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) = Unit
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE sync_diagnostics_room_new (id INTEGER NOT NULL PRIMARY KEY, last_attempt_at INTEGER, last_success_at INTEGER, last_error TEXT, synced_progress_count INTEGER NOT NULL DEFAULT 0, synced_bookmark_count INTEGER NOT NULL DEFAULT 0)")
+                db.execSQL("INSERT INTO sync_diagnostics_room_new (id,last_attempt_at,last_success_at,last_error,synced_progress_count,synced_bookmark_count) SELECT id,last_attempt_at,last_success_at,last_error,synced_progress_count,synced_bookmark_count FROM sync_diagnostics")
+                db.execSQL("DROP TABLE sync_diagnostics")
+                db.execSQL("ALTER TABLE sync_diagnostics_room_new RENAME TO sync_diagnostics")
+            }
         }
 
         fun open(context: Context): JIAOfflineRoomDatabase =
