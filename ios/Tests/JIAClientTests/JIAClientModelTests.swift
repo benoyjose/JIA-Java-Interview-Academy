@@ -67,6 +67,29 @@ final class JIAClientModelTests: XCTestCase {
         XCTAssertEqual(history.questionCount, 20)
     }
 
+
+    func testResumableAttemptDecodesSavedSingleAndMultiSelectResponses() throws {
+        let json = """
+        {
+          "attemptId":"70000000-0000-0000-0000-000000000003",
+          "difficulty":"PROFESSIONAL",
+          "mode":"PRACTICE",
+          "questionCount":2,
+          "deadlineAt":null,
+          "durationLimitSeconds":null,
+          "questions":[],
+          "savedAnswers":[
+            {"position":1,"response":{"value":"A"},"timeSpentMs":900},
+            {"position":2,"response":{"values":["B","C"]},"timeSpentMs":1200}
+          ]
+        }
+        """.data(using: .utf8)!
+        let attempt = try JSONDecoder().decode(JIAQuizAttemptResponse.self, from: json)
+        XCTAssertEqual(attempt.savedAnswers?.first?.response.value, "A")
+        XCTAssertEqual(attempt.savedAnswers?.last?.response.values, ["B", "C"])
+        XCTAssertEqual(attempt.savedAnswers?.last?.timeSpentMs, 1200)
+    }
+
     func testTechnologyDecodesSharedCatalogueContract() throws {
         let json = """
         {"id":"10000000-0000-0000-0000-000000000001","slug":"core-java","name":"Core Java","description":"Java fundamentals","sortOrder":1}
