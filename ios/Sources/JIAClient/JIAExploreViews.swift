@@ -114,7 +114,6 @@ public struct JIALessonDetailView: View {
             else { ContentUnavailableView("Lesson content unavailable", systemImage: "doc.text") }
         }
         .navigationTitle(lesson.title)
-        .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
     }
 
