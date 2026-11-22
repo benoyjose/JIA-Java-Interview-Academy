@@ -52,7 +52,7 @@ jobs:
         run: gradle -p android :app:testDebugUnitTest --no-daemon
 
       - name: Upload Android unit test and lint reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-test-lint-reports-${{ github.run_id }}
@@ -61,7 +61,7 @@ jobs:
             android/app/build/reports/lint-results*
             android/app/build/test-results/**
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 14
 
       - name: Run Android lint
         run: gradle -p android :app:lintDebug --no-daemon
