@@ -13,6 +13,9 @@ import androidx.work.WorkerParameters
 import com.jia.academy.app.auth.SecureSessionStore
 import com.jia.academy.app.auth.SharedSessionRefreshCoordinator
 import com.jia.academy.app.auth.AuthRepository
+import com.jia.academy.app.auth.AuthHttpException
+import com.jia.academy.app.auth.SessionValidationPolicy
+import com.jia.academy.app.auth.SessionValidationAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -132,7 +135,16 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
     private suspend fun ensureAccessToken(baseUrl: String, store: SecureSessionStore): String {
         val accessToken = store.accessToken() ?: throw IllegalStateException("Sign in to synchronize learning activity")
         val auth = AuthRepository()
-        if (runCatching { auth.currentUser(baseUrl, accessToken) }.isSuccess) return accessToken
+        try {
+            auth.currentUser(baseUrl, accessToken)
+            return accessToken
+        } catch (error: AuthHttpException) {
+            when (SessionValidationPolicy.classify(error.statusCode)) {
+                SessionValidationAction.REFRESH -> Unit
+                SessionValidationAction.RETRY -> throw IOException("Session validation temporarily unavailable", error)
+                SessionValidationAction.FAIL -> throw IllegalStateException(error.message ?: "Session validation rejected", error)
+            }
+        }
         val refreshToken = store.refreshToken()
             ?: throw IllegalStateException("Your session expired. Sign in again to synchronize learning activity.")
         return SharedSessionRefreshCoordinator.instance.refreshIfUnchanged(
