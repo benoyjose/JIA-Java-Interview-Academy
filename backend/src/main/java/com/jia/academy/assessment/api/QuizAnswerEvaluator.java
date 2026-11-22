@@ -7,7 +7,12 @@ import java.util.Map;
 final class QuizAnswerEvaluator {
     private QuizAnswerEvaluator() {}
 
+    static boolean requiresSelfReview(String questionType) {
+        return List.of("DEBUGGING", "CODING", "SQL", "SCENARIO").contains(questionType);
+    }
+
     static boolean isCorrect(String questionType, Map<String, Object> response, Map<String, Object> answer) {
+        if (requiresSelfReview(questionType)) return false;
         Object expectedValue = answer.containsKey("correctValues")
                 ? answer.get("correctValues") : answer.get("correct_values");
         if (!(expectedValue instanceof List<?> expected) || expected.isEmpty()) return false;
