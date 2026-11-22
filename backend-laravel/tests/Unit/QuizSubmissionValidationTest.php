@@ -55,4 +55,16 @@ final class QuizSubmissionValidationTest extends TestCase
         $this->expectException(BadRequestHttpException::class);
         QuizController::assertCompleteAnswerPositions([], []);
     }
+    @Test
+    public function test_rejects_duplicate_or_reordered_positions_instead_of_accepting_partial_or_ambiguous_answers(): void
+    {
+        foreach ([[1, 2, 3], [1, 2, 2]], [[1, 2, 3], [3, 2, 1]], [[1, 2, 3], [1, 3]]) as [$expected, $submitted]) {
+            try {
+                QuizController::assertCompleteAnswerPositions($expected, $submitted);
+                $this->fail('Expected answer positions to be rejected: '.json_encode($submitted));
+            } catch (BadRequestHttpException $exception) {
+                $this->assertStringContainsString('exactly one answer', $exception->getMessage());
+            }
+        }
+    }
 }
