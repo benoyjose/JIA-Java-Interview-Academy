@@ -18,18 +18,18 @@ class LessonViewModel(private val repository: CatalogueRepository) : ViewModel()
     val state: StateFlow<LessonLoadState> = _state.asStateFlow()
     private var loadedSlug: String? = null
     private var loadJob: Job? = null
-    private var requestGeneration = 0L
+    private val requestGuard = LessonLoadRequestGuard()
 
     fun load(baseUrl: String, slug: String, force: Boolean = false) {
         if (!force && loadedSlug == slug && _state.value.lesson != null) return
         loadedSlug = slug
-        val generation = ++requestGeneration
+        val generation = requestGuard.begin()
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _state.value = LessonLoadState(loading = true, lesson = _state.value.lesson)
             runCatching { repository.getLesson(baseUrl, slug) }
                 .onSuccess {
-                    if (generation == requestGeneration) _state.value = LessonLoadState(lesson = it)
+                    if (requestGuard.isCurrent(generation)) _state.value = LessonLoadState(lesson = it)
                 }
                 .onFailure {
                     if (generation == requestGeneration && it !is kotlinx.coroutines.CancellationException) {
@@ -46,4 +46,11 @@ class LessonViewModelFactory(private val repository: CatalogueRepository) : View
         if (modelClass.isAssignableFrom(LessonViewModel::class.java)) return LessonViewModel(repository) as T
         throw IllegalArgumentException("Unknown ViewModel class: " + modelClass.name)
     }
+}
+
+/** Small deterministic guard used to prevent an older network response replacing newer route state. */
+internal class LessonLoadRequestGuard {
+    private var generation = 0L
+    fun begin(): Long = ++generation
+    fun isCurrent(candidate: Long): Boolean = candidate == generation
 }
