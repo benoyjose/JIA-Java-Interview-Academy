@@ -398,6 +398,43 @@ class QuizControllerPostgresIntegrationTest {
                 .isZero();
     }
 
+    @Test
+    void resumesOwnedAttemptWithSavedAnswersAndTiming() {
+        UUID attemptId = startAttempt();
+        controller.saveAnswers(learnerOne, attemptId, Map.of("answers", List.of(
+                Map.of("position", 1, "response", Map.of("value", "A"), "timeSpentMs", 1450)
+        )));
+        Map<String,Object> resumed = controller.resume(learnerOne, attemptId);
+        assertThat(resumed.get("status")).isEqualTo("IN_PROGRESS");
+        assertThat(resumed.get("questions")).asList().hasSize(2);
+        assertThat(resumed.get("savedAnswers")).asList().hasSize(1);
+        Map<?,?> saved = (Map<?,?>) ((List<?>) resumed.get("savedAnswers")).getFirst();
+        assertThat(saved.get("position")).isEqualTo(1);
+        assertThat(saved.get("timeSpentMs")).isEqualTo(1450);
+        assertThat(saved.get("response")).isEqualTo(Map.of("value", "A"));
+    }
+
+    @Test
+    void resumeAndAbandonAreOwnerScopedAndEnforceAttemptState() {
+        UUID attemptId = startAttempt();
+        assertThatThrownBy(() -> controller.resume(learnerTwo, attemptId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
+        assertThatThrownBy(() -> controller.abandon(learnerTwo, attemptId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
+
+        assertThat(controller.abandon(learnerOne, attemptId).get("status")).isEqualTo("ABANDONED");
+        assertThat(controller.abandon(learnerOne, attemptId).get("status")).isEqualTo("ABANDONED");
+        assertThatThrownBy(() -> controller.resume(learnerOne, attemptId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+        assertThatThrownBy(() -> controller.submit(learnerOne, attemptId, answers(1, 2)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+    }
+
+
     private UUID startAttempt() {
         return (UUID) startResponse().get("attemptId");
     }
