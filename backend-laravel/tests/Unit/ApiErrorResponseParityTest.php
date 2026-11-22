@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Support\ApiErrorResponse;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 final class ApiErrorResponseParityTest extends TestCase
 {
