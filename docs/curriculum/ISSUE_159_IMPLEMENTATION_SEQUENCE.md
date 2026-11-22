@@ -4,9 +4,9 @@ This file tracks implementation batches for the advanced curriculum epic. It is 
 
 ## Existing baseline
 
-- The repository's `docs/JIA_JAVA_CURRICULUM.md` is a broad topic coverage blueprint.
-- The existing Java foundations question bank is a draft asset, not a complete deep lesson library.
-- Content must follow `docs/CONTENT_MODEL.md`, preserve provenance and remain unpublished until editorial approval.
+- `docs/JIA_JAVA_CURRICULUM.md` is the broad coverage blueprint.
+- The 100-question Java foundations bank is a question set, not a deep lesson library.
+- Content follows `docs/CONTENT_MODEL.md`, preserves provenance and remains unpublished until editorial approval.
 
 ## Domain delivery order
 
@@ -25,9 +25,9 @@ This file tracks implementation batches for the advanced curriculum epic. It is 
 
 ## Lesson delivery status
 
-- [x] Batch 1 draft: [Java Memory Model, Happens-Before and Safe Publication](advanced-java/01-java-memory-model-and-safe-publication.md) — merged in PR #160; review/import/publish still pending.
-- [x] Batch 2 draft: [Collections, Generics and Stream Pipelines](advanced-java/02-collections-generics-and-streams.md) — authored in current PR; technical review/import/publish pending.
-- [ ] Batch 3: JVM internals and performance diagnostics.
+- [x] Batch 1 draft: [Java Memory Model, Happens-Before and Safe Publication](advanced-java/01-java-memory-model-and-safe-publication.md) — merged in PR #160; review/import/publish pending.
+- [x] Batch 2 draft: [Collections, Generics and Stream Pipelines](advanced-java/02-collections-generics-and-streams.md) — merged in PR #161; review/import/publish pending.
+- [x] Batch 3 draft: [JVM Internals, Garbage Collection and Performance Diagnosis](advanced-java/03-jvm-internals-gc-and-performance.md) — authored in current PR; technical review/import/publish pending.
 - [ ] Batch 4: Spring core and Spring Boot.
 - [ ] Batch 5: JPA, SQL and data engineering.
 - [ ] Batch 6: Microservices and distributed systems.
