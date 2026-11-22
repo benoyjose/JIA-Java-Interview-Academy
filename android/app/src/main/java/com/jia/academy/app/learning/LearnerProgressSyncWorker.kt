@@ -13,6 +13,9 @@ import androidx.work.WorkerParameters
 import com.jia.academy.app.auth.SecureSessionStore
 import com.jia.academy.app.auth.SharedSessionRefreshCoordinator
 import com.jia.academy.app.auth.AuthRepository
+import com.jia.academy.app.auth.AuthHttpException
+import com.jia.academy.app.auth.SessionValidationPolicy
+import com.jia.academy.app.auth.SessionValidationAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
