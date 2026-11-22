@@ -15,10 +15,10 @@ const lessons = [
 
 const requirements = [
   ["learning objectives", /learning outcomes|## outcomes/i],
-  ["interview-ready answer", /interview answer|spoken interview answer|interview-ready summary/i],
-  ["hands-on exercises", /## .*exercises/i],
-  ["senior/architect interview assessment", /interview questions|interview prompts|follow-up questions/i],
-  ["production or operational depth", /production|operational|incident/i],
+  ["interview-ready answer", /interview answer|spoken interview answer|interview-ready summary|repeatable interview framework/i],
+  ["hands-on exercises or scenarios", /## .*exercises|## .*hands-on scenarios/i],
+  ["senior/architect interview assessment", /senior.*interview|interview.*questions|interview prompts|follow-up questions|interview case studies/i],
+  ["production, reliability or failure analysis", /production|operational|incident|reliability|failure scenario/i],
   ["reviewer references", /## references|reviewer references/i],
   ["draft/review status", /editorial status|status:\s*draft/i],
 ];
