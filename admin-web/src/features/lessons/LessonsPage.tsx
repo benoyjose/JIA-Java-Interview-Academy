@@ -43,8 +43,13 @@ export function LessonsPage() {
   useEffect(() => {
     if (!selectedId) return;
     const controller = new AbortController();
-    api.lesson(selectedId, controller.signal).then(detail => { setSelected(detail); setCreating(false); })
-      .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Could not load lesson."); });
+    setSelected(null);
+    setError("");
+    api.lesson(selectedId, controller.signal).then(detail => {
+      if (!controller.signal.aborted) { setSelected(detail); setCreating(false); }
+    }).catch(reason => {
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Could not load lesson.");
+    });
     return () => controller.abort();
   }, [selectedId, refreshKey]);
 
