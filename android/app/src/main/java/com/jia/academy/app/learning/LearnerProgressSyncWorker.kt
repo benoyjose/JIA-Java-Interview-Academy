@@ -16,12 +16,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 
 class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) :
     CoroutineWorker(context, parameters) {
+
+    internal var httpTransport: ProgressSyncHttpTransport = UrlConnectionProgressSyncTransport()
+
+    internal constructor(context: Context, parameters: WorkerParameters, transport: ProgressSyncHttpTransport) : this(context, parameters) {
+        httpTransport = transport
+    }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val baseUrl = inputData.getString(KEY_BASE_URL)?.trimEnd('/')
@@ -82,28 +86,26 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         for (item in store.pendingProgress()) {
             val encodedSlug = URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
             val path = "/me/lesson-progress/" + encodedSlug
-            val body = JSONObject()
-                .put("contentRevision", item.contentRevision)
-                .put("progressPercent", item.progressPercent)
-            item.lastPositionJson?.let { body.put("lastPosition", JSONObject(it)) }
+            val body = ProgressSyncResponsePolicy.requestBody(item)
             val (status, _) = request(baseUrl, path, token, "PUT", body)
-            if (status in 200..299) {
-                store.markProgressSynced(item)
-                synced++
-            } else if (status == 409) {
-                val (lessonStatus, lessonJson) = request(baseUrl, "/lessons/" + encodedSlug, null, "GET")
-                if (lessonStatus in 200..299) {
-                    val currentRevision = JSONObject(lessonJson).optInt("contentRevision", 0)
-                    if (currentRevision > 0) {
-                        store.enqueueProgress(item.lessonSlug, currentRevision, item.progressPercent, item.lastPositionJson)
-                        throw IOException("Progress revision rebased; retrying synchronization")
-                    }
+            when (ProgressSyncResponsePolicy.classify(status)) {
+                SyncResponseAction.ACKNOWLEDGE -> {
+                    store.markProgressSynced(item)
+                    synced++
                 }
-                throw IllegalStateException("Progress conflict could not be reconciled")
-            } else if (status == 408 || status == 429 || status >= 500) {
-                throw IOException("Progress sync should be retried")
-            } else {
-                throw IllegalStateException("Progress sync rejected with HTTP $status")
+                SyncResponseAction.REBASE -> {
+                    val (lessonStatus, lessonJson) = request(baseUrl, "/lessons/" + encodedSlug, null, "GET")
+                    if (lessonStatus in 200..299) {
+                        val currentRevision = JSONObject(lessonJson).optInt("contentRevision", 0)
+                        if (currentRevision > 0) {
+                            store.enqueueProgress(item.lessonSlug, currentRevision, item.progressPercent, item.lastPositionJson)
+                            throw IOException("Progress revision rebased; retrying synchronization")
+                        }
+                    }
+                    throw IllegalStateException("Progress conflict could not be reconciled")
+                }
+                SyncResponseAction.RETRY -> throw IOException("Progress sync should be retried (HTTP $status)")
+                SyncResponseAction.REJECT -> throw IllegalStateException("Progress sync rejected with HTTP $status")
             }
         }
         return synced
@@ -143,28 +145,11 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         return session.accessToken
     }
 
-    private fun request(
+    internal fun request(
         baseUrl: String, path: String, token: String?, method: String, body: JSONObject? = null
     ): Pair<Int, String> {
-        val connection = (URL(baseUrl + "/api/v1" + path).openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 10_000
-            readTimeout = 20_000
-            setRequestProperty("Accept", "application/json")
-            if (token != null) setRequestProperty("Authorization", "Bearer $token")
-            if (body != null) {
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-            }
-        }
-        return try {
-            if (body != null) connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body.toString()) }
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            status to (stream?.bufferedReader()?.use { it.readText() }.orEmpty())
-        } finally {
-            connection.disconnect()
-        }
+        val response = httpTransport.execute(baseUrl + "/api/v1" + path, method, token, body?.toString())
+        return response.status to response.body
     }
 
     companion object {

@@ -37,4 +37,32 @@ final class JIAClientModelTests: XCTestCase {
         XCTAssertNil(lesson.summary)
         XCTAssertEqual(lesson.contentRevision, 1)
     }
+    func testStructuredLessonDecodesKnownBlocksAndRetainsUnknownTypes() throws {
+        let json = """
+        {"schemaVersion":1,"blocks":[
+          {"type":"interview_answer","title":"Short answer","text":"Use streams"},
+          {"type":"code","language":"java","code":"items.stream()"},
+          {"type":"future_widget","payload":{"x":1}}
+        ]}
+        """.data(using: .utf8)!
+        let content = try JSONDecoder().decode(JIALessonContent.self, from: json)
+        XCTAssertEqual(content.schemaVersion, 1)
+        XCTAssertEqual(content.blocks.count, 3)
+        XCTAssertEqual(content.blocks[0].text, "Use streams")
+        XCTAssertEqual(content.blocks[1].language, "java")
+        XCTAssertFalse(content.blocks[2].isSupported)
+    }
+
+    func testStructuredLessonRejectsUnsupportedSchemaVersion() {
+        let json = #"{"schemaVersion":2,"blocks":[]}"#.data(using: .utf8)!
+        XCTAssertThrowsError(try JSONDecoder().decode(JIALessonContent.self, from: json))
+    }
+
+    func testStructuredLessonRejectsMissingRequiredFieldsAndMalformedBlocks() {
+        let missingVersion = #"{"blocks":[]}"#.data(using: .utf8)!
+        let missingType = #"{"schemaVersion":1,"blocks":[{"title":"missing type"}]}"#.data(using: .utf8)!
+        XCTAssertThrowsError(try JSONDecoder().decode(JIALessonContent.self, from: missingVersion))
+        XCTAssertThrowsError(try JSONDecoder().decode(JIALessonContent.self, from: missingType))
+    }
+
 }
