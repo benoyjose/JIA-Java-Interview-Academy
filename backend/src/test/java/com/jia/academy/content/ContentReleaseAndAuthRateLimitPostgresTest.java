@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.auth.service.AuthRateLimitService;
 import com.jia.academy.auth.service.AuthService;
+import com.jia.academy.auth.service.PhoneOtpService;
+import com.jia.academy.auth.api.AuthDtos.LoginRequest;
+import org.springframework.web.client.RestClient;
 import com.jia.academy.auth.api.AuthDtos.RegisterRequest;
 import com.jia.academy.content.service.TaxonomyAdminService;
 import com.jia.academy.content.service.LessonRevisionHistoryService;
@@ -274,6 +277,51 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 "SELECT COUNT(*) FROM auth_identities WHERE user_id=?",
                 Integer.class, federatedOnly.id());
         assertThat(remaining).isEqualTo(1);
+    }
+
+
+    @Test
+    void loginDoesNotRevealWhetherAnAccountExists() {
+        String email="enumeration-"+UUID.randomUUID()+"@example.test";
+        auth.register(new RegisterRequest("Enumeration Test",email,"long-secure-test-password"));
+        var known=assertThatThrownBy(() -> auth.login(new LoginRequest(email,"wrong-password","test-device")))
+                .isInstanceOf(ResponseStatusException.class).actual();
+        var unknown=assertThatThrownBy(() -> auth.login(new LoginRequest(
+                "missing-"+UUID.randomUUID()+"@example.test","wrong-password","test-device")))
+                .isInstanceOf(ResponseStatusException.class).actual();
+        assertThat(((ResponseStatusException)known).getStatusCode().value()).isEqualTo(401);
+        assertThat(((ResponseStatusException)unknown).getStatusCode().value()).isEqualTo(401);
+        assertThat(known.getMessage()).isEqualTo(unknown.getMessage());
+        assertThat(known.getMessage()).contains("Invalid email or password");
+    }
+
+    @Test
+    void providerIdentityAndEmailConflictsRequireExplicitSafeLinking() {
+        CurrentUser first=user("Identity owner","LEARNER");
+        CurrentUser second=user("Different account","LEARNER");
+        String subject="google-subject-"+UUID.randomUUID();
+        auth.linkFederatedIdentity(first,"GOOGLE",subject,"first@example.test",true);
+        assertThatThrownBy(() -> auth.linkFederatedIdentity(second,"GOOGLE",subject,"second@example.test",true))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("linked to another account");
+        assertThatThrownBy(() -> auth.linkFederatedIdentity(second,"APPLE","apple-"+UUID.randomUUID(),
+                first.email(),true))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("never linked by email alone");
+        assertThatThrownBy(() -> auth.linkFederatedIdentity(second,"GOOGLE","unverified-"+UUID.randomUUID(),
+                "second@example.test",false))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("verified provider identity");
+    }
+
+    @Test
+    void phoneOtpRemainsDisabledUntilSmsVendorVerificationIsExplicitlyEnabled() {
+        PhoneOtpService otp=new PhoneOtpService(jdbc,auth,RestClient.builder(),"https://sms.example.test",
+                "configured-token","01234567890123456789012345678901",false);
+        assertThatThrownBy(() -> otp.requestCode("+919876543210"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException)error).getStatusCode().value()).isEqualTo(503))
+                .hasMessageContaining("not configured");
     }
 
     @Test
