@@ -58,3 +58,9 @@ The iOS assessment client now supports technology/category-filtered question sel
 ### Learner continuity
 
 The lesson reader now loads the authenticated learner's progress and bookmarks, exposes an explicit progress save control, and supports idempotent bookmark add/remove using the shared backend routes. The API client handles empty successful responses such as HTTP 204 bookmark removal.
+
+### Offline content release
+
+The app shell can download the latest immutable content release. The iOS store verifies every lesson's content revision and SHA-256 checksum, writes a staging release, and changes the active-release pointer only after the entire manifest is validated. A failed or interrupted download leaves the previously active release readable. Lesson detail falls back to verified cached content when the network request fails.
+
+This increment covers content cache/download activation; offline queued progress/bookmark mutation and retry/backoff remain separate parity work.
