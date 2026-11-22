@@ -26,4 +26,12 @@ class ProgressMergePolicyTest {
         assertEquals(501L, merged.updatedAt)
     }
 
+
+    @Test fun staleRevisionCannotReplacePositionFromNewerCachedContent() {
+        val current = ProgressSnapshot(9, 72.0, "{\\"section\\":9}", 900L)
+        val merged = ProgressMergePolicy.merge(current, 8, 25.0, "{\\"section\\":2}", 901L)
+        assertEquals(9, merged.contentRevision)
+        assertEquals(72.0, merged.progressPercent, 0.0)
+        assertEquals("{\\"section\\":9}", merged.lastPositionJson)
+    }
 }
