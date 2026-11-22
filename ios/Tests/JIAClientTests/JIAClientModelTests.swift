@@ -2,6 +2,29 @@ import XCTest
 @testable import JIAClient
 
 final class JIAClientModelTests: XCTestCase {
+
+    func testAuthTokenResponseDecodesSharedBackendIdentity() throws {
+        let json = """
+        {
+          "accessToken":"short-lived-access",
+          "refreshToken":"rotating-refresh",
+          "tokenType":"Bearer",
+          "expiresAt":"2026-11-22T14:00:00Z",
+          "user":{
+            "id":"60000000-0000-0000-0000-000000000001",
+            "name":"JIA Learner",
+            "email":"learner@example.test",
+            "roles":["LEARNER"]
+          }
+        }
+        """.data(using: .utf8)!
+        let token = try JSONDecoder().decode(JIATokenResponse.self, from: json)
+        XCTAssertEqual(token.tokenType, "Bearer")
+        XCTAssertEqual(token.refreshToken, "rotating-refresh")
+        XCTAssertEqual(token.user.email, "learner@example.test")
+        XCTAssertEqual(token.user.roles, ["LEARNER"])
+    }
+
     func testTechnologyDecodesSharedCatalogueContract() throws {
         let json = """
         {"id":"10000000-0000-0000-0000-000000000001","slug":"core-java","name":"Core Java","description":"Java fundamentals","sortOrder":1}

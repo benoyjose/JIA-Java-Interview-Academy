@@ -32,3 +32,15 @@ Cache published lesson content and metadata locally. Save eligible learner activ
 App binary updates are delivered through App Store/TestFlight. Learning content and question-bank updates remain independent of app releases. Subscription entitlements must be validated server-side and comply with applicable Apple rules.
 
 The iOS app uses the shared OpenAPI contract and must not duplicate backend business rules.
+
+## Authentication increment
+
+The native app shell now exposes an account screen using the shared Spring authentication contract:
+
+- Email/password sign-in uses `POST /api/v1/auth/login`.
+- Access tokens are held in memory; the rotating refresh token is stored in Keychain.
+- Session restoration rotates the refresh token and prevents concurrent restore calls from racing.
+- Sign-out revokes the current session through the backend and clears local credentials.
+- Public catalogue and lesson browsing remains available without authentication.
+
+This is a first parity slice, not full iOS parity. Quiz/mock assessment, learner progress/bookmarks, offline content sync and the maintained parity checklist remain separate follow-up work.

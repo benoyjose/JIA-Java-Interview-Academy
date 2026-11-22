@@ -6,8 +6,12 @@ public struct JIAAppShell: View {
     @State private var technologies: [JIATechnology] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @StateObject private var authSession: JIAAuthSession
 
-    public init(client: JIAAPIClient) { self.client = client }
+    public init(client: JIAAPIClient) {
+        self.client = client
+        _authSession = StateObject(wrappedValue: JIAAuthSession(client: client))
+    }
 
     public var body: some View {
         NavigationStack {
@@ -36,6 +40,14 @@ public struct JIAAppShell: View {
                 }
             }
             .navigationTitle("JIA Academy")
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    NavigationLink { JIAAccountView(session: authSession) } label: {
+                        Label("Account", systemImage: "person.crop.circle")
+                    }
+                }
+            }
+            .task { await authSession.restoreSession() }
             .task { await load() }
             .refreshable { await load() }
         }
