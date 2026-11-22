@@ -149,7 +149,7 @@ class QuizRepository(private val context: Context? = null) {
                 json.optString("challengeDate").takeIf { it.isNotBlank() && it != "null" })
         }
 
-    suspend fun saveAnswers(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>) =
+    suspend fun saveAnswers(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>, timeSpentMs: Map<Int, Long> = emptyMap()) =
         withContext(Dispatchers.IO) {
             val rows = JSONArray()
             attempt.questions.forEach { question ->
@@ -161,14 +161,15 @@ class QuizRepository(private val context: Context? = null) {
                         selected.sorted().forEach(values::put)
                         response.put("values", values)
                     } else selected.firstOrNull()?.let { response.put("value", it) }
-                    rows.put(JSONObject().put("position", question.position).put("response", response))
+                    rows.put(JSONObject().put("position", question.position).put("response", response)
+                        .put("timeSpentMs", timeSpentMs[question.position]?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt() ?: 0))
                 }
             }
             if (rows.length() > 0) request(baseUrl, "/quiz-attempts/${attempt.id}/answers", token, "POST",
                 JSONObject().put("answers", rows))
         }
 
-    suspend fun submit(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>): JiaQuizResult =
+    suspend fun submit(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>, timeSpentMs: Map<Int, Long> = emptyMap()): JiaQuizResult =
         withContext(Dispatchers.IO) {
             val rows = JSONArray()
             attempt.questions.forEach { question ->
@@ -182,7 +183,8 @@ class QuizRepository(private val context: Context? = null) {
                 } else {
                     selected.firstOrNull()?.let { response.put("value", it) }
                 }
-                rows.put(JSONObject().put("position", question.position).put("response", response))
+                rows.put(JSONObject().put("position", question.position).put("response", response)
+                    .put("timeSpentMs", timeSpentMs[question.position]?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt() ?: 0))
                 }
             }
             val result = JSONObject(request(baseUrl, "/quiz-attempts/${attempt.id}/submit", token, "POST",
