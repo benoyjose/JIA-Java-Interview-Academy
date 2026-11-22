@@ -190,7 +190,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                                         },
                                         label = { Text(label) },
                                         modifier = Modifier.fillMaxWidth(),
-                                        minLines = if (question.questionType in setOf("CODING", "SQL", "SCENARIO", "DEBUGGING") 5 else 2,
+                                        minLines = if (question.questionType in setOf("CODING", "SQL", "SCENARIO", "DEBUGGING")) 5 else 2,
                                         maxLines = 12
                                     )
                                     Text("Compare your response with the explanation/rubric after submission. Free-form answers are not automatically judged as exact text.", style = MaterialTheme.typography.bodySmall)
