@@ -28,6 +28,10 @@ enum class JiaQuizMode(val apiValue: String, val displayName: String, val availa
     }
 }
 
+internal fun String.requiresFreeResponse(): Boolean = this in setOf(
+    "OUTPUT_PREDICTION", "DEBUGGING", "CODING", "SQL", "SCENARIO"
+)
+
 data class JiaQuizQuestion(
     val position: Int,
     val questionType: String,
