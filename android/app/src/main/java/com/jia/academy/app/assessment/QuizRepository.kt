@@ -18,6 +18,13 @@ enum class JiaQuizMode(val apiValue: String, val displayName: String, val availa
 
     companion object {
         val learnerOptions: List<JiaQuizMode> = values().filter { it.availableToLearners }
+        val timedDurationOptionsSeconds: List<Int> = listOf(900, 1800, 3600)
+        const val defaultTimedDurationSeconds = 1800
+
+        /** Non-timed modes omit duration from the API; invalid timed values use the documented default. */
+        fun durationSecondsFor(mode: JiaQuizMode, requestedSeconds: Int): Int? =
+            if (mode == TIMED_MOCK) requestedSeconds.takeIf(timedDurationOptionsSeconds::contains)
+                ?: defaultTimedDurationSeconds else null
     }
 }
 

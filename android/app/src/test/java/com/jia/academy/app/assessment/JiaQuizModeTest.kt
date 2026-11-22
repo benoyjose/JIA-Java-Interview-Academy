@@ -6,6 +6,19 @@ import org.junit.Test
 
 class JiaQuizModeTest {
     @Test
+    fun timedMockAcceptsOnlyPublishedDurationChoicesAndFallsBackSafely() {
+        assertEquals(listOf(900, 1800, 3600), JiaQuizMode.timedDurationOptionsSeconds)
+        assertEquals(900, JiaQuizMode.durationSecondsFor(JiaQuizMode.TIMED_MOCK, 900))
+        assertEquals(1800, JiaQuizMode.durationSecondsFor(JiaQuizMode.TIMED_MOCK, 17))
+    }
+
+    @Test
+    fun nonTimedModesDoNotSendDurationToTheApi() {
+        assertEquals(null, JiaQuizMode.durationSecondsFor(JiaQuizMode.PRACTICE, 3600))
+        assertEquals(null, JiaQuizMode.durationSecondsFor(JiaQuizMode.DAILY_CHALLENGE, 1800))
+    }
+
+    @Test
     fun allImplementedModesAreAvailableToLearners() {
         assertEquals(listOf(JiaQuizMode.PRACTICE, JiaQuizMode.TIMED_MOCK, JiaQuizMode.DAILY_CHALLENGE, JiaQuizMode.WEAK_AREA), JiaQuizMode.learnerOptions)
     }

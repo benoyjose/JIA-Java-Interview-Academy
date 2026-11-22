@@ -65,7 +65,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     val quizRepository = remember(context) { QuizRepository(context) }
     var selected by remember { mutableStateOf("BEGINNER") }
     var selectedMode by remember { mutableStateOf(JiaQuizMode.PRACTICE) }
-    var selectedDuration by remember { mutableStateOf(1800) }
+    var selectedDuration by remember { mutableStateOf(JiaQuizMode.defaultTimedDurationSeconds) }
     var remainingSeconds by remember { mutableStateOf<Int?>(null) }
     var availability by remember { mutableStateOf<QuizAvailability?>(null) }
     var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
@@ -227,7 +227,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                 }
                 if (selectedMode == JiaQuizMode.TIMED_MOCK) {
                     Text("Mock duration", style = MaterialTheme.typography.titleMedium)
-                    listOf(900 to "15 minutes", 1800 to "30 minutes", 3600 to "60 minutes").forEach { (seconds, label) ->
+                    JiaQuizMode.timedDurationOptionsSeconds.map { seconds -> seconds to when (seconds) { 900 -> "15 minutes"; 1800 -> "30 minutes"; else -> "60 minutes" } }.forEach { (seconds, label) ->
                         FilterChip(selected = selectedDuration == seconds,
                             onClick = { selectedDuration = seconds }, label = { Text(label) })
                     }
@@ -264,7 +264,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                             error = null
                             val count = minOf(10, availability?.availableQuestionCount ?: 0)
                             scope.launch {
-                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, selectedDuration) }
+                                runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds) }
                                     .onSuccess { attempt = it; answers = emptyMap(); result = null }
                                     .onFailure { error = it.message ?: "Unable to start quiz." }
                                 loading = false
