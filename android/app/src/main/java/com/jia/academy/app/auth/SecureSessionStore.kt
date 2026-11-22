@@ -15,7 +15,7 @@ class SecureSessionStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("jia_secure_session", Context.MODE_PRIVATE)
     private val alias = "jia.session.aes.v1"
 
-    fun save(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {
+    fun save(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {\n        SessionMaterialValidator.validate(accessToken, refreshToken, expiresAt, userJson)
         val plain = """{"accessToken":${org.json.JSONObject.quote(accessToken)},"refreshToken":${org.json.JSONObject.quote(refreshToken)},"expiresAt":${org.json.JSONObject.quote(expiresAt)},"user":$userJson}"""
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
@@ -56,5 +56,15 @@ class SecureSessionStore(context: Context) {
                 .build()
         )
         return generator.generateKey()
+    }
+}
+
+
+internal object SessionMaterialValidator {
+    fun validate(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {
+        require(accessToken.isNotBlank()) { "accessToken must not be blank" }
+        require(refreshToken.isNotBlank()) { "refreshToken must not be blank" }
+        require(expiresAt.isNotBlank()) { "expiresAt must not be blank" }
+        require(org.json.JSONObject(userJson).length() >= 0) { "user must be a JSON object" }
     }
 }
