@@ -153,7 +153,7 @@ public struct JIALessonDetailView: View {
         .navigationTitle(lesson.title)
         .task { await load(); await loadLearnerState() }
         .toolbar {
-            if session.isSignedIn {
+            if session.canUseLearnerFeatures {
                 ToolbarItem(placement: .automatic) {
                     Button { Task { await toggleBookmark() } } label: {
                         Label(isBookmarked ? "Remove bookmark" : "Bookmark lesson",
@@ -176,35 +176,41 @@ public struct JIALessonDetailView: View {
 
     private func loadLearnerState() async {
         await session.refreshIfNeeded()
-        guard let token = session.accessToken else { return }
-        do {
-            let progress: [JIALessonProgress] = try await client.request(
-                "/api/v1/me/lesson-progress", token: token)
-            if let item = progress.first(where: { $0.lessonSlug == lesson.slug }) {
-                savedProgress = item.progressPercent
-                progressToSave = item.progressPercent
+        if let token = session.accessToken {
+            do {
+                let progress: [JIALessonProgress] = try await client.request(
+                    "/api/v1/me/lesson-progress", token: token)
+                if let item = progress.first(where: { $0.lessonSlug == lesson.slug }) {
+                    savedProgress = item.progressPercent
+                    progressToSave = item.progressPercent
+                }
+                let bookmarks: [JIABookmark] = try await client.request(
+                    "/api/v1/me/bookmarks", token: token)
+                isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
+            } catch {
+                errorMessage = error.localizedDescription
             }
-            let bookmarks: [JIABookmark] = try await client.request(
-                "/api/v1/me/bookmarks", token: token)
-            isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
-            if let queued = offlineActivityQueue.pendingProgress().first(where: { $0.lessonSlug == lesson.slug }) {
-                savedProgress = queued.progressPercent
-                progressToSave = queued.progressPercent
-            }
-            if let queued = offlineActivityQueue.pendingBookmarks().first(where: { $0.lessonSlug == lesson.slug }) {
-                isBookmarked = queued.bookmarked
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+        }
+        // Local queued state is authoritative until its exact snapshot is acknowledged.
+        if let queued = offlineActivityQueue.pendingProgress().first(where: { $0.lessonSlug == lesson.slug }) {
+            savedProgress = queued.progressPercent
+            progressToSave = queued.progressPercent
+        }
+        if let queued = offlineActivityQueue.pendingBookmarks().first(where: { $0.lessonSlug == lesson.slug }) {
+            isBookmarked = queued.bookmarked
         }
     }
 
     private func saveProgress() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        guard session.canUseLearnerFeatures else { errorMessage = "Sign in once to enable offline progress."; return }
         offlineActivityQueue.enqueueProgress(slug: lesson.slug, revision: lesson.contentRevision,
             percent: progressToSave, lastPosition: ["source": .string("ios-reader-slider")])
         savedProgress = progressToSave
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else {
+            errorMessage = "Progress saved locally; it will sync after reconnecting."
+            return
+        }
         let sync = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
         let report = await sync.syncPending(token: token)
         errorMessage = report.failures == 0
@@ -213,11 +219,15 @@ public struct JIALessonDetailView: View {
     }
 
     private func toggleBookmark() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        guard session.canUseLearnerFeatures else { errorMessage = "Sign in once to enable offline bookmarks."; return }
         let desired = !isBookmarked
         offlineActivityQueue.enqueueBookmark(slug: lesson.slug, bookmarked: desired)
         isBookmarked = desired
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else {
+            errorMessage = "Bookmark saved locally; it will sync after reconnecting."
+            return
+        }
         let sync = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
         let report = await sync.syncPending(token: token)
         errorMessage = report.failures == 0
