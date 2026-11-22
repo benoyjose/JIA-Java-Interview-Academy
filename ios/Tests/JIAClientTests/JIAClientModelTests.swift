@@ -90,6 +90,25 @@ final class JIAClientModelTests: XCTestCase {
         XCTAssertEqual(attempt.savedAnswers?.last?.timeSpentMs, 1200)
     }
 
+
+    func testLessonProgressDecodesNumericAndStringLastPosition() throws {
+        let json = """
+        {
+          "lessonSlug":"streams",
+          "contentRevision":4,
+          "status":"IN_PROGRESS",
+          "progressPercent":65.0,
+          "lastPosition":{"blockIndex":7,"codeAnchor":"parallel-reduction"},
+          "updatedAt":"2026-11-22T13:00:00Z"
+        }
+        """.data(using: .utf8)!
+        let progress = try JSONDecoder().decode(JIALessonProgress.self, from: json)
+        XCTAssertEqual(progress.contentRevision, 4)
+        XCTAssertEqual(progress.progressPercent, 65.0)
+        XCTAssertEqual(progress.lastPosition?["blockIndex"], .number(7))
+        XCTAssertEqual(progress.lastPosition?["codeAnchor"], .string("parallel-reduction"))
+    }
+
     func testTechnologyDecodesSharedCatalogueContract() throws {
         let json = """
         {"id":"10000000-0000-0000-0000-000000000001","slug":"core-java","name":"Core Java","description":"Java fundamentals","sortOrder":1}
