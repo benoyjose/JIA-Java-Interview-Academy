@@ -32,9 +32,9 @@ android {
         versionCode = jiaVersionCode
         versionName = jiaVersionName
         resValue("string", "app_name", jiaDisplayName)
-        buildConfigField("String", "JIA_APP_CODE", "\\"$jiaAppCode\\"")
-        buildConfigField("String", "JIA_API_BASE_URL", "\\"${{jiaApiBaseUrl.get()}\\"")
-        buildConfigField("String", "JIA_GOOGLE_WEB_CLIENT_ID", "\\"${{googleWebClientId.get()}\\"")
+        buildConfigField("String", "JIA_APP_CODE", "\"$jiaAppCode\"")
+        buildConfigField("String", "JIA_API_BASE_URL", "\"${jiaApiBaseUrl.get()}\"")
+        buildConfigField("String", "JIA_GOOGLE_WEB_CLIENT_ID", "\"${googleWebClientId.get()}\"")
     }
     buildFeatures { compose = true; buildConfig = true; resValues = true }
     compileOptions {
