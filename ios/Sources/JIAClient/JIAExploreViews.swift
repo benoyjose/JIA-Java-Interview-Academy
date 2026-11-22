@@ -187,6 +187,13 @@ public struct JIALessonDetailView: View {
             let bookmarks: [JIABookmark] = try await client.request(
                 "/api/v1/me/bookmarks", token: token)
             isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
+            if let queued = offlineActivityQueue.pendingProgress().first(where: { $0.lessonSlug == lesson.slug }) {
+                savedProgress = queued.progressPercent
+                progressToSave = queued.progressPercent
+            }
+            if let queued = offlineActivityQueue.pendingBookmarks().first(where: { $0.lessonSlug == lesson.slug }) {
+                isBookmarked = queued.bookmarked
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -195,36 +202,27 @@ public struct JIALessonDetailView: View {
     private func saveProgress() async {
         await session.refreshIfNeeded()
         guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
-        do {
-            let payload = ProgressUpdate(contentRevision: lesson.contentRevision,
-                progressPercent: progressToSave,
-                lastPosition: ["source": .string("ios-reader-slider")])
-            let body = try JSONEncoder().encode(payload)
-            _ = try await client.perform("/api/v1/me/lesson-progress/\(lesson.slug)",
-                token: token, method: "PUT", body: body)
-            savedProgress = progressToSave
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        offlineActivityQueue.enqueueProgress(slug: lesson.slug, revision: lesson.contentRevision,
+            percent: progressToSave, lastPosition: ["source": .string("ios-reader-slider")])
+        savedProgress = progressToSave
+        let sync = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+        let report = await sync.syncPending(token: token)
+        errorMessage = report.failures == 0
+            ? "Progress saved and synced."
+            : "Progress saved on this device; sync will retry when connected."
     }
 
     private func toggleBookmark() async {
         await session.refreshIfNeeded()
         guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
-        do {
-            if isBookmarked {
-                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
-                    token: token, method: "DELETE")
-            } else {
-                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
-                    token: token, method: "PUT")
-            }
-            isBookmarked.toggle()
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        let desired = !isBookmarked
+        offlineActivityQueue.enqueueBookmark(slug: lesson.slug, bookmarked: desired)
+        isBookmarked = desired
+        let sync = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+        let report = await sync.syncPending(token: token)
+        errorMessage = report.failures == 0
+            ? "Bookmark synced."
+            : "Bookmark saved on this device; sync will retry when connected."
     }
 
     private struct ProgressUpdate: Encodable {
