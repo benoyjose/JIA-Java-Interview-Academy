@@ -60,8 +60,8 @@ public struct JIAQuizView: View {
                 }
             } else if let attempt {
                 Section("Assessment · \(attempt.mode.title)") {
-                    if let deadline = parsedDeadline(attempt.deadlineAt) {
-                        Text("Time remaining: \(max(0, Int(deadline.timeIntervalSinceNow))) seconds")
+                    if let remainingSeconds {
+                        Text("Time remaining: \(remainingSeconds) seconds")
                     }
                     Text("\(answers.count) of \(attempt.questions.count) answered")
                 }
