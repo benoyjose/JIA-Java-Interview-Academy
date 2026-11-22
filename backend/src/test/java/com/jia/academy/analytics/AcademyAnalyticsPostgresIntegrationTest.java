@@ -125,14 +125,15 @@ class AcademyAnalyticsPostgresIntegrationTest {
     void unscoredSubmittedAttemptsIncreaseAttemptCountWithoutChangingScoreDenominator() {
         UUID learnerId = jdbc.queryForObject("SELECT id FROM users WHERE email='analytics-learner@example.test'", UUID.class);
         UUID technologyId = jdbc.queryForObject("SELECT id FROM technologies WHERE slug='analytics-java' AND academy_id=?", UUID.class, academyId);
-        jdbc.update("""
-                INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,difficulty,mode,status,question_count,correct_count,score_percent,started_at,submitted_at)
-                VALUES (?, ?, ?, ?,'BEGINNER','PRACTICE','SUBMITTED',10,0,NULL,now(),now())
-                """, UUID.randomUUID(), learnerId, academyId, technologyId);
-        var result = analytics.summary(academyAdmin, 30);
-        assertThat(result.quizAttempts()).isEqualTo(2);
-        assertThat(result.scoredAttempts()).isEqualTo(1);
-        assertThat(result.averageScorePercent()).isEqualByComparingTo(new BigDecimal("82.50"));
+        UUID attemptId = UUID.randomUUID();
+        jdbc.update("INSERT INTO quiz_attempts(id,user_id,academy_id,technology_id,difficulty,mode,status,question_count,correct_count,score_percent,started_at,submitted_at) VALUES (?, ?, ?, ?,'BEGINNER','PRACTICE','SUBMITTED',10,0,NULL,now(),now())", attemptId, learnerId, academyId, technologyId);
+        try {
+            var result = analytics.summary(academyAdmin, 30);
+            assertThat(result.quizAttempts()).isEqualTo(2);
+            assertThat(result.scoredAttempts()).isEqualTo(1);
+            assertThat(result.averageScorePercent()).isEqualByComparingTo(new BigDecimal("82.50"));
+        } finally {
+            jdbc.update("DELETE FROM quiz_attempts WHERE id=?", attemptId);
+        }
     }
-
 }
