@@ -1,0 +1,31 @@
+package com.jia.academy.assessment.api;
+
+import java.util.List;
+import java.util.Map;
+
+/** Deterministic answer normalization and exact-match grading contract. */
+final class QuizAnswerEvaluator {
+    private QuizAnswerEvaluator() {}
+
+    static boolean isCorrect(String questionType, Map<String, Object> response, Map<String, Object> answer) {
+        Object expectedValue = answer.containsKey("correctValues")
+                ? answer.get("correctValues") : answer.get("correct_values");
+        if (!(expectedValue instanceof List<?> expected) || expected.isEmpty()) return false;
+
+        Object actualValue = response.get("values");
+        if (actualValue == null && response.containsKey("value")) {
+            Object scalar = response.get("value");
+            if (scalar == null) return false;
+            actualValue = List.of(scalar);
+        }
+        if (!(actualValue instanceof List<?> actual) || actual.isEmpty()) return false;
+
+        List<String> expectedNormalized = expected.stream().map(String::valueOf).sorted().toList();
+        List<String> actualNormalized = actual.stream().map(String::valueOf).sorted().toList();
+        if ("MULTI_SELECT".equals(questionType)) {
+            return expectedNormalized.equals(actualNormalized);
+        }
+        return expectedNormalized.size() == 1 && actualNormalized.size() == 1
+                && expectedNormalized.equals(actualNormalized);
+    }
+}
