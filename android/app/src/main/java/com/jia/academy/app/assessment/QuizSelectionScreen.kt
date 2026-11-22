@@ -341,6 +341,12 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                         report.levels.forEach { level ->
                             Text("${level.difficulty}: ${level.attempts} attempts · ${level.correctAnswers}/${level.questionsAttempted} correct · ${level.accuracyPercent?.let { "$it%" } ?: "No score"}")
                         }
+                        if (report.topics.isNotEmpty()) {
+                            Text("Performance by topic", style = MaterialTheme.typography.titleMedium)
+                            report.topics.forEach { topic ->
+                                Text("${topic.technologySlug ?: "General"} / ${topic.categorySlug ?: "Uncategorized"} · ${topic.difficulty}: ${topic.attempts} attempts · ${topic.accuracyPercent?.let { "$it%" } ?: "No score"}")
+                            }
+                        }
                     }
                     TextButton(onClick = {
                         val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
