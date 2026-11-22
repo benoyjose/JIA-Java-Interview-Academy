@@ -521,16 +521,9 @@ public class QuizController {
         catch (Exception ex) { throw new IllegalStateException("Unable to serialize quiz response", ex); }
     }
     private boolean isCorrect(String type, Map<String,Object> response, Map<String,Object> answer) {
-        Object expectedValue = answer.containsKey("correctValues") ? answer.get("correctValues") : answer.get("correct_values");
-        if (!(expectedValue instanceof List<?> expected)) return false;
-        Object actualValue = response.get("values");
-        if (actualValue == null && response.containsKey("value")) actualValue = List.of(response.get("value"));
-        if (!(actualValue instanceof List<?> actual)) return false;
-        List<String> e = expected.stream().map(String::valueOf).sorted().toList();
-        List<String> a = actual.stream().map(String::valueOf).sorted().toList();
-        if ("MULTI_SELECT".equals(type)) return e.equals(a);
-        return e.size() == 1 && a.size() == 1 && e.equals(a);
+        return QuizAnswerEvaluator.isCorrect(type, response, answer);
     }
+
     private static UUID primaryAcademyId(CurrentUser user) {
         if (user == null || user.academyIds() == null || user.academyIds().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");
