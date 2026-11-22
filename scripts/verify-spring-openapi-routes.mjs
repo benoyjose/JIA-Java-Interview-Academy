@@ -52,6 +52,25 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// OpenAPI operation IDs are the generated-client contract; duplicate or absent IDs
+// make otherwise documented endpoints ambiguous to SDK generators.
+const operationIds = [];
+const operationPattern = /^\\s{4}(get|post|put|patch|delete):\\s*$([\\s\\S]*?)(?=^\\s{4}(?:get|post|put|patch|delete):\\s*$|^  \\/|^components:|\\Z)/gm;
+for (const match of lines.join("\\n").matchAll(operationPattern)) {
+  const operation = match[2];
+  const id = operation.match(/^\\s{6}operationId:\\s*([A-Za-z0-9_.-]+)\\s*$/m)?.[1];
+  if (!id) {
+    console.error("OpenAPI operation is missing operationId near: " + match[0].trim());
+    process.exit(1);
+  }
+  operationIds.push(id);
+}
+const duplicateOperationIds = operationIds.filter((id, index) => operationIds.indexOf(id) !== index);
+if (duplicateOperationIds.length > 0) {
+  console.error("Duplicate OpenAPI operationIds: " + [...new Set(duplicateOperationIds)].join(", "));
+  process.exit(1);
+}
+
 console.log("Verified " + springRoutes.size + " Spring Boot route/method mappings against OpenAPI.");
 
 const laravelRouteFile = "backend-laravel/routes/api.php";
