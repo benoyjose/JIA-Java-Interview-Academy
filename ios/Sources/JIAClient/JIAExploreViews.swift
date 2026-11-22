@@ -41,65 +41,6 @@ public struct JIACategoryListView: View {
         .refreshable { await load() }
     }
 
-    private func loadLearnerState() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { return }
-        do {
-            let progress: [JIALessonProgress] = try await client.request(
-                "/api/v1/me/lesson-progress", token: token)
-            if let item = progress.first(where: { $0.lessonSlug == lesson.slug }) {
-                savedProgress = item.progressPercent
-                progressToSave = item.progressPercent
-            }
-            let bookmarks: [JIABookmark] = try await client.request(
-                "/api/v1/me/bookmarks", token: token)
-            isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func saveProgress() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
-        do {
-            let payload = ProgressUpdate(contentRevision: lesson.contentRevision,
-                progressPercent: progressToSave,
-                lastPosition: ["source": .string("ios-reader-slider")])
-            let body = try JSONEncoder().encode(payload)
-            _ = try await client.perform("/api/v1/me/lesson-progress/\(lesson.slug)",
-                token: token, method: "PUT", body: body)
-            savedProgress = progressToSave
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func toggleBookmark() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
-        do {
-            if isBookmarked {
-                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
-                    token: token, method: "DELETE")
-            } else {
-                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
-                    token: token, method: "PUT")
-            }
-            isBookmarked.toggle()
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private struct ProgressUpdate: Encodable {
-        let contentRevision: Int
-        let progressPercent: Double
-        let lastPosition: [String: JIAJSONValue]
-    }
-
     private func load() async {
         loading = true
         defer { loading = false }
@@ -213,6 +154,65 @@ public struct JIALessonDetailView: View {
                 }.padding().background(.regularMaterial)
             }
         }
+    }
+
+    private func loadLearnerState() async {
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else { return }
+        do {
+            let progress: [JIALessonProgress] = try await client.request(
+                "/api/v1/me/lesson-progress", token: token)
+            if let item = progress.first(where: { $0.lessonSlug == lesson.slug }) {
+                savedProgress = item.progressPercent
+                progressToSave = item.progressPercent
+            }
+            let bookmarks: [JIABookmark] = try await client.request(
+                "/api/v1/me/bookmarks", token: token)
+            isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func saveProgress() async {
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        do {
+            let payload = ProgressUpdate(contentRevision: lesson.contentRevision,
+                progressPercent: progressToSave,
+                lastPosition: ["source": .string("ios-reader-slider")])
+            let body = try JSONEncoder().encode(payload)
+            _ = try await client.perform("/api/v1/me/lesson-progress/\(lesson.slug)",
+                token: token, method: "PUT", body: body)
+            savedProgress = progressToSave
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func toggleBookmark() async {
+        await session.refreshIfNeeded()
+        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
+        do {
+            if isBookmarked {
+                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
+                    token: token, method: "DELETE")
+            } else {
+                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
+                    token: token, method: "PUT")
+            }
+            isBookmarked.toggle()
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private struct ProgressUpdate: Encodable {
+        let contentRevision: Int
+        let progressPercent: Double
+        let lastPosition: [String: JIAJSONValue]
     }
 
     private func load() async {
