@@ -6,6 +6,7 @@ on:
       - 'docs/api/openapi.yaml'
       - '.github/workflows/openapi-contract.yml'
       - 'scripts/verify-spring-openapi-routes.mjs'
+      - 'scripts/verify-laravel-openapi-routes.mjs'
       - 'backend-laravel/routes/api.php'
   push:
     branches: [main]
@@ -28,5 +29,7 @@ jobs:
           node-version: '22'
       - name: Verify Spring Boot routes are documented
         run: node scripts/verify-spring-openapi-routes.mjs
+      - name: Verify Laravel routes are documented
+        run: node scripts/verify-laravel-openapi-routes.mjs
       - name: Lint OpenAPI contract
         run: npx --yes @redocly/cli lint docs/api/openapi.yaml --extends=minimal
