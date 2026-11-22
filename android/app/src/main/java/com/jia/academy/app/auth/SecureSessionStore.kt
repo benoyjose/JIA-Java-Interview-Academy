@@ -15,7 +15,8 @@ class SecureSessionStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("jia_secure_session", Context.MODE_PRIVATE)
     private val alias = "jia.session.aes.v1"
 
-    fun save(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {\n        SessionMaterialValidator.validate(accessToken, refreshToken, expiresAt, userJson)
+    fun save(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {
+        SessionMaterialValidator.validate(accessToken, refreshToken, expiresAt, userJson)
         val plain = """{"accessToken":${org.json.JSONObject.quote(accessToken)},"refreshToken":${org.json.JSONObject.quote(refreshToken)},"expiresAt":${org.json.JSONObject.quote(expiresAt)},"user":$userJson}"""
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
