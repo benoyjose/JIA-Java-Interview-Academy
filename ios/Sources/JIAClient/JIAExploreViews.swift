@@ -22,7 +22,12 @@ public struct JIACategoryListView: View {
     public var body: some View {
         List {
             if loading { ProgressView("Loading categories") }
-            if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+            if let errorMessage {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(errorMessage).foregroundStyle(.red)
+                    Button("Retry") { Task { await load() } }
+                }
+            }
             ForEach(categories) { category in
                 NavigationLink(category.name) {
                     JIALessonListView(category: category, client: client)
@@ -60,7 +65,12 @@ public struct JIALessonListView: View {
     public var body: some View {
         List {
             if loading { ProgressView("Loading lessons") }
-            if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+            if let errorMessage {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(errorMessage).foregroundStyle(.red)
+                    Button("Retry") { Task { await load() } }
+                }
+            }
             ForEach(lessons) { lesson in
                 NavigationLink {
                     JIALessonDetailView(lesson: lesson, client: client)
