@@ -114,7 +114,7 @@ class AuthRepository {
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) error(ApiErrorMessage.from(response, "Session validation failed", status))
+            if (status !in 200..299) throw AuthHttpException(status, ApiErrorMessage.from(response, "Session validation failed", status))
             val user = JSONObject(response)
             val rolesJson = user.optJSONArray("roles")
             val roles = (0 until (rolesJson?.length() ?: 0)).map { rolesJson!!.getString(it) }
