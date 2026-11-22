@@ -13,12 +13,13 @@ data class OfflineSyncDiagnostics(val lastAttemptAt: Long?, val lastSuccessAt: L
 
 internal data class ProgressSnapshot(val contentRevision: Int, val progressPercent: Double, val lastPositionJson: String?, val updatedAt: Long)
 internal object ProgressMergePolicy {
-    fun merge(current: ProgressSnapshot?, revision: Int, percent: Double, position: String?, now: Long): ProgressSnapshot =
+    fun merge(current: ProgressSnapshot?, revision: Int, percent: Double, position: String?, now: Long): ProgressSnapshot {
         val isNewerRevision = current == null || revision >= current.contentRevision
-        ProgressSnapshot(maxOf(revision, current?.contentRevision ?: revision),
+        return ProgressSnapshot(maxOf(revision, current?.contentRevision ?: revision),
             maxOf(percent, current?.progressPercent ?: percent),
             if (isNewerRevision) position ?: current?.lastPositionJson else current?.lastPositionJson,
             maxOf(now, (current?.updatedAt ?: (now - 1L)) + 1L))
+    }
 }
 
 data class PendingLessonProgress(
