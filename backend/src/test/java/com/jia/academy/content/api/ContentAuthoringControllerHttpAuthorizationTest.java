@@ -33,8 +33,10 @@ class ContentAuthoringControllerHttpAuthorizationTest {
         mvc.perform(get("/api/v1/admin/lessons").with(user("learner")
                 .authorities(new SimpleGrantedAuthority("catalogue.read"))))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/api/v1/admin/lessons").with(user("reviewer")
-                .authorities(new SimpleGrantedAuthority("content.review"))))
+        mvc.perform(post("/api/v1/admin/lessons")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("""{"categorySlug":"core-java","slug":"auth-matrix-test","title":"Authorization test","difficulty":"BEGINNER","sourceType":"ADMIN_AUTHORED","contentJson":"{\\"schemaVersion\\":1,\\"blocks\\":[]}"}""")
+                .with(user("reviewer").authorities(new SimpleGrantedAuthority("content.review"))))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/admin/lessons/" + java.util.UUID.randomUUID() + "/submit")
                 .with(user("reviewer").authorities(new SimpleGrantedAuthority("content.review"))))
