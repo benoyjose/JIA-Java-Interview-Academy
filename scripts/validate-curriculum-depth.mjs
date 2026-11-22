@@ -17,7 +17,7 @@ const requirements = [
   ["learning objectives", /learning outcomes|## outcomes/i],
   ["interview-ready answer", /interview answer|spoken interview answer|interview-ready summary/i],
   ["hands-on exercises", /## .*exercises/i],
-  ["senior interview questions", /senior.*interview questions|architect interview prompts|staff \/ principal interview questions/i],
+  ["senior/architect interview assessment", /interview questions|interview prompts|follow-up questions/i],
   ["production or operational depth", /production|operational|incident/i],
   ["reviewer references", /## references|reviewer references/i],
   ["draft/review status", /editorial status|status:\s*draft/i],
