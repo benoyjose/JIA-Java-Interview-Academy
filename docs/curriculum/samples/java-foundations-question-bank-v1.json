@@ -1,0 +1,415 @@
+{
+  "formatVersion": 1,
+  "questions": [
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-primitive-equality",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which operator compares primitive numeric values for equality?"
+      },
+      "options": [
+        {
+          "value": "==",
+          "label": "=="
+        },
+        {
+          "value": "distractor-b",
+          "label": "equals()"
+        },
+        {
+          "value": "distractor-c",
+          "label": "compareTo()"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "=="
+        ]
+      },
+      "explanation": "For primitive operands, == compares values; equals is an object method.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-stream-lazy-intermediate",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Intermediate Stream operations are generally lazy."
+      },
+      "options": [
+        {
+          "value": "true",
+          "label": "True"
+        },
+        {
+          "value": "false",
+          "label": "False"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "true"
+        ]
+      },
+      "explanation": "Intermediate operations build a pipeline; traversal begins at a terminal operation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-hashmap-null-key",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "How many null keys can a standard Java HashMap contain?"
+      },
+      "options": [
+        {
+          "value": "one",
+          "label": "one"
+        },
+        {
+          "value": "distractor-b",
+          "label": "zero"
+        },
+        {
+          "value": "distractor-c",
+          "label": "unlimited"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "one"
+        ]
+      },
+      "explanation": "HashMap permits one null key because keys are unique by equality.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-equals-hashcode-contract",
+      "questionType": "MULTI_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Which statements follow the equals/hashCode contract?"
+      },
+      "options": [
+        {
+          "value": "equal-same-hash",
+          "label": "Equal objects must have equal hash codes."
+        },
+        {
+          "value": "same-hash-equal",
+          "label": "Objects with equal hash codes must be equal."
+        },
+        {
+          "value": "mutable-key-safe",
+          "label": "Changing equality fields of a stored key is safe."
+        },
+        {
+          "value": "collision-allowed",
+          "label": "Unequal objects may share a hash code."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "equal-same-hash",
+          "collision-allowed"
+        ]
+      },
+      "explanation": "mutable-key-safe",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-concurrenthashmap-null",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Why does ConcurrentHashMap reject null keys and values?"
+      },
+      "options": [
+        {
+          "value": "ambiguity",
+          "label": "Null would make absence and a mapped-null result ambiguous in concurrent retrieval."
+        },
+        {
+          "value": "distractor-b",
+          "label": "legacy"
+        },
+        {
+          "value": "distractor-c",
+          "label": "It preserves compatibility with Hashtable only."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "ambiguity"
+        ]
+      },
+      "explanation": "performance",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-completablefuture-compose",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which operation chains an asynchronous stage whose result is another CompletionStage?"
+      },
+      "options": [
+        {
+          "value": "thenCompose",
+          "label": "thenCompose"
+        },
+        {
+          "value": "distractor-b",
+          "label": "thenApply"
+        },
+        {
+          "value": "distractor-c",
+          "label": " exceptionally"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "thenCompose"
+        ]
+      },
+      "explanation": "complete",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-list-immutable-to-list",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "What is the key property of Stream.toList() in modern Java?"
+      },
+      "options": [
+        {
+          "value": "unmodifiable",
+          "label": "It returns an unmodifiable list."
+        },
+        {
+          "value": "distractor-b",
+          "label": "mutable"
+        },
+        {
+          "value": "distractor-c",
+          "label": "It always returns ArrayList."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "unmodifiable"
+        ]
+      },
+      "explanation": "parallel",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-final-reference",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "A final object reference makes the referenced object immutable."
+      },
+      "options": [
+        {
+          "value": "true",
+          "label": "True"
+        },
+        {
+          "value": "false",
+          "label": "False"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "false"
+        ]
+      },
+      "explanation": "final prevents reassignment of the reference, not mutation of the object.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-gc-strong-reference",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "When is an object eligible for garbage collection?"
+      },
+      "options": [
+        {
+          "value": "unreachable",
+          "label": "When it is no longer reachable from GC roots through strong references."
+        },
+        {
+          "value": "distractor-b",
+          "label": "old"
+        },
+        {
+          "value": "distractor-c",
+          "label": "When it exceeds a fixed age."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "unreachable"
+        ]
+      },
+      "explanation": "large",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-volatile-visibility",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does volatile primarily guarantee for a variable shared across threads?"
+      },
+      "options": [
+        {
+          "value": "visibility",
+          "label": "Visibility and ordering guarantees for reads/writes to that variable."
+        },
+        {
+          "value": "distractor-b",
+          "label": "atomic-compound"
+        },
+        {
+          "value": "distractor-c",
+          "label": "Atomicity of every compound operation."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "visibility"
+        ]
+      },
+      "explanation": "mutual-exclusion",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-functional-interface",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "A functional interface has how many abstract methods, ignoring methods inherited from Object and default/static methods?"
+      },
+      "options": [
+        {
+          "value": "one",
+          "label": "one"
+        },
+        {
+          "value": "distractor-b",
+          "label": "zero"
+        },
+        {
+          "value": "distractor-c",
+          "label": "two"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "one"
+        ]
+      },
+      "explanation": "A functional interface has exactly one abstract method and supports lambda target typing.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-stream-side-effects",
+      "questionType": "MULTI_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which practices are appropriate for reliable Stream pipelines?"
+      },
+      "options": [
+        {
+          "value": "equal-same-hash",
+          "label": "Equal objects must have equal hash codes."
+        },
+        {
+          "value": "same-hash-equal",
+          "label": "Objects with equal hash codes must be equal."
+        },
+        {
+          "value": "mutable-key-safe",
+          "label": "Changing equality fields of a stored key is safe."
+        },
+        {
+          "value": "collision-allowed",
+          "label": "Unequal objects may share a hash code."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "equal-same-hash",
+          "collision-allowed"
+        ]
+      },
+      "explanation": "avoid-shared-mutation",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    }
+  ]
+}
