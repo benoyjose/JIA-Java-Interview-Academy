@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.jia.academy.app.catalogue.LessonDetail
-import java.security.MessageDigest
 
 data class PendingBookmark(val lessonSlug: String, val bookmarked: Boolean, val updatedAt: Long)
 
@@ -84,7 +83,7 @@ class OfflineLearningStore(context: Context) :
     fun cacheLesson(lesson: LessonDetail, expectedChecksum: String? = null) {
         val content = lesson.contentJson ?: return
         require(content.length <= MAX_CONTENT_CHARS) { "Lesson content exceeds the offline cache limit" }
-        val checksum = sha256(content)
+        val checksum = OfflineContentChecksum.sha256(content)
         if (expectedChecksum != null) {
             require(checksum.equals(expectedChecksum, ignoreCase = true)) {
                 "Lesson checksum verification failed"
@@ -308,9 +307,13 @@ class OfflineLearningStore(context: Context) :
 
     companion object {
         private const val MAX_CONTENT_CHARS = 2_000_000
-        private fun sha256(value: String): String =
-            MessageDigest.getInstance("SHA-256")
-                .digest(value.toByteArray(Charsets.UTF_8))
-                .joinToString("") { "%02x".format(it) }
     }
+}
+
+/** Canonical SHA-256 representation used for offline lesson integrity checks. */
+internal object OfflineContentChecksum {
+    fun sha256(value: String): String =
+        java.security.MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
 }
