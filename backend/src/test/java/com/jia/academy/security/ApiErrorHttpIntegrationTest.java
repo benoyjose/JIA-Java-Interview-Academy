@@ -90,6 +90,11 @@ class ApiErrorHttpIntegrationTest {
     @RestController
     @RequestMapping("/api/v1/__test")
     static class ErrorTestController {
+        @GetMapping("/success")
+        Map<String, Boolean> success() {
+            return Map.of("ok", true);
+        }
+
         @PostMapping("/validation")
         String validation(@Valid @RequestBody ValidationRequest request) {
             return "ok";
