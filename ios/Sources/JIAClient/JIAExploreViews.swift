@@ -123,6 +123,7 @@ public struct JIALessonDetailView: View {
     @State private var isBookmarked = false
     @State private var savedProgress = 0.0
     @State private var progressToSave = 0.0
+    @State private var isOfflineContent = false
 
     public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
         self.lesson = lesson
@@ -134,7 +135,12 @@ public struct JIALessonDetailView: View {
     public var body: some View {
         Group {
             if loading { ProgressView("Loading lesson") }
-            else if let content { JIALessonReaderView(content: content) }
+            else if let content {
+                VStack(alignment: .leading, spacing: 8) {
+                    if isOfflineContent { Label("Offline saved content", systemImage: "wifi.slash").font(.caption).foregroundStyle(.secondary) }
+                    JIALessonReaderView(content: content)
+                }
+            }
             else if let errorMessage { ContentUnavailableView("Unable to load lesson", systemImage: "exclamationmark.triangle", description: Text(errorMessage)) }
             else { ContentUnavailableView("Lesson content unavailable", systemImage: "doc.text") }
         }
@@ -230,7 +236,18 @@ public struct JIALessonDetailView: View {
                 throw JIAAPIError.invalidResponse
             }
             content = try JSONDecoder().decode(JIALessonContent.self, from: data)
+            isOfflineContent = false
             errorMessage = nil
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            if let cached = offlineStore.cachedLesson(slug: lesson.slug),
+               let data = cached.contentJson.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode(JIALessonContent.self, from: data) {
+                content = decoded
+                isOfflineContent = true
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }
