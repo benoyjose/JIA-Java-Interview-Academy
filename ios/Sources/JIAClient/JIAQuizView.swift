@@ -7,6 +7,7 @@ public struct JIAQuizView: View {
     @State private var difficulty = "PROFESSIONAL"
     @State private var questionCount = 10
     @State private var durationSeconds = 1800
+    @State private var remainingSeconds: Int?
     @State private var attempt: JIAQuizAttemptResponse?
     @State private var answers: [Int: Set<String>] = [:]
     @State private var result: JIAQuizResultResponse?
@@ -102,7 +103,7 @@ public struct JIAQuizView: View {
                     Button(loading ? "Submitting…" : "Submit answers") {
                         Task { await submit() }
                     }
-                    .disabled(loading || answers.count < attempt.questions.count)
+                    .disabled(loading || (attempt.mode != .timedMock && answers.count < attempt.questions.count))
                     Button("Abandon attempt", role: .destructive) {
                         Task { await abandon() }
                     }
@@ -150,6 +151,22 @@ public struct JIAQuizView: View {
         }
         .navigationTitle("Quiz & Mock Interview")
         .task { await session.refreshIfNeeded() }
+        .task(id: attempt?.deadlineAt) {
+            guard let current = attempt, current.mode == .timedMock,
+                  let deadline = parsedDeadline(current.deadlineAt) else {
+                remainingSeconds = nil
+                return
+            }
+            while result == nil && !Task.isCancelled {
+                let remaining = max(0, Int(ceil(deadline.timeIntervalSinceNow)))
+                remainingSeconds = remaining
+                if remaining == 0 {
+                    await submit()
+                    return
+                }
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
     }
 
     private func responseBinding(for position: Int) -> Binding<String> {
@@ -194,8 +211,9 @@ public struct JIAQuizView: View {
         errorMessage = nil
         defer { loading = false }
         do {
-            let rows = attempt.questions.map { question -> [String: Any] in
+            let rows = attempt.questions.compactMap { question -> [String: Any]? in
                 let values = Array(answers[question.position] ?? []).sorted()
+                guard !values.isEmpty else { return nil }
                 let response: [String: Any] = values.count > 1 ? ["values": values] : ["value": values.first ?? ""]
                 return ["position": question.position, "response": response]
             }
