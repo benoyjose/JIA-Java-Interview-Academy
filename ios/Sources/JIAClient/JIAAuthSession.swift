@@ -85,6 +85,7 @@ public final class JIAAuthSession: ObservableObject {
     @Published public private(set) var accessToken: String?
     @Published public private(set) var expiresAt: Date?
     @Published public private(set) var isRestoring = false
+    @Published public private(set) var hasStoredSession = false
     @Published public private(set) var errorMessage: String?
 
     private let client: JIAAPIClient
@@ -94,10 +95,11 @@ public final class JIAAuthSession: ObservableObject {
     public init(client: JIAAPIClient, tokenStore: JIARefreshTokenStore = JIAKeychainRefreshTokenStore()) {
         self.client = client
         self.tokenStore = tokenStore
+        self.hasStoredSession = !(tokenStore.load() ?? "").isEmpty
     }
 
     public var isSignedIn: Bool { accessToken != nil && user != nil }
-    public var canUseLearnerFeatures: Bool { isSignedIn || !(tokenStore.load() ?? "").isEmpty }
+    public var canUseLearnerFeatures: Bool { isSignedIn || hasStoredSession }
 
     public func signIn(email: String, password: String) async {
         errorMessage = nil
@@ -166,10 +168,12 @@ public final class JIAAuthSession: ObservableObject {
         user = response.user
         expiresAt = ISO8601DateFormatter().date(from: response.expiresAt)
         tokenStore.save(response.refreshToken)
+        hasStoredSession = true
     }
 
     private func signOutLocally() {
         tokenStore.clear()
+        hasStoredSession = false
         accessToken = nil
         user = nil
         expiresAt = nil
