@@ -43,7 +43,7 @@ data class JiaQuizAttempt(
 )
 data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double,
     val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
-data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String)
+data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String, val mode: String = "PRACTICE")
 data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
 data class JiaQuizPerformance(val levels: List<JiaQuizPerformanceLevel>)
 
@@ -149,6 +149,46 @@ class QuizRepository(private val context: Context? = null) {
                 json.optString("challengeDate").takeIf { it.isNotBlank() && it != "null" })
         }
 
+    suspend fun resume(baseUrl: String, token: String, attemptId: String): JiaQuizAttempt = withContext(Dispatchers.IO) {
+        val json = JSONObject(request(baseUrl, "/quiz-attempts/$attemptId", token, "GET"))
+        val questionsJson = json.getJSONArray("questions")
+        val questions = (0 until questionsJson.length()).map { index ->
+            val q = questionsJson.getJSONObject(index)
+            val prompt = q.optJSONObject("prompt")
+            val optionsJson = q.optJSONArray("options") ?: JSONArray()
+            val options = (0 until optionsJson.length()).map { n ->
+                val option = optionsJson.getJSONObject(n)
+                option.optString("value") to option.optString("label", option.optString("value"))
+            }
+            val code = prompt?.optJSONObject("code")
+            JiaQuizQuestion(q.getInt("position"), q.getString("questionType"), prompt?.optString("text").orEmpty(),
+                code?.optString("language")?.takeIf(String::isNotBlank),
+                code?.optString("source")?.takeIf(String::isNotBlank), options,
+                q.optString("hint").takeIf(String::isNotBlank))
+        }
+        val saved = json.optJSONArray("savedAnswers") ?: JSONArray()
+        val answers = mutableMapOf<Int, Set<String>>()
+        val times = mutableMapOf<Int, Long>()
+        for (i in 0 until saved.length()) {
+            val item = saved.getJSONObject(i)
+            val response = item.optJSONObject("response") ?: JSONObject()
+            val values = response.optJSONArray("values")
+            val selected = if (values != null) (0 until values.length()).map { values.getString(it) }.toSet()
+                else response.optString("value").takeIf(String::isNotBlank)?.let(::setOf).orEmpty()
+            if (selected.isNotEmpty()) answers[item.getInt("position")] = selected
+            if (!item.isNull("timeSpentMs")) times[item.getInt("position")] = item.getLong("timeSpentMs")
+        }
+        val mode = JiaQuizMode.values().firstOrNull { it.apiValue == json.optString("mode") } ?: JiaQuizMode.PRACTICE
+        JiaQuizAttempt(json.getString("attemptId"), json.getString("difficulty"), questions, mode,
+            json.optString("deadlineAt").takeIf { it.isNotBlank() && it != "null" },
+            if (json.isNull("durationLimitSeconds")) null else json.optInt("durationLimitSeconds"),
+            json.optString("challengeDate").takeIf { it.isNotBlank() && it != "null" }, answers, times)
+    }
+
+    suspend fun abandon(baseUrl: String, token: String, attemptId: String) = withContext(Dispatchers.IO) {
+        request(baseUrl, "/quiz-attempts/$attemptId/abandon", token, "POST", JSONObject())
+    }
+
     suspend fun saveAnswers(baseUrl: String, token: String, attempt: JiaQuizAttempt, answers: Map<Int, Set<String>>, timeSpentMs: Map<Int, Long> = emptyMap()) =
         withContext(Dispatchers.IO) {
             val rows = JSONArray()
@@ -217,7 +257,7 @@ class QuizRepository(private val context: Context? = null) {
             val item = array.getJSONObject(i)
             JiaQuizHistoryItem(item.getString("attemptId"), item.getString("difficulty"),
                 item.getInt("questionCount"), if (item.isNull("correctCount")) null else item.getInt("correctCount"),
-                if (item.isNull("scorePercent")) null else item.getDouble("scorePercent"), item.getString("status"))
+                if (item.isNull("scorePercent")) null else item.getDouble("scorePercent"), item.getString("status"), item.optString("mode", "PRACTICE"))
         }
     }
     suspend fun lessonProgress(baseUrl: String, token: String): List<JiaLessonProgress> =
