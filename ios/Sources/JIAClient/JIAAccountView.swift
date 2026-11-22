@@ -27,9 +27,11 @@ public struct JIAAccountView: View {
             } else {
                 Section("Sign in to JIA") {
                     TextField("Email", text: $email)
+                        #if os(iOS)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
+                        #endif
                         .autocorrectionDisabled()
                     SecureField("Password", text: $password)
                         .textContentType(.password)
