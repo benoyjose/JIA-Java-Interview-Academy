@@ -352,6 +352,22 @@ class QuizControllerPostgresIntegrationTest {
                 "{\"correctValues\":[\"A\"]}", "A is correct");
     }
 
+    @Test
+    void rejectsNegativeAndFractionalAnswerTimeWithoutPersistingPartialSubmission() {
+        UUID id = startAttempt();
+        for (Object invalid : List.of(-1, 1.5)) {
+            assertThatThrownBy(() -> controller.submit(learnerOne, id, Map.of("answers", List.of(
+                    Map.of("position", 1, "response", Map.of("value", "A"), "timeSpentMs", invalid),
+                    answer(2)))))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(400));
+        }
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, id))
+                .isEqualTo("IN_PROGRESS");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempt_answers WHERE attempt_id=?", Integer.class, id))
+                .isZero();
+    }
+
     private UUID startAttempt() {
         return (UUID) startResponse().get("attemptId");
     }
