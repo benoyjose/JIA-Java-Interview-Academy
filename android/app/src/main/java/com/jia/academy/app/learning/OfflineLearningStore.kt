@@ -142,6 +142,17 @@ class OfflineLearningStore(context: Context) :
             }
         }
 
+    /** Stores a lightweight local scroll offset for instant reader restoration. */
+    fun saveReadingOffset(lessonSlug: String, offsetPx: Int) {
+        require(lessonSlug.isNotBlank())
+        appContext.getSharedPreferences("jia_reading_positions", Context.MODE_PRIVATE)
+            .edit().putInt("offset:$lessonSlug", offsetPx.coerceAtLeast(0)).apply()
+    }
+
+    fun readingOffset(lessonSlug: String): Int =
+        appContext.getSharedPreferences("jia_reading_positions", Context.MODE_PRIVATE)
+            .getInt("offset:$lessonSlug", 0).coerceAtLeast(0)
+
     fun enqueueProgress(
         lessonSlug: String,
         contentRevision: Int,
