@@ -88,23 +88,24 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             val path = "/me/lesson-progress/" + encodedSlug
             val body = ProgressSyncResponsePolicy.requestBody(item)
             val (status, _) = request(baseUrl, path, token, "PUT", body)
-            if (status in 200..299) {
-                store.markProgressSynced(item)
-                synced++
-            } else if (status == 409) {
-                val (lessonStatus, lessonJson) = request(baseUrl, "/lessons/" + encodedSlug, null, "GET")
-                if (lessonStatus in 200..299) {
-                    val currentRevision = JSONObject(lessonJson).optInt("contentRevision", 0)
-                    if (currentRevision > 0) {
-                        store.enqueueProgress(item.lessonSlug, currentRevision, item.progressPercent, item.lastPositionJson)
-                        throw IOException("Progress revision rebased; retrying synchronization")
-                    }
+            when (ProgressSyncResponsePolicy.classify(status)) {
+                SyncResponseAction.ACKNOWLEDGE -> {
+                    store.markProgressSynced(item)
+                    synced++
                 }
-                throw IllegalStateException("Progress conflict could not be reconciled")
-            } else if (status == 408 || status == 429 || status >= 500) {
-                throw IOException("Progress sync should be retried")
-            } else {
-                throw IllegalStateException("Progress sync rejected with HTTP $status")
+                SyncResponseAction.REBASE -> {
+                    val (lessonStatus, lessonJson) = request(baseUrl, "/lessons/" + encodedSlug, null, "GET")
+                    if (lessonStatus in 200..299) {
+                        val currentRevision = JSONObject(lessonJson).optInt("contentRevision", 0)
+                        if (currentRevision > 0) {
+                            store.enqueueProgress(item.lessonSlug, currentRevision, item.progressPercent, item.lastPositionJson)
+                            throw IOException("Progress revision rebased; retrying synchronization")
+                        }
+                    }
+                    throw IllegalStateException("Progress conflict could not be reconciled")
+                }
+                SyncResponseAction.RETRY -> throw IOException("Progress sync should be retried (HTTP $status)")
+                SyncResponseAction.REJECT -> throw IllegalStateException("Progress sync rejected with HTTP $status")
             }
         }
         return synced
