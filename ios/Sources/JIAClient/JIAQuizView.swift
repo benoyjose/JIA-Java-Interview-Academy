@@ -6,6 +6,9 @@ public struct JIAQuizView: View {
     @State private var selectedMode: JIAQuizMode = .practice
     @State private var difficulty = "PROFESSIONAL"
     @State private var questionCount = 10
+    @State private var topicOptions: [JIAQuizTopic] = []
+    @State private var selectedTopicID: String?
+    @State private var availableQuestionCount = 0
     @State private var durationSeconds = 1800
     @State private var remainingSeconds: Int?
     @State private var attempt: JIAQuizAttemptResponse?
@@ -119,9 +122,15 @@ public struct JIAQuizView: View {
                             Text(level.capitalized).tag(level)
                         }
                     }
+                    Picker("Topic", selection: $selectedTopicID) {
+                        Text("All topics").tag(String?.none)
+                        ForEach(topicOptions) { topic in Text(topic.label).tag(Optional(topic.id)) }
+                    }
                     Picker("Questions", selection: $questionCount) {
                         ForEach([5, 10, 20], id: \.self) { count in Text("\(count)").tag(count) }
                     }
+                    Text("Available for this selection: \(availableQuestionCount)")
+                        .font(.footnote).foregroundStyle(.secondary)
                     if selectedMode == .timedMock {
                         Picker("Duration", selection: $durationSeconds) {
                             Text("15 minutes").tag(900)
@@ -132,7 +141,7 @@ public struct JIAQuizView: View {
                     Button(loading ? "Starting…" : "Start \(selectedMode.title.lowercased())") {
                         Task { await start() }
                     }
-                    .disabled(loading || !session.isSignedIn)
+                    .disabled(loading || !session.isSignedIn || availableQuestionCount == 0)
                 }
                 Section("Recent attempts") {
                     Button("Load history") { Task { await loadHistory() } }
@@ -141,6 +150,10 @@ public struct JIAQuizView: View {
                             Text("\(item.mode.title) · \(item.difficulty)")
                             Text("\(item.correctCount ?? 0)/\(item.questionCount) · \(item.scorePercent.map { String(format: "%.1f%%", $0) } ?? item.status)")
                                 .font(.footnote).foregroundStyle(.secondary)
+                            if item.status == "IN_PROGRESS" {
+                                Button("Resume") { Task { await resume(item) } }
+                                Button("Abandon", role: .destructive) { Task { await abandon(item.attemptId) } }
+                            }
                         }
                     }
                 }
@@ -150,7 +163,10 @@ public struct JIAQuizView: View {
             }
         }
         .navigationTitle("Quiz & Mock Interview")
-        .task { await session.refreshIfNeeded() }
+        .task { await session.refreshIfNeeded(); await loadTopics() }
+        .task(id: "\(difficulty)|\(selectedTopicID ?? "all")") {
+            await loadAvailability()
+        }
         .task(id: attempt?.deadlineAt) {
             guard let current = attempt, current.mode == .timedMock,
                   let deadline = parsedDeadline(current.deadlineAt) else {
