@@ -54,3 +54,7 @@ This is an incremental feature parity slice. Resume/abandon and filtered topic s
 ### Assessment continuity
 
 The iOS assessment client now supports technology/category-filtered question selection, filtered availability, restoring saved single/multi-select and text responses from an in-progress attempt, resuming today's active daily challenge, and abandoning attempts from history. These operations use the same authenticated API and ownership/status rules as Android.
+
+### Learner continuity
+
+The lesson reader now loads the authenticated learner's progress and bookmarks, exposes an explicit progress save control, and supports idempotent bookmark add/remove using the shared backend routes. The API client handles empty successful responses such as HTTP 204 bookmark removal.
