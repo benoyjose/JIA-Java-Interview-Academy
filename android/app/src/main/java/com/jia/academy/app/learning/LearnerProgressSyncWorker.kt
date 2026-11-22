@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jia.academy.app.auth.SecureSessionStore
+import com.jia.academy.app.auth.SharedSessionRefreshCoordinator
 import com.jia.academy.app.auth.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -134,15 +135,21 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         if (runCatching { auth.currentUser(baseUrl, accessToken) }.isSuccess) return accessToken
         val refreshToken = store.refreshToken()
             ?: throw IllegalStateException("Your session expired. Sign in again to synchronize learning activity.")
-        val session = auth.refresh(baseUrl, refreshToken)
-        val userJson = JSONObject()
-            .put("id", session.account.id)
-            .put("name", session.account.name)
-            .put("email", session.account.email)
-            .put("roles", org.json.JSONArray(session.account.roles))
-            .toString()
-        store.save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
-        return session.accessToken
+        return SharedSessionRefreshCoordinator.instance.refreshIfUnchanged(
+            rejectedAccessToken = accessToken,
+            currentAccessToken = { store.accessToken() },
+            refreshAndPersist = {
+                val session = auth.refresh(baseUrl, refreshToken)
+                val userJson = JSONObject()
+                    .put("id", session.account.id)
+                    .put("name", session.account.name)
+                    .put("email", session.account.email)
+                    .put("roles", org.json.JSONArray(session.account.roles))
+                    .toString()
+                store.save(session.accessToken, session.refreshToken, session.expiresAt, userJson)
+                session.accessToken
+            }
+        )
     }
 
     internal fun request(
