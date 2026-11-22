@@ -27,7 +27,7 @@ public struct JIAAppShell: View {
                 } else {
                     List(technologies) { technology in
                         NavigationLink {
-                            JIACategoryListView(technology: technology, client: client)
+                            JIACategoryListView(technology: technology, client: client, session: authSession)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(technology.name).font(.headline)
