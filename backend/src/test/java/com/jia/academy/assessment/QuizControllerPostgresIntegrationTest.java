@@ -204,6 +204,41 @@ class QuizControllerPostgresIntegrationTest {
     }
 
 
+
+    @Test
+    void codingQuestionIsReturnedForSelfReviewAndExcludedFromObjectiveScore() {
+        UUID categoryId=UUID.randomUUID();
+        String categorySlug="coding-review-"+UUID.randomUUID();
+        UUID questionId=UUID.randomUUID();
+        UUID revisionId=UUID.randomUUID();
+        jdbc.update("INSERT INTO categories(id,technology_id,slug,name,sort_order,status) VALUES (?,?,?,? ,1,'PUBLISHED')",
+                categoryId,TECHNOLOGY,categorySlug,"Coding review");
+        jdbc.update("""
+                INSERT INTO questions(id,academy_id,technology_id,category_id,question_type,difficulty,status,current_revision)
+                VALUES (?,?,?,?,'CODING','PROFESSIONAL','PUBLISHED',1)
+                """,questionId,ACADEMY,TECHNOLOGY,categoryId);
+        jdbc.update("""
+                INSERT INTO question_revisions(id,question_id,revision_number,prompt_json,options_json,answer_json,explanation,source_type)
+                VALUES (?,?,1,'{"text":"Implement a robust retry policy"}'::jsonb,NULL,
+                    '{"correctValues":["Reference implementation"]}'::jsonb,
+                    'Compare correctness, bounded retries, jitter and idempotency against the rubric.','ADMIN_AUTHORED')
+                """,revisionId,questionId);
+        Map<String,Object> started=controller.start(learnerOne,Map.of("difficulty","PROFESSIONAL",
+                "questionCount",1,"categorySlug",categorySlug));
+        UUID attemptId=(UUID)started.get("attemptId");
+        Map<String,Object> submitted=controller.submit(learnerOne,attemptId,Map.of("answers",List.of(
+                Map.of("position",1,"response",Map.of("value","My implementation"),"timeSpentMs",12000)
+        )));
+        assertThat(submitted.get("gradedQuestionCount")).isEqualTo(0);
+        assertThat(submitted.get("selfReviewQuestionCount")).isEqualTo(1);
+        assertThat(submitted.get("scorePercent")).isEqualTo(0.0);
+        Map<?,?> answer=(Map<?,?>)((List<?>)submitted.get("answers")).getFirst();
+        assertThat(answer.get("requiresSelfReview")).isEqualTo(true);
+        assertThat(answer.get("isCorrect")).isNull();
+        assertThat(jdbc.queryForObject("SELECT is_correct FROM quiz_attempt_answers WHERE attempt_id=? AND position=1",
+                Boolean.class,attemptId)).isNull();
+    }
+
     @Test
     void dailyChallengeCannotBeStartedAgainAfterCompletionForThatUtcDay() {
         Map<String,Object> daily=controller.start(learnerOne,
