@@ -85,6 +85,7 @@ public final class JIAAuthSession: ObservableObject {
     @Published public private(set) var accessToken: String?
     @Published public private(set) var expiresAt: Date?
     @Published public private(set) var isRestoring = false
+    @Published public private(set) var hasStoredSession = false
     @Published public private(set) var errorMessage: String?
 
     private let client: JIAAPIClient
@@ -94,9 +95,11 @@ public final class JIAAuthSession: ObservableObject {
     public init(client: JIAAPIClient, tokenStore: JIARefreshTokenStore = JIAKeychainRefreshTokenStore()) {
         self.client = client
         self.tokenStore = tokenStore
+        self.hasStoredSession = !(tokenStore.load() ?? "").isEmpty
     }
 
     public var isSignedIn: Bool { accessToken != nil && user != nil }
+    public var canUseLearnerFeatures: Bool { isSignedIn || hasStoredSession }
 
     public func signIn(email: String, password: String) async {
         errorMessage = nil
@@ -119,13 +122,20 @@ public final class JIAAuthSession: ObservableObject {
             let body = try JSONEncoder().encode(RefreshRequest(refreshToken: refreshToken))
             let response: JIATokenResponse = try await client.request("/api/v1/auth/refresh", method: "POST", body: body)
             accept(response)
+        } catch let error as JIAAPIError {
+            if case .httpStatus(let status) = error, status == 401 || status == 403 {
+                signOutLocally()
+            }
+            // A transport failure is an offline state, not proof that the refresh token is invalid.
+            errorMessage = nil
         } catch {
-            tokenStore.clear()
-            accessToken = nil
-            user = nil
-            expiresAt = nil
             errorMessage = nil
         }
+    }
+
+    public func ensureAccessToken() async {
+        if accessToken == nil { await restoreSession() }
+        else { await refreshIfNeeded() }
     }
 
     public func refreshIfNeeded() async {
@@ -135,9 +145,14 @@ public final class JIAAuthSession: ObservableObject {
             let body = try JSONEncoder().encode(RefreshRequest(refreshToken: refreshToken))
             let response: JIATokenResponse = try await client.request("/api/v1/auth/refresh", method: "POST", body: body)
             accept(response)
+        } catch let error as JIAAPIError {
+            if case .httpStatus(let status) = error, status == 401 || status == 403 {
+                signOutLocally()
+                errorMessage = "Your session expired. Please sign in again."
+            }
+            // Preserve the refresh token on network/server failures so queued changes survive offline launches.
         } catch {
-            signOutLocally()
-            errorMessage = "Your session expired. Please sign in again."
+            // Keep local credentials and queued work; retry when connectivity returns.
         }
     }
 
@@ -153,10 +168,12 @@ public final class JIAAuthSession: ObservableObject {
         user = response.user
         expiresAt = ISO8601DateFormatter().date(from: response.expiresAt)
         tokenStore.save(response.refreshToken)
+        hasStoredSession = true
     }
 
     private func signOutLocally() {
         tokenStore.clear()
+        hasStoredSession = false
         accessToken = nil
         user = nil
         expiresAt = nil

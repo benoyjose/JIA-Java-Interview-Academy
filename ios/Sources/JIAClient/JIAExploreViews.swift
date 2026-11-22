@@ -12,15 +12,17 @@ public struct JIACategoryListView: View {
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
     let offlineStore: JIAOfflineContentStore
+    let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var categories: [JIACategory] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
+    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore, offlineActivityQueue: JIAOfflineActivityQueue) {
         self.technology = technology
         self.client = client
         self.session = session
         self.offlineStore = offlineStore
+        self.offlineActivityQueue = offlineActivityQueue
     }
 
     public var body: some View {
@@ -34,7 +36,7 @@ public struct JIACategoryListView: View {
             }
             ForEach(categories) { category in
                 NavigationLink(category.name) {
-                    JIALessonListView(category: category, client: client, session: session, offlineStore: offlineStore)
+                    JIALessonListView(category: category, client: client, session: session, offlineStore: offlineStore, offlineActivityQueue: offlineActivityQueue)
                 }
             }
         }
@@ -59,15 +61,17 @@ public struct JIALessonListView: View {
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
     let offlineStore: JIAOfflineContentStore
+    let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var lessons: [JIALessonSummary] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
+    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore, offlineActivityQueue: JIAOfflineActivityQueue) {
         self.category = category
         self.client = client
         self.session = session
         self.offlineStore = offlineStore
+        self.offlineActivityQueue = offlineActivityQueue
     }
 
     public var body: some View {
@@ -81,7 +85,7 @@ public struct JIALessonListView: View {
             }
             ForEach(lessons) { lesson in
                 NavigationLink {
-                    JIALessonDetailView(lesson: lesson, client: client, session: session, offlineStore: offlineStore)
+                    JIALessonDetailView(lesson: lesson, client: client, session: session, offlineStore: offlineStore, offlineActivityQueue: offlineActivityQueue)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(lesson.title).font(.headline)
@@ -117,6 +121,7 @@ public struct JIALessonDetailView: View {
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
     let offlineStore: JIAOfflineContentStore
+    let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var content: JIALessonContent?
     @State private var loading = true
     @State private var errorMessage: String?
@@ -125,11 +130,12 @@ public struct JIALessonDetailView: View {
     @State private var progressToSave = 0.0
     @State private var isOfflineContent = false
 
-    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
+    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore, offlineActivityQueue: JIAOfflineActivityQueue) {
         self.lesson = lesson
         self.client = client
         self.session = session
         self.offlineStore = offlineStore
+        self.offlineActivityQueue = offlineActivityQueue
     }
 
     public var body: some View {
@@ -147,7 +153,7 @@ public struct JIALessonDetailView: View {
         .navigationTitle(lesson.title)
         .task { await load(); await loadLearnerState() }
         .toolbar {
-            if session.isSignedIn {
+            if session.canUseLearnerFeatures {
                 ToolbarItem(placement: .automatic) {
                     Button { Task { await toggleBookmark() } } label: {
                         Label(isBookmarked ? "Remove bookmark" : "Bookmark lesson",
@@ -169,56 +175,64 @@ public struct JIALessonDetailView: View {
     }
 
     private func loadLearnerState() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { return }
-        do {
-            let progress: [JIALessonProgress] = try await client.request(
-                "/api/v1/me/lesson-progress", token: token)
-            if let item = progress.first(where: { $0.lessonSlug == lesson.slug }) {
-                savedProgress = item.progressPercent
-                progressToSave = item.progressPercent
+        await session.ensureAccessToken()
+        if let token = session.accessToken {
+            do {
+                let progress: [JIALessonProgress] = try await client.request(
+                    "/api/v1/me/lesson-progress", token: token)
+                if let item = progress.first(where: { $0.lessonSlug == lesson.slug }) {
+                    savedProgress = item.progressPercent
+                    progressToSave = item.progressPercent
+                }
+                let bookmarks: [JIABookmark] = try await client.request(
+                    "/api/v1/me/bookmarks", token: token)
+                isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
+            } catch {
+                errorMessage = error.localizedDescription
             }
-            let bookmarks: [JIABookmark] = try await client.request(
-                "/api/v1/me/bookmarks", token: token)
-            isBookmarked = bookmarks.contains { $0.lessonSlug == lesson.slug }
-        } catch {
-            errorMessage = error.localizedDescription
+        }
+        // Local queued state is authoritative until its exact snapshot is acknowledged.
+        if let queued = offlineActivityQueue.pendingProgress().first(where: { $0.lessonSlug == lesson.slug }) {
+            savedProgress = queued.progressPercent
+            progressToSave = queued.progressPercent
+        }
+        if let queued = offlineActivityQueue.pendingBookmarks().first(where: { $0.lessonSlug == lesson.slug }) {
+            isBookmarked = queued.bookmarked
         }
     }
 
     private func saveProgress() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
-        do {
-            let payload = ProgressUpdate(contentRevision: lesson.contentRevision,
-                progressPercent: progressToSave,
-                lastPosition: ["source": .string("ios-reader-slider")])
-            let body = try JSONEncoder().encode(payload)
-            _ = try await client.perform("/api/v1/me/lesson-progress/\(lesson.slug)",
-                token: token, method: "PUT", body: body)
-            savedProgress = progressToSave
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+        guard session.canUseLearnerFeatures else { errorMessage = "Sign in once to enable offline progress."; return }
+        offlineActivityQueue.enqueueProgress(slug: lesson.slug, revision: lesson.contentRevision,
+            percent: progressToSave, lastPosition: ["source": .string("ios-reader-slider")])
+        savedProgress = progressToSave
+        await session.ensureAccessToken()
+        guard let token = session.accessToken else {
+            errorMessage = "Progress saved locally; it will sync after reconnecting."
+            return
         }
+        let sync = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+        let report = await sync.syncPending(token: token)
+        errorMessage = report.failures == 0
+            ? "Progress saved and synced."
+            : "Progress saved on this device; sync will retry when connected."
     }
 
     private func toggleBookmark() async {
-        await session.refreshIfNeeded()
-        guard let token = session.accessToken else { errorMessage = "Please sign in."; return }
-        do {
-            if isBookmarked {
-                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
-                    token: token, method: "DELETE")
-            } else {
-                _ = try await client.perform("/api/v1/me/bookmarks/\(lesson.slug)",
-                    token: token, method: "PUT")
-            }
-            isBookmarked.toggle()
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+        guard session.canUseLearnerFeatures else { errorMessage = "Sign in once to enable offline bookmarks."; return }
+        let desired = !isBookmarked
+        offlineActivityQueue.enqueueBookmark(slug: lesson.slug, bookmarked: desired)
+        isBookmarked = desired
+        await session.ensureAccessToken()
+        guard let token = session.accessToken else {
+            errorMessage = "Bookmark saved locally; it will sync after reconnecting."
+            return
         }
+        let sync = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+        let report = await sync.syncPending(token: token)
+        errorMessage = report.failures == 0
+            ? "Bookmark synced."
+            : "Bookmark saved on this device; sync will retry when connected."
     }
 
     private struct ProgressUpdate: Encodable {

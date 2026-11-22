@@ -4,6 +4,7 @@ import SwiftUI
 public struct JIAAppShell: View {
     private let client: JIAAPIClient
     private let offlineStore: JIAOfflineContentStore
+    private let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var isSyncingOffline = false
     @State private var offlineSyncMessage: String?
     @State private var technologies: [JIATechnology] = []
@@ -14,6 +15,7 @@ public struct JIAAppShell: View {
     public init(client: JIAAPIClient) {
         self.client = client
         self.offlineStore = JIAOfflineContentStore()
+        self.offlineActivityQueue = JIAOfflineActivityQueue()
         _authSession = StateObject(wrappedValue: JIAAuthSession(client: client))
     }
 
@@ -31,7 +33,7 @@ public struct JIAAppShell: View {
                 } else {
                     List(technologies) { technology in
                         NavigationLink {
-                            JIACategoryListView(technology: technology, client: client, session: authSession, offlineStore: offlineStore)
+                            JIACategoryListView(technology: technology, client: client, session: authSession, offlineStore: offlineStore, offlineActivityQueue: offlineActivityQueue)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(technology.name).font(.headline)
@@ -60,12 +62,23 @@ public struct JIAAppShell: View {
                         isSyncingOffline = true
                         Task {
                             let service = JIAOfflineSyncService(client: client, store: offlineStore)
+                            var messages: [String] = []
                             do {
                                 _ = try await service.syncLatestRelease()
-                                offlineSyncMessage = service.statusMessage
+                                if let status = service.statusMessage { messages.append(status) }
                             } catch {
-                                offlineSyncMessage = "Offline download failed. The previous release remains active: \(error.localizedDescription)"
+                                messages.append("Content download failed; prior release remains active: \(error.localizedDescription)")
                             }
+                            await authSession.ensureAccessToken()
+                            if let token = authSession.accessToken {
+                                let activity = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+                                let report = await activity.syncPending(token: token)
+                                messages.append("Synced \(report.progress) progress and \(report.bookmarks) bookmarks; \(report.failures) remain queued.")
+                            } else if !offlineActivityQueue.pendingProgress().isEmpty ||
+                                        !offlineActivityQueue.pendingBookmarks().isEmpty {
+                                messages.append("Learner activity remains queued until sign-in.")
+                            }
+                            offlineSyncMessage = messages.joined(separator: " ")
                             isSyncingOffline = false
                         }
                     } label: {
@@ -75,7 +88,14 @@ public struct JIAAppShell: View {
                     .disabled(isSyncingOffline)
                 }
             }
-            .task { await authSession.restoreSession() }
+            .task {
+                await authSession.restoreSession()
+                await authSession.refreshIfNeeded()
+                if let token = authSession.accessToken {
+                    let activity = JIAOfflineActivitySyncService(client: client, queue: offlineActivityQueue)
+                    _ = await activity.syncPending(token: token)
+                }
+            }
             .task { await load() }
             .refreshable { await load() }
             .overlay(alignment: .bottom) {

@@ -64,3 +64,7 @@ The lesson reader now loads the authenticated learner's progress and bookmarks, 
 The app shell can download the latest immutable content release. The iOS store verifies every lesson's content revision and SHA-256 checksum, writes a staging release, and changes the active-release pointer only after the entire manifest is validated. A failed or interrupted download leaves the previously active release readable. Lesson detail falls back to verified cached content when the network request fails.
 
 This increment covers content cache/download activation; offline queued progress/bookmark mutation and retry/backoff remain separate parity work.
+
+### Offline learner activity
+
+Progress and bookmark changes are first written to an atomic local queue, coalesced by lesson, and then synchronized when a valid session/network is available. Acknowledgements remove only the exact queued snapshot sent, so a newer local edit cannot be lost to an older in-flight request. The queue is retried on app launch and through the Offline sync action. A prior sign-in is required to queue authenticated learner changes; refresh credentials are retained across transport failures.
