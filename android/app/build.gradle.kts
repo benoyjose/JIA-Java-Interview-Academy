@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 val jiaApiBaseUrl = providers.gradleProperty("JIA_API_BASE_URL").orElse("")
@@ -21,6 +23,10 @@ require(jiaAppCode.matches(Regex("[A-Z][A-Z0-9_]{2,39}"))) {
 }
 require(jiaVersionCode > 0 && jiaVersionName.matches(Regex("[0-9]{1,5}([.][0-9]{1,5}){2}"))) {
     "JIA_VERSION_CODE must be positive and JIA_VERSION_NAME must use MAJOR.MINOR.PATCH"
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 android {
@@ -63,11 +69,15 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.coil.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(libs.androidx.room.testing)
     testImplementation("androidx.work:work-testing:2.12.0")
 }
