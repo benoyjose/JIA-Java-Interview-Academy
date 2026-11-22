@@ -129,21 +129,7 @@ jobs:
           emulator-options: "-no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 4096"
           emulator-boot-timeout: 900
           disable-animations: false
-          script: |
-            set +e
-            mkdir -p android/app/build/ci-diagnostics
-            adb logcat -c
-            gradle -p android :app:connectedDebugAndroidTest --no-daemon --info > android/app/build/ci-diagnostics/gradle-instrumentation.log 2>&1
-            test_status=$?
-            cat android/app/build/ci-diagnostics/gradle-instrumentation.log
-            if [ "$test_status" -ne 0 ]; then
-              adb logcat -d -t 12000 > android/app/build/ci-diagnostics/emulator-logcat.txt 2>&1 || true
-              echo "=== Test XML failures ==="
-              find android/app/build/outputs/androidTest-results -name '*.xml' -type f -print -exec grep -E -n -C 4 '<failure|<error|testsuite|testcase' {} \; 2>/dev/null || true
-              echo "=== Crash / assertion summary ==="
-              grep -E -i -n -C 5 "AndroidRuntime|FATAL EXCEPTION|Instrumentation|TestRunner|Assertion|Compose|junit|crash|ANR" android/app/build/ci-diagnostics/emulator-logcat.txt | tail -n 500 || true
-            fi
-            exit "$test_status"
+          script: gradle -p android :app:connectedDebugAndroidTest --no-daemon --info
 
       - name: Upload instrumentation diagnostics
         if: always()
