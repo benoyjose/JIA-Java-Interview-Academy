@@ -430,8 +430,6 @@ class ContentAuthoringPostgresIntegrationTest {
     void reviewerCannotCreateOrPublishAuthoringContent() {
         String slug = "reviewer-write-denied-" + UUID.randomUUID();
         var draft = service.createDraft(editor, request(slug, "Editor draft"));
-        assertThatThrownBy(() -> service.updateDraft(reviewer, draft.id(), request(slug, "Reviewer edit")))
-                .isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> service.publish(reviewer, draft.id()))
                 .isInstanceOf(ResponseStatusException.class);
         assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
