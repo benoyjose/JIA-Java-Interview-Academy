@@ -28,17 +28,20 @@ public class PhoneOtpService {
     private final String endpoint;
     private final String token;
     private final String hmacSecret;
+    private final boolean vendorVerified;
 
     public PhoneOtpService(JdbcTemplate jdbc, AuthService auth, RestClient.Builder builder,
             @Value("${jia.sms.endpoint:}") String endpoint,
             @Value("${jia.sms.token:}") String token,
-            @Value("${jia.otp.hmac-secret:}") String hmacSecret) {
+            @Value("${jia.otp.hmac-secret:}") String hmacSecret,
+            @Value("${jia.sms.vendor-verified:false}") boolean vendorVerified) {
         this.jdbc = jdbc;
         this.auth = auth;
         this.restClient = builder.build();
         this.endpoint = endpoint;
         this.token = token;
         this.hmacSecret = hmacSecret;
+        this.vendorVerified = vendorVerified;
     }
 
     public void requestCode(String phone) {
@@ -91,7 +94,7 @@ public class PhoneOtpService {
     }
 
     private void requireConfigured() {
-        if (endpoint.isBlank() || token.isBlank() || hmacSecret.length() < 32) {
+        if (!vendorVerified || endpoint.isBlank() || token.isBlank() || hmacSecret.length() < 32) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Phone sign-in is not configured on this server");
         }
     }
