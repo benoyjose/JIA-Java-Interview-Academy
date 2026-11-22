@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.content.service.ContentAuthoringService;
 import com.jia.academy.content.service.LessonImportService;
 import com.jia.academy.content.service.LessonRevisionHistoryService;
+import com.jia.academy.security.SecurityConfiguration;
+import com.jia.academy.security.TokenAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
