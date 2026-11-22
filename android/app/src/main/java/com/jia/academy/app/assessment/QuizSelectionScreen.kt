@@ -33,7 +33,6 @@ import com.jia.academy.app.catalogue.QuizAvailability
 import com.jia.academy.app.auth.SecureSessionStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.Duration
 import java.time.Instant
 
 @Composable
@@ -102,7 +101,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
         val deadline = activeAttempt?.deadlineAt
         if (deadline != null) {
             while (result == null) {
-                val seconds = Duration.between(Instant.now(), Instant.parse(deadline)).seconds.coerceAtLeast(0).toInt()
+                val seconds = QuizTimer.remainingSeconds(Instant.parse(deadline), Instant.now())
                 remainingSeconds = seconds
                 if (seconds == 0) {
                     val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
