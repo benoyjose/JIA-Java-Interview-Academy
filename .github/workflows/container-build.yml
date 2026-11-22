@@ -23,6 +23,14 @@ permissions:
   contents: read
 
 jobs:
+  validate-staging-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate staging Compose configuration
+        run: |
+          cp infra/staging.env.example .env
+          docker compose --env-file .env -f infra/staging.compose.yml config --quiet
   build-api-image:
     runs-on: ubuntu-latest
     steps:
