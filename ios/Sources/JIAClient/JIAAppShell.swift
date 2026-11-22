@@ -41,7 +41,7 @@ public struct JIAAppShell: View {
             }
             .navigationTitle("JIA Academy")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     NavigationLink { JIAAccountView(session: authSession) } label: {
                         Label("Account", systemImage: "person.crop.circle")
                     }
