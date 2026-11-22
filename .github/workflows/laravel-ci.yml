@@ -70,6 +70,14 @@ jobs:
           DB_DATABASE: jia_migration_test
         run: php artisan migrate --force
 
+      - name: Verify latest migration can roll back and reapply
+        working-directory: backend-laravel
+        env:
+          DB_DATABASE: jia_migration_test
+        run: |
+          php artisan migrate:rollback --step=1 --force
+          php artisan migrate --force
+
       - name: Audit Composer dependencies
         run: composer audit --working-dir backend-laravel
 
