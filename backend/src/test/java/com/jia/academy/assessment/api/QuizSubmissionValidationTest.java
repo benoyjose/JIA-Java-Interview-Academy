@@ -107,4 +107,22 @@ class QuizSubmissionValidationTest {
                 .hasMessageContaining("Submitted attempt");
     }
 
+    @Test
+    void inProgressAttemptCanResumeButClosedAttemptCannot() {
+        assertThatCode(() -> QuizController.validateResumableStatus("IN_PROGRESS"))
+                .doesNotThrowAnyException();
+        for (String status : Set.of("SUBMITTED", "ABANDONED")) {
+            assertThatThrownBy(() -> QuizController.validateResumableStatus(status))
+                    .isInstanceOf(ResponseStatusException.class);
+        }
+    }
+
+    @Test
+    void abandonTransitionIsIdempotentAndRejectsSubmittedAttempt() {
+        assertThat(QuizController.abandonedStatus("IN_PROGRESS")).isEqualTo("ABANDONED");
+        assertThat(QuizController.abandonedStatus("ABANDONED")).isEqualTo("ABANDONED");
+        assertThatThrownBy(() -> QuizController.abandonedStatus("SUBMITTED"))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
 }
