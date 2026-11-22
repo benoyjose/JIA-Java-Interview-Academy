@@ -20,7 +20,7 @@ const requirements = [
   ["senior/architect interview assessment", /senior.*interview|interview.*questions|interview prompts|follow-up questions|interview case studies/i],
   ["production, reliability or failure analysis", /production|operational|incident|reliability|failure scenario/i],
   ["reviewer references", /## references|reviewer references/i],
-  ["draft/review status", /editorial status|status:\s*draft/i],
+  ["draft/review status", /editorial status|draft for technical review|not published|status:\s*draft/i],
 ];
 
 let failed = false;
