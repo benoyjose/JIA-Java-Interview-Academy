@@ -33,7 +33,6 @@ import com.jia.academy.app.catalogue.QuizAvailability
 import com.jia.academy.app.auth.SecureSessionStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.Duration
 import java.time.Instant
 
 @Composable
