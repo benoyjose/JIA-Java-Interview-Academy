@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jia}
+      POSTGRES_USER: ${POSTGRES_USER:-jia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the staging .env file}
+    volumes:
+      - jia_staging_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jia} -d ${POSTGRES_DB:-jia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [jia-private]
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER:?Set GHCR_OWNER}/jia-api:${RELEASE_TAG:?Set RELEASE_TAG}
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-jia}
+      DB_USERNAME: ${POSTGRES_USER:-jia}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      JIA_OTP_HMAC_SECRET: ${JIA_OTP_HMAC_SECRET:?Set a unique 32+ byte OTP HMAC secret}
+      JIA_SMS_VENDOR_VERIFIED: "false"
+      JIA_MEDIA_S3_ENABLED: ${JIA_MEDIA_S3_ENABLED:-false}
+      SPRING_PROFILES_ACTIVE: staging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health/readiness || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    networks: [jia-private]
+
+  admin-web:
+    image: ghcr.io/${GHCR_OWNER:?Set GHCR_OWNER}/jia-admin-web:${RELEASE_TAG:?Set RELEASE_TAG}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    networks: [jia-private]
+
+volumes:
+  jia_staging_postgres:
+    name: jia_staging_postgres
+
+networks:
+  jia-private:
+    name: jia_staging_private

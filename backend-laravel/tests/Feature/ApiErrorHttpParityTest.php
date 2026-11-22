@@ -21,6 +21,10 @@ final class ApiErrorHttpParityTest extends TestCase
 
         config(['app.debug' => false]);
 
+        Route::get('/api/__parity/success', function () {
+            return response()->json(['ok' => true]);
+        });
+
         Route::post('/api/__parity/validation', function (Request $request) {
             Validator::make($request->all(), ['name' => ['required', 'string']])->validate();
 
@@ -38,6 +42,11 @@ final class ApiErrorHttpParityTest extends TestCase
         Route::get('/api/__parity/unexpected', function () {
             throw new \RuntimeException('database password must never leak');
         });
+    }
+
+    public function test_success_returns_shared_json_contract(): void
+    {
+        $this->getJson('/api/__parity/success')->assertOk()->assertExactJson(['ok' => true]);
     }
 
     public function test_missing_authentication_returns_contract_401(): void

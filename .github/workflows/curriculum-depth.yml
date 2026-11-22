@@ -1,0 +1,30 @@
+name: Curriculum depth validation
+
+on:
+  pull_request:
+    paths:
+      - "docs/curriculum/**"
+      - "scripts/validate-curriculum-depth.mjs"
+      - ".github/workflows/curriculum-depth.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/curriculum/**"
+      - "scripts/validate-curriculum-depth.mjs"
+      - ".github/workflows/curriculum-depth.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  curriculum-depth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate advanced lesson completeness
+        run: node scripts/validate-curriculum-depth.mjs

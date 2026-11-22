@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class QuizController {
     private static final UUID JIA_ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000001");
     private static final List<String> LEVELS = List.of("BEGINNER", "NOVICE", "PROFESSIONAL", "EXPERT");
+    private static final Set<Integer> TIMED_MOCK_DURATIONS_SECONDS = Set.of(900, 1800, 3600);
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -54,8 +55,8 @@ public class QuizController {
         if ("TIMED_MOCK".equals(mode)) {
             Object rawDuration = body.get("durationSeconds");
             if (!(rawDuration instanceof Number number) || number.doubleValue() != number.intValue()
-                    || number.intValue() < 60 || number.intValue() > 21600) {
-                throw badRequest("durationSeconds must be between 60 and 21600");
+                    || !TIMED_MOCK_DURATIONS_SECONDS.contains(number.intValue())) {
+                throw badRequest("durationSeconds must be one of 900, 1800 or 3600 seconds");
             }
             durationLimitSeconds = number.intValue();
         } else if (!"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
@@ -66,11 +67,19 @@ public class QuizController {
         if ("DAILY_CHALLENGE".equals(mode)) {
             jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))",
                     rs -> {}, user.id().toString());
-            List<UUID> existing = jdbc.query("""
-                SELECT id FROM quiz_attempts
+            List<Map<String,Object>> existing = jdbc.query("""
+                SELECT id,status FROM quiz_attempts
                 WHERE user_id=? AND academy_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
-                """, (rs,n) -> rs.getObject(1, UUID.class), user.id(), academyId);
-            if (!existing.isEmpty()) return dailyChallengeResponse(existing.getFirst(), user.id(), academyId);
+                """, (rs,n) -> Map.of("id",rs.getObject("id",UUID.class),"status",rs.getString("status")), user.id(), academyId);
+            if (!existing.isEmpty()) {
+                UUID existingId=(UUID) existing.getFirst().get("id");
+                String existingStatus=(String) existing.getFirst().get("status");
+                if (!"IN_PROGRESS".equals(existingStatus)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Today's daily challenge is already " + existingStatus.toLowerCase(Locale.ROOT));
+                }
+                return dailyChallengeResponse(existingId, user.id(), academyId);
+            }
         }
 
         String sql = """
@@ -163,11 +172,12 @@ public class QuizController {
                 attemptId, user.id(), primaryAcademyId(user));
         if (attempts.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         Object[] attempt = attempts.getFirst();
-        if (!"TIMED_MOCK".equals(attempt[0])) throw badRequest("Answer autosave is only available for timed mock attempts");
         if (!"IN_PROGRESS".equals(attempt[1])) throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz attempt is already closed");
-        Timestamp deadline = (Timestamp) attempt[2];
-        if (deadline == null || !Instant.now().isBefore(deadline.toInstant())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
+        if ("TIMED_MOCK".equals(attempt[0])) {
+            Timestamp deadline = (Timestamp) attempt[2];
+            if (deadline == null || !Instant.now().isBefore(deadline.toInstant())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Timed mock deadline has passed");
+            }
         }
         Set<Integer> positions = new HashSet<>();
         Set<Integer> expectedPositions = new HashSet<>(jdbc.queryForList(
@@ -264,11 +274,14 @@ public class QuizController {
         else if (submitted.keySet().stream().anyMatch(p -> !expectedPositions.contains(p))) throw badRequest("Answer position is not part of this attempt");
 
         int correct = 0;
+        int selfReviewCount = 0;
         List<Map<String, Object>> results = new ArrayList<>();
         for (GradingRow row : rows) {
             Map<String, Object> response = submitted.getOrDefault(row.position(), Map.of());
             Map<String, Object> answer = readMap(row.answerJson());
-            boolean isCorrect = submitted.containsKey(row.position()) && isCorrect(row.questionType(), response, answer);
+            boolean requiresSelfReview = QuizAnswerEvaluator.requiresSelfReview(row.questionType());
+            boolean isCorrect = !requiresSelfReview && submitted.containsKey(row.position()) && isCorrect(row.questionType(), response, answer);
+            if (requiresSelfReview) selfReviewCount++;
             if (isCorrect) correct++;
             Object time = null;
             if (timedMock) {
@@ -288,16 +301,19 @@ public class QuizController {
                   marks_awarded=EXCLUDED.marks_awarded,
                   time_spent_ms=EXCLUDED.time_spent_ms,
                   answered_at=EXCLUDED.answered_at
-                """, attemptId, row.position(), writeJson(response), isCorrect, isCorrect ? 1 : 0,
+                """, attemptId, row.position(), writeJson(response), requiresSelfReview ? null : Boolean.valueOf(isCorrect),
+                    requiresSelfReview ? null : Integer.valueOf(isCorrect ? 1 : 0),
                     time instanceof Number n ? n.intValue() : null, Timestamp.from(Instant.now()));
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("position", row.position());
-            result.put("isCorrect", isCorrect);
+            result.put("isCorrect", requiresSelfReview ? null : isCorrect);
+            result.put("requiresSelfReview", requiresSelfReview);
             result.put("explanation", row.explanation());
             results.add(result);
         }
         int total = rows.size();
-        double score = total == 0 ? 0 : Math.round((correct * 10000.0) / total) / 100.0;
+        int gradedCount = total - selfReviewCount;
+        double score = gradedCount == 0 ? 0 : Math.round((correct * 10000.0) / gradedCount) / 100.0;
         Instant submittedAt = Instant.now();
         jdbc.update("""
             UPDATE quiz_attempts SET status='SUBMITTED', correct_count=?, score_percent=?,
@@ -308,11 +324,94 @@ public class QuizController {
         result.put("difficulty", attempt.difficulty());
         result.put("questionCount", total);
         result.put("correctCount", correct);
+        result.put("gradedQuestionCount", gradedCount);
+        result.put("selfReviewQuestionCount", selfReviewCount);
         result.put("scorePercent", score);
         result.put("submittedAt", submittedAt.toString());
         result.put("timedOut", timedOut);
         result.put("answers", results);
         return result;
+    }
+
+    @GetMapping("/quiz-attempts/{attemptId}")
+    public Map<String,Object> resume(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID attemptId) {
+        requireUser(user);
+        UUID academyId = primaryAcademyId(user);
+        var rows = jdbc.query("""
+            SELECT id,difficulty,mode,status,question_count,duration_limit_seconds,deadline_at,challenge_date,started_at
+            FROM quiz_attempts WHERE id=? AND user_id=? AND academy_id=?
+            """, (rs,n) -> {
+                Map<String,Object> item = new LinkedHashMap<>();
+                item.put("attemptId", rs.getObject("id", UUID.class));
+                item.put("difficulty", rs.getString("difficulty"));
+                item.put("mode", rs.getString("mode"));
+                item.put("status", rs.getString("status"));
+                item.put("questionCount", rs.getInt("question_count"));
+                item.put("durationLimitSeconds", rs.getObject("duration_limit_seconds"));
+                item.put("deadlineAt", rs.getTimestamp("deadline_at") == null ? null : rs.getTimestamp("deadline_at").toInstant().toString());
+                item.put("challengeDate", rs.getString("challenge_date"));
+                item.put("startedAt", rs.getTimestamp("started_at").toInstant().toString());
+                return item;
+            }, attemptId,user.id(),academyId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
+        Map<String,Object> response=rows.getFirst();
+        validateResumableStatus(String.valueOf(response.get("status")));
+        List<Map<String,Object>> questions=jdbc.query("""
+            SELECT aq.position,q.id AS question_id,aq.question_revision_id AS revision_id,
+                   q.question_type,qr.prompt_json::text AS prompt_json,qr.options_json::text AS options_json,qr.hint,q.difficulty
+            FROM quiz_attempt_questions aq JOIN questions q ON q.id=aq.question_id
+            JOIN question_revisions qr ON qr.id=aq.question_revision_id
+            WHERE aq.attempt_id=? ORDER BY aq.position
+            """,(rs,n)->{
+                Map<String,Object> item=new LinkedHashMap<>();
+                item.put("position",rs.getInt("position"));
+                item.put("questionId",rs.getObject("question_id",UUID.class));
+                item.put("revisionId",rs.getObject("revision_id",UUID.class));
+                item.put("questionType",rs.getString("question_type"));
+                item.put("prompt",json(rs.getString("prompt_json")));
+                item.put("options",json(rs.getString("options_json")));
+                item.put("hint",rs.getString("hint"));
+                item.put("difficulty",rs.getString("difficulty"));
+                return item;
+            },attemptId);
+        List<Map<String,Object>> saved=jdbc.query("""
+            SELECT position,response_json::text AS response_json,time_spent_ms
+            FROM quiz_attempt_answers WHERE attempt_id=? ORDER BY position
+            """,(rs,n)->{
+                Map<String,Object> item=new LinkedHashMap<>();
+                item.put("position",rs.getInt("position"));
+                item.put("response",readMap(rs.getString("response_json")));
+                item.put("timeSpentMs",rs.getObject("time_spent_ms"));
+                return item;
+            },attemptId);
+        response.put("questions",questions);
+        response.put("savedAnswers",saved);
+        return response;
+    }
+
+    @PostMapping("/quiz-attempts/{attemptId}/abandon")
+    @Transactional
+    public Map<String,Object> abandon(@AuthenticationPrincipal CurrentUser user,@PathVariable UUID attemptId) {
+        requireUser(user);
+        UUID academyId=primaryAcademyId(user);
+        var rows=jdbc.query("""
+            SELECT status FROM quiz_attempts WHERE id=? AND user_id=? AND academy_id=? FOR UPDATE
+            """,(rs,n)->rs.getString("status"),attemptId,user.id(),academyId);
+        if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Quiz attempt not found");
+        String status=rows.getFirst();
+        if("ABANDONED".equals(status)) return Map.of("attemptId",attemptId,"status",status);
+        if(!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Submitted attempt cannot be abandoned");
+        int updated=jdbc.update("""
+                UPDATE quiz_attempts SET status='ABANDONED',submitted_at=?
+                WHERE id=?
+                """,Timestamp.from(Instant.now()),attemptId);
+        if(updated==0) {
+            String currentStatus=jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?",String.class,attemptId);
+            if("ABANDONED".equals(currentStatus)) return Map.of("attemptId",attemptId,"status","ABANDONED");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Quiz attempt could not be abandoned");
+        }
+        if(updated!=1) throw new ResponseStatusException(HttpStatus.CONFLICT,"Quiz attempt could not be abandoned");
+        return Map.of("attemptId",attemptId,"status","ABANDONED");
     }
 
     @GetMapping("/me/quiz-performance")
@@ -321,11 +420,16 @@ public class QuizController {
         List<Map<String, Object>> levels = new ArrayList<>();
         for (String level : LEVELS) {
             var rows = jdbc.query("""
-                SELECT COUNT(*) AS attempts, COALESCE(SUM(question_count),0) AS questions_attempted,
+                SELECT COUNT(*) AS attempts, COALESCE(SUM(graded_count),0) AS questions_attempted,
                        COALESCE(SUM(correct_count),0) AS correct_answers,
-                       ROUND((SUM(correct_count)::numeric / NULLIF(SUM(question_count),0))*100,2) AS accuracy_percent, MAX(score_percent) AS best_score_percent,
-                       MAX(submitted_at) AS latest_attempt_at
-                FROM quiz_attempts WHERE user_id=? AND academy_id=? AND difficulty=? AND status='SUBMITTED'
+                       ROUND((SUM(correct_count)::numeric / NULLIF(SUM(graded_count),0))*100,2) AS accuracy_percent,
+                       MAX(score_percent) AS best_score_percent, MAX(submitted_at) AS latest_attempt_at
+                FROM (
+                    SELECT a.id,a.correct_count,a.score_percent,a.submitted_at,COUNT(aa.is_correct) AS graded_count
+                    FROM quiz_attempts a LEFT JOIN quiz_attempt_answers aa ON aa.attempt_id=a.id
+                    WHERE a.user_id=? AND a.academy_id=? AND a.difficulty=? AND a.status='SUBMITTED'
+                    GROUP BY a.id,a.correct_count,a.score_percent,a.submitted_at
+                ) scored_attempts
                 """, (rs,n) -> {
                     Map<String,Object> item = new LinkedHashMap<>();
                     item.put("difficulty", level);
@@ -342,8 +446,11 @@ public class QuizController {
         }
         List<Map<String,Object>> topics = jdbc.query("""
             SELECT t.slug AS technology_slug, c.slug AS category_slug, a.difficulty,
-                   COUNT(*) AS attempts, ROUND((SUM(a.correct_count)::numeric / NULLIF(SUM(a.question_count),0))*100,2) AS accuracy_percent
+                   COUNT(DISTINCT a.id) AS attempts,
+                   ROUND((SUM(CASE WHEN aa.is_correct IS TRUE THEN 1 ELSE 0 END)::numeric
+                       / NULLIF(COUNT(aa.is_correct),0))*100,2) AS accuracy_percent
             FROM quiz_attempts a
+            LEFT JOIN quiz_attempt_answers aa ON aa.attempt_id=a.id
             LEFT JOIN technologies t ON t.id=a.technology_id
             LEFT JOIN categories c ON c.id=a.category_id
             WHERE a.user_id=? AND a.academy_id=? AND a.status='SUBMITTED'
@@ -368,7 +475,7 @@ public class QuizController {
         if (limit < 1 || limit > 100) throw badRequest("limit must be between 1 and 100");
         if (difficulty != null && !LEVELS.contains(difficulty)) throw badRequest("Invalid difficulty");
         String sql = """
-            SELECT a.id,a.difficulty,t.slug AS technology_slug,c.slug AS category_slug,a.question_count,
+            SELECT a.id,a.difficulty,a.mode,t.slug AS technology_slug,c.slug AS category_slug,a.question_count,
                    a.correct_count,a.score_percent,a.started_at,a.status
             FROM quiz_attempts a LEFT JOIN technologies t ON t.id=a.technology_id
             LEFT JOIN categories c ON c.id=a.category_id
@@ -379,6 +486,7 @@ public class QuizController {
             Map<String,Object> item = new LinkedHashMap<>();
             item.put("attemptId", rs.getObject("id", UUID.class));
             item.put("difficulty", rs.getString("difficulty"));
+            item.put("mode", rs.getString("mode"));
             item.put("technologySlug", rs.getString("technology_slug"));
             item.put("categorySlug", rs.getString("category_slug"));
             item.put("questionCount", rs.getInt("question_count"));
@@ -428,6 +536,18 @@ public class QuizController {
         response.put("challengeDate", a[3]);
         response.put("questions", questions);
         return response;
+    }
+
+    static void validateResumableStatus(String status) {
+        if (!"IN_PROGRESS".equals(status)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only in-progress attempts can be resumed");
+        }
+    }
+
+    static String abandonedStatus(String status) {
+        if ("ABANDONED".equals(status)) return status;
+        if ("IN_PROGRESS".equals(status)) return "ABANDONED";
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Submitted attempt cannot be abandoned");
     }
 
     static void validateMode(String mode) {
@@ -521,16 +641,9 @@ public class QuizController {
         catch (Exception ex) { throw new IllegalStateException("Unable to serialize quiz response", ex); }
     }
     private boolean isCorrect(String type, Map<String,Object> response, Map<String,Object> answer) {
-        Object expectedValue = answer.containsKey("correctValues") ? answer.get("correctValues") : answer.get("correct_values");
-        if (!(expectedValue instanceof List<?> expected)) return false;
-        Object actualValue = response.get("values");
-        if (actualValue == null && response.containsKey("value")) actualValue = List.of(response.get("value"));
-        if (!(actualValue instanceof List<?> actual)) return false;
-        List<String> e = expected.stream().map(String::valueOf).sorted().toList();
-        List<String> a = actual.stream().map(String::valueOf).sorted().toList();
-        if ("MULTI_SELECT".equals(type)) return e.equals(a);
-        return e.size() == 1 && a.size() == 1 && e.equals(a);
+        return QuizAnswerEvaluator.isCorrect(type, response, answer);
     }
+
     private static UUID primaryAcademyId(CurrentUser user) {
         if (user == null || user.academyIds() == null || user.academyIds().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required");

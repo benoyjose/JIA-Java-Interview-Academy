@@ -22,7 +22,8 @@ public class LessonContentValidator {
             if (root == null || !root.isObject()) {
                 badRequest("Content must be a JSON object");
             }
-            if (root.path("schemaVersion").asInt(-1) != SUPPORTED_SCHEMA_VERSION) {
+            JsonNode schemaVersion = root.path("schemaVersion");
+            if (!schemaVersion.isIntegralNumber() || schemaVersion.asInt(-1) != SUPPORTED_SCHEMA_VERSION) {
                 badRequest("Unsupported lesson content schema version");
             }
             JsonNode blocks = root.path("blocks");

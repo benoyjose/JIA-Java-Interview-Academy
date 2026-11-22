@@ -52,4 +52,60 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// OpenAPI operation IDs are used by generated clients. Require one per
+// documented operation and enforce uniqueness before SDK generation.
+const specText = lines.join("\n");
+const operationIds = [];
+const operationLinePattern = /^    (get|post|put|patch|delete):\s*$/gm;
+const operationLines = [...specText.matchAll(operationLinePattern)];
+for (let index = 0; index < operationLines.length; index += 1) {
+  const match = operationLines[index];
+  const startIndex = match.index + match[0].length;
+  const next = operationLines[index + 1];
+  const nextPath = specText.slice(startIndex).search(/^  \//m);
+  const nextComponents = specText.slice(startIndex).search(/^components:/m);
+  const candidates = [next ? next.index : specText.length,
+    nextPath >= 0 ? startIndex + nextPath : specText.length,
+    nextComponents >= 0 ? startIndex + nextComponents : specText.length];
+  const blockEnd = Math.min(...candidates.filter(value => value > match.index));
+  const block = specText.slice(startIndex, blockEnd);
+  const id = block.match(/^\s{6}operationId:\s*([A-Za-z0-9_.-]+)\s*$/m)?.[1];
+  if (!id) {
+    console.error("OpenAPI operation is missing operationId at line " + (specText.slice(0, match.index).split("\n").length));
+    process.exit(1);
+  }
+  operationIds.push(id);
+}
+const duplicateOperationIds = operationIds.filter((id, index) => operationIds.indexOf(id) !== index);
+if (duplicateOperationIds.length > 0) {
+  console.error("Duplicate OpenAPI operationIds: " + [...new Set(duplicateOperationIds)].join(", "));
+  process.exit(1);
+}
+if (operationIds.length !== documentedRoutes.size) {
+  console.error("OpenAPI operation count mismatch: " + operationIds.length + " operations vs " + documentedRoutes.size + " route/method entries.");
+  process.exit(1);
+}
 console.log("Verified " + springRoutes.size + " Spring Boot route/method mappings against OpenAPI.");
+
+const laravelRouteFile = "backend-laravel/routes/api.php";
+const laravelSource = fs.readFileSync(laravelRouteFile, "utf8");
+const laravelRoutes = new Set();
+const laravelMappingPattern = /Route::(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/g;
+for (const match of laravelSource.matchAll(laravelMappingPattern)) {
+  const method = match[1].toLowerCase();
+  const route = match[2];
+  // Laravel's api.php is mounted at /api; the file's v1 group supplies the
+  // remaining prefix. OpenAPI paths intentionally omit the common /api/v1.
+  const versionedRoute = route.startsWith("/v1/") ? route.slice(3) : route;
+  laravelRoutes.add(method + " " + versionedRoute);
+}
+
+const undocumentedLaravel = [...laravelRoutes]
+  .filter((route) => !documentedRoutes.has(route))
+  .sort();
+if (undocumentedLaravel.length > 0) {
+  console.error("Laravel API routes missing from OpenAPI:");
+  for (const route of undocumentedLaravel) console.error("  - " + route);
+  process.exit(1);
+}
+console.log("Verified " + laravelRoutes.size + " Laravel route/method mappings against OpenAPI.");

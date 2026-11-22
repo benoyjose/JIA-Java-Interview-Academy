@@ -126,6 +126,8 @@ test("admin can create, submit, review, approve and publish a lesson", async ({ 
   await page.getByLabel("Password").fill("test-password");
   await page.getByRole("button", { name: "Sign in" }).click();
 
+  // Admins now land on the analytics dashboard; navigate to the lesson workflow explicitly.
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: /Lessons/ }).click();
   await expect(page.getByRole("heading", { name: "Lessons", exact: true })).toBeVisible();
   await page.getByRole("button", { name: /New lesson/ }).click();
   await page.getByLabel("Lesson title").fill("Java Streams");
@@ -164,4 +166,55 @@ test("expired stored session is cleared and returns the admin to sign-in", async
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("jia.admin.access-token"))).toBeNull();
+});
+
+
+test("lesson editor blocks malformed content before issuing a save request", async ({ page }) => {
+  let saveRequests = 0;
+  await page.route("**/api/v1/**", async route => {
+    const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
+    if (path === "/auth/login") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ accessToken: "e2e-token", tokenType: "Bearer", expiresAt: "2026-12-01T00:00:00Z", user }) });
+    if (path === "/admin/lessons" && route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], page: 0, size: 25, totalItems: 0, totalPages: 0 }) });
+    if (path === "/admin/lessons" && route.request().method() === "POST") { saveRequests++; return route.fulfill({ status: 201, contentType: "application/json", body: "{}" }); }
+    return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
+  await page.goto("/");
+  await page.getByLabel("Email address").fill(user.email);
+  await page.getByLabel("Password").fill("test-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: /Lessons/ }).click();
+  await page.getByRole("button", { name: /New lesson/ }).click();
+  await page.getByLabel("Lesson title").fill("Invalid content test");
+  await page.getByLabel("Category slug").fill("java");
+  await page.getByLabel("Lesson slug").fill("invalid-content-test");
+  await page.getByLabel("Content document (JSON)").fill("{invalid");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("alert")).toContainText("not valid JSON");
+  expect(saveRequests).toBe(0);
+});
+
+
+test("editor previews valid draft blocks locally without publishing or saving", async ({ page }) => {
+  let writeRequests = 0;
+  await page.route("**/api/v1/**", async route => {
+    const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
+    if (path === "/auth/login") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ accessToken: "preview-token", tokenType: "Bearer", expiresAt: "2026-12-01T00:00:00Z", user }) });
+    if (path === "/admin/lessons" && route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], page: 0, size: 25, totalItems: 0, totalPages: 0 }) });
+    if (["POST", "PUT"].includes(route.request().method()) && path.startsWith("/admin/lessons")) writeRequests++;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+  });
+  await page.goto("/");
+  await page.getByLabel("Email address").fill(user.email);
+  await page.getByLabel("Password").fill("test-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: /Lessons/ }).click();
+  await page.getByRole("button", { name: /New lesson/ }).click();
+  await page.getByLabel("Lesson title").fill("Preview-only draft");
+  await page.getByLabel("Category slug").fill("java");
+  await page.getByLabel("Lesson slug").fill("preview-only-draft");
+  await page.getByLabel("Content document (JSON)").fill(JSON.stringify({ schemaVersion: 1, blocks: [{ type: "markdown", title: "Preview heading", body: "Preview body content" }] }));
+  await page.getByRole("button", { name: "Preview as learner" }).click();
+  await expect(page.getByRole("region", { name: "Private learner preview" })).toContainText("Preview body content");
+  await expect(page.getByText("Draft only · not publicly visible")).toBeVisible();
+  expect(writeRequests).toBe(0);
 });

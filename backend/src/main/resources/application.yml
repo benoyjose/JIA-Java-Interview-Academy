@@ -41,6 +41,7 @@ jia:
   sms:
     endpoint: ${JIA_SMS_ENDPOINT:}
     token: ${JIA_SMS_TOKEN:}
+    vendor-verified: ${JIA_SMS_VENDOR_VERIFIED:false}
   otp:
     hmac-secret: ${JIA_OTP_HMAC_SECRET:}
   media:

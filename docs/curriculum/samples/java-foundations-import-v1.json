@@ -1,0 +1,81 @@
+{
+  "formatVersion": 1,
+  "categories": ["java-language-fundamentals"],
+  "lessons": [
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-stream-pipeline-basics",
+      "title": "Java Stream Pipeline Basics",
+      "summary": "Explain source, intermediate operations and terminal operations with a small Java example.",
+      "difficulty": "BEGINNER",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "JIA editorial starter content; authored for the academy and reviewed for Java 17 syntax."
+      },
+      "content": {
+        "schemaVersion": 1,
+        "blocks": [
+          {"type": "overview", "title": "Overview", "body": "A Stream describes a computation over a data source; it does not store the elements or mutate the source by default."},
+          {"type": "interviewAnswer", "title": "Concise interview answer", "mode": "concise", "body": ["A stream pipeline has a source, zero or more intermediate operations, and one terminal operation.", "Intermediate operations are lazy; traversal begins when a terminal operation executes.", "A stream is single-use, and side effects should be avoided in behavioral parameters."]},
+          {"type": "code", "title": "Filter and map", "language": "java", "javaVersion": "17", "source": "List<String> names = List.of(\"Ada\", \"Ben\", \"Asha\");\nList<String> result = names.stream()\n    .filter(name -> name.startsWith(\"A\"))\n    .map(String::toUpperCase)\n    .toList(); // [ADA, ASHA]", "explanation": "filter retains matching elements, map transforms each retained element, and toList is the terminal operation."},
+          {"type": "commonMistakes", "title": "Common mistakes", "body": "Do not reuse a consumed stream. Do not expect intermediate operations to run without a terminal operation. Avoid modifying shared state from stream lambdas."},
+          {"type": "followUp", "title": "Follow-up questions", "body": "How does map differ from flatMap? When is parallelStream unsuitable? What guarantees does Stream.toList provide?"}
+        ]
+      },
+      "changeNote": "Initial reviewed sample for import and editorial workflow."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-equals-hashcode-contract",
+      "title": "The equals and hashCode Contract",
+      "summary": "Understand equality semantics and hash-based collection correctness.",
+      "difficulty": "NOVICE",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "JIA editorial starter content; original explanatory material with a Java 17 example."
+      },
+      "content": {
+        "schemaVersion": 1,
+        "blocks": [
+          {"type": "overview", "title": "Overview", "body": "Logical equality is defined by equals. hashCode supports bucket selection in hash-based collections."},
+          {"type": "interviewAnswer", "title": "Concise interview answer", "mode": "concise", "body": ["If two objects are equal according to equals, they must return the same hashCode.", "Unequal objects may share a hash code; collisions are permitted.", "Fields used by equality should not change while an object is used as a hash-map key."]},
+          {"type": "code", "title": "Value object example", "language": "java", "javaVersion": "17", "source": "record EmployeeId(String value) {\n    EmployeeId {\n        Objects.requireNonNull(value);\n    }\n}", "explanation": "A record derives equals and hashCode from its components; use explicit implementations for classes with custom equality."},
+          {"type": "explanation", "title": "Collection impact", "body": "A HashMap first uses the hash code to locate a bucket and then equality to identify a matching key. Violating the contract can make logically equivalent lookups fail."}
+        ]
+      },
+      "changeNote": "Initial reviewed sample for import and editorial workflow."
+    }
+  ],
+  "questions": [
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "stream-intermediate-lazy",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "BEGINNER",
+      "prompt": {"text": "When does a Java Stream pipeline normally begin traversing its source?"},
+      "options": [
+        {"value": "pipeline-creation", "label": "When the stream is created"},
+        {"value": "terminal-operation", "label": "When a terminal operation executes"},
+        {"value": "each-intermediate", "label": "After every intermediate operation"},
+        {"value": "compile-time", "label": "At compile time"}
+      ],
+      "answer": {"correctValues": ["terminal-operation"]},
+      "explanation": "Intermediate operations are lazy; a terminal operation triggers evaluation of the pipeline.",
+      "provenance": {"sourceType": "ADMIN_AUTHORED", "sourceDescription": "JIA original assessment question aligned to the stream-pipeline lesson."}
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "hashcode-equal-objects",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "NOVICE",
+      "prompt": {"text": "If two Java objects are equal according to equals, they must have the same hashCode."},
+      "options": [
+        {"value": "true", "label": "True"},
+        {"value": "false", "label": "False"}
+      ],
+      "answer": {"correctValues": ["true"]},
+      "explanation": "The equals/hashCode contract requires equal objects to have equal hash codes; the reverse is not required.",
+      "provenance": {"sourceType": "ADMIN_AUTHORED", "sourceDescription": "JIA original assessment question aligned to the equality-contract lesson."}
+    }
+  ]
+}

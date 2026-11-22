@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Map;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,14 @@ class ApiErrorHttpIntegrationTest {
         mvc = MockMvcBuilders.standaloneSetup(new ErrorTestController())
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
+    }
+
+
+    @Test
+    void returnsSuccessfulJsonResponseWithoutBackendSpecificEnvelope() throws Exception {
+        mvc.perform(get("/api/v1/__test/success"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true));
     }
 
     @Test
@@ -81,6 +90,11 @@ class ApiErrorHttpIntegrationTest {
     @RestController
     @RequestMapping("/api/v1/__test")
     static class ErrorTestController {
+        @GetMapping("/success")
+        Map<String, Boolean> success() {
+            return Map.of("ok", true);
+        }
+
         @PostMapping("/validation")
         String validation(@Valid @RequestBody ValidationRequest request) {
             return "ok";

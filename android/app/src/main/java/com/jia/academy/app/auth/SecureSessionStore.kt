@@ -16,14 +16,15 @@ class SecureSessionStore(context: Context) {
     private val alias = "jia.session.aes.v1"
 
     fun save(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {
+        SessionMaterialValidator.validate(accessToken, refreshToken, expiresAt, userJson)
         val plain = """{"accessToken":${org.json.JSONObject.quote(accessToken)},"refreshToken":${org.json.JSONObject.quote(refreshToken)},"expiresAt":${org.json.JSONObject.quote(expiresAt)},"user":$userJson}"""
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val encrypted = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
-        preferences.edit()
+        check(preferences.edit()
             .putString("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
             .putString("payload", Base64.encodeToString(encrypted, Base64.NO_WRAP))
-            .apply()
+            .commit()) { "Could not atomically persist the rotated session." }
     }
 
     fun accessToken(): String? = runCatching {
@@ -56,5 +57,15 @@ class SecureSessionStore(context: Context) {
                 .build()
         )
         return generator.generateKey()
+    }
+}
+
+
+internal object SessionMaterialValidator {
+    fun validate(accessToken: String, refreshToken: String, expiresAt: String, userJson: String) {
+        require(accessToken.isNotBlank()) { "accessToken must not be blank" }
+        require(refreshToken.isNotBlank()) { "refreshToken must not be blank" }
+        require(expiresAt.isNotBlank()) { "expiresAt must not be blank" }
+        org.json.JSONObject(userJson) // Reject malformed or non-object JSON before encrypting session data.
     }
 }

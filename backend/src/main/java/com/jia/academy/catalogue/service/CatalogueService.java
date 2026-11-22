@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.jia.academy.security.CurrentUser;
 
 @Service
 @Transactional(readOnly=true)
@@ -29,15 +30,28 @@ public class CatalogueService {
  public List<TechnologyResponse> technologies(){return technologies.findAllByStatusOrderBySortOrderAsc(VISIBLE).stream().map(t->new TechnologyResponse(t.getId(),t.getSlug(),t.getName(),t.getDescription(),t.getSortOrder())).toList();}
  public TechnologyResponse technology(String slug){var t=technologies.findBySlugAndStatus(slug,VISIBLE).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Technology not found"));return new TechnologyResponse(t.getId(),t.getSlug(),t.getName(),t.getDescription(),t.getSortOrder());}
  public List<CategoryResponse> categories(String technologySlug){technology(technologySlug);return categories.findAllByTechnologySlugAndStatusOrderBySortOrderAsc(technologySlug,VISIBLE).stream().map(c->new CategoryResponse(c.getId(),c.getSlug(),c.getName(),c.getSortOrder(),technologySlug)).toList();}
- public LessonDetailResponse lesson(String slug){
+ public LessonDetailResponse lesson(String slug){ return lesson(slug,null); }
+ public LessonDetailResponse lesson(String slug, CurrentUser user){
+  java.util.UUID userId=user==null?null:user.id();
   return jdbc.query("""
       SELECT l.id,l.slug,r.title,r.summary,r.difficulty,r.revision_number,r.source_type,r.content_json::text
       FROM lessons l JOIN lesson_revisions r ON r.id=l.published_revision_id
+      JOIN categories c ON c.id=l.category_id JOIN technologies tech ON tech.id=c.technology_id
       WHERE l.slug=? AND l.status='PUBLISHED'
+        AND NOT EXISTS (
+          SELECT 1 FROM lesson_entitlement_requirements req
+          WHERE req.lesson_id=l.id AND NOT EXISTS (
+            SELECT 1 FROM academy_entitlements e
+            WHERE e.user_id=? AND e.academy_id=tech.academy_id
+              AND e.entitlement_code=req.entitlement_code
+              AND e.status IN ('ACTIVE','GRACE')
+              AND (e.valid_until IS NULL OR e.valid_until > now())
+          )
+        )
       """,(rs,row)->new LessonDetailResponse(rs.getObject("id",java.util.UUID.class),
       rs.getString("slug"),rs.getString("title"),rs.getString("summary"),rs.getString("difficulty"),
-      rs.getInt("revision_number"),rs.getString("source_type"),rs.getString("content_json")),slug)
-      .stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Lesson not found"));
+      rs.getInt("revision_number"),rs.getString("source_type"),rs.getString("content_json")),slug,userId)
+      .stream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Lesson not found or premium entitlement required"));
  }
  public List<LessonSummaryResponse> lessons(String categorySlug){
   categories.findBySlugAndStatus(categorySlug,VISIBLE).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Category not found"));

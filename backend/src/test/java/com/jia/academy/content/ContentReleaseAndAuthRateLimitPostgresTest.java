@@ -2,10 +2,14 @@ package com.jia.academy.content;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jia.academy.auth.service.AuthRateLimitService;
 import com.jia.academy.auth.service.AuthService;
+import com.jia.academy.auth.service.PhoneOtpService;
+import com.jia.academy.auth.api.AuthDtos.LoginRequest;
+import org.springframework.web.client.RestClient;
 import com.jia.academy.auth.api.AuthDtos.RegisterRequest;
 import com.jia.academy.content.service.TaxonomyAdminService;
 import com.jia.academy.content.service.LessonRevisionHistoryService;
@@ -17,6 +21,8 @@ import com.jia.academy.content.api.ContentAuthoringDtos.LessonDraftRequest;
 import com.jia.academy.content.api.ContentAuthoringDtos.ReviewDecisionRequest;
 import com.jia.academy.content.service.ContentAuthoringService;
 import com.jia.academy.content.service.ContentReleaseService;
+import com.jia.academy.appregistry.service.AcademyAppRegistryService;
+import com.jia.academy.appregistry.service.AcademyAppRegistryService.ReleaseUpdate;
 import com.jia.academy.content.service.LessonContentValidator;
 import com.jia.academy.security.CurrentUser;
 import java.util.List;
@@ -48,6 +54,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     private static JdbcTemplate jdbc;
     private static ContentAuthoringService authoring;
     private static ContentReleaseService releases;
+    private static AcademyAppRegistryService appRegistry;
     private static AuthRateLimitService rateLimits;
     private static AuthService auth;
     private static TaxonomyAdminService taxonomy;
@@ -67,6 +74,7 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         ObjectMapper mapper = new ObjectMapper();
         authoring = new ContentAuthoringService(jdbc, mapper, new LessonContentValidator(mapper));
         releases = new ContentReleaseService(jdbc, mapper);
+        appRegistry = new AcademyAppRegistryService(jdbc);
         rateLimits = new AuthRateLimitService(jdbc);
         auth = new AuthService(jdbc, new BCryptPasswordEncoder());
         taxonomy = new TaxonomyAdminService(jdbc);
@@ -100,6 +108,19 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                     'ADMIN_AUTHORED',?,'Seed other academy release test')
                 """, OTHER_REVISION, OTHER_LESSON, otherAcademyAdmin.id());
         jdbc.update("UPDATE lessons SET published_revision_id=? WHERE id=?", OTHER_REVISION, OTHER_LESSON);
+    }
+
+    @Test
+    void loginRateLimitSharesIpBudgetAcrossAccountsAndSuccessfulLoginDoesNotResetIt() {
+        String ip = "rate-limit-test-" + UUID.randomUUID();
+        for (int attempt = 0; attempt < 10; attempt++) {
+            rateLimits.checkAndRecord(ip, "account-" + attempt + "@example.test");
+        }
+        // A successful sign-in clears only the account bucket, never the shared IP bucket.
+        rateLimits.clear(ip, "account-0@example.test");
+        assertThatThrownBy(() -> rateLimits.checkAndRecord(ip, "new-account@example.test"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Too many sign-in attempts");
     }
 
     @Test
@@ -257,6 +278,81 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 "SELECT COUNT(*) FROM auth_identities WHERE user_id=?",
                 Integer.class, federatedOnly.id());
         assertThat(remaining).isEqualTo(1);
+    }
+
+
+    @Test
+    void loginDoesNotRevealWhetherAnAccountExists() {
+        String email="enumeration-"+UUID.randomUUID()+"@example.test";
+        auth.register(new RegisterRequest("Enumeration Test",email,"long-secure-test-password"));
+        Throwable known=catchThrowable(() -> auth.login(new LoginRequest(email,"wrong-password","test-device")));
+        Throwable unknown=catchThrowable(() -> auth.login(new LoginRequest(
+                "missing-"+UUID.randomUUID()+"@example.test","wrong-password","test-device")));
+        assertThat(known).isInstanceOf(ResponseStatusException.class);
+        assertThat(unknown).isInstanceOf(ResponseStatusException.class);
+        assertThat(((ResponseStatusException)known).getStatusCode().value()).isEqualTo(401);
+        assertThat(((ResponseStatusException)unknown).getStatusCode().value()).isEqualTo(401);
+        assertThat(known.getMessage()).isEqualTo(unknown.getMessage());
+        assertThat(known.getMessage()).contains("Invalid email or password");
+    }
+
+    @Test
+    void providerIdentityAndEmailConflictsRequireExplicitSafeLinking() {
+        CurrentUser first=user("Identity owner","LEARNER");
+        CurrentUser second=user("Different account","LEARNER");
+        String subject="google-subject-"+UUID.randomUUID();
+        auth.linkFederatedIdentity(first,"GOOGLE",subject,"first@example.test",true);
+        assertThatThrownBy(() -> auth.linkFederatedIdentity(second,"GOOGLE",subject,"second@example.test",true))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("linked to another account");
+        assertThatThrownBy(() -> auth.linkFederatedIdentity(second,"APPLE","apple-"+UUID.randomUUID(),
+                first.email(),true))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("never linked by email alone");
+        assertThatThrownBy(() -> auth.linkFederatedIdentity(second,"GOOGLE","unverified-"+UUID.randomUUID(),
+                "second@example.test",false))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("verified provider identity");
+    }
+
+    @Test
+    void phoneOtpRemainsDisabledUntilSmsVendorVerificationIsExplicitlyEnabled() {
+        PhoneOtpService otp=new PhoneOtpService(jdbc,auth,RestClient.builder(),"https://sms.example.test",
+                "configured-token","01234567890123456789012345678901",false);
+        assertThatThrownBy(() -> otp.requestCode("+919876543210"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException)error).getStatusCode().value()).isEqualTo(503))
+                .hasMessageContaining("not configured");
+    }
+
+    @Test
+    void registeredAppReleasePolicyValidatesIdentityVersionsAndDisabledState() {
+        String appCode = "TEST_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String applicationId = "com.test.academy." + UUID.randomUUID().toString().replace("-", "");
+        jdbc.update("""
+                INSERT INTO academy_apps(id,academy_id,app_code,platform,application_id,display_name,status,
+                    minimum_supported_version,current_version)
+                VALUES (?,?,?,'ANDROID',?,'Registry Test','PLANNED','1.2.0','1.4.0')
+                """, UUID.randomUUID(), UUID.fromString("50000000-0000-0000-0000-000000000001"),
+                appCode, applicationId);
+
+        var planned = appRegistry.policy(appCode, "ANDROID", applicationId, "1.0.0");
+        assertThat(planned.status()).isEqualTo("PLANNED");
+        assertThat(planned.updateStatus()).isEqualTo("UPDATE_REQUIRED");
+        assertThatThrownBy(() -> appRegistry.policy(appCode, "IOS", applicationId, null))
+                .isInstanceOf(ResponseStatusException.class);
+
+        appRegistry.update(appCode, new ReleaseUpdate("ACTIVE", "1.2.0", "1.4.0",
+                "https://apps.example.test/store", "Release candidate"));
+        assertThat(appRegistry.policy(appCode, "ANDROID", applicationId, "1.3.0").updateStatus())
+                .isEqualTo("UPDATE_AVAILABLE");
+        assertThatThrownBy(() -> appRegistry.update(appCode,
+                new ReleaseUpdate("ACTIVE", "2.0.0", "1.4.0", null, null)))
+                .isInstanceOf(ResponseStatusException.class);
+
+        appRegistry.update(appCode, new ReleaseUpdate("SUSPENDED", "1.2.0", "1.4.0", null, null));
+        assertThatThrownBy(() -> appRegistry.policy(appCode, "ANDROID", applicationId, "1.4.0"))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     private static CurrentUser user(String name, String role) {

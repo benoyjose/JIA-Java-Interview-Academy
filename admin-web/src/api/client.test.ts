@@ -50,6 +50,21 @@ describe("admin API client", () => {
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
   });
 
+  it("loads academy analytics with a bounded reporting window and caller abort signal", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(
+      JSON.stringify({ academyId: "a-1", academyCode: "JIA", windowDays: 7, totalLearners: 12,
+        activeLearners: 5, lessonsCompleted: 18, quizAttempts: 9, averageScorePercent: 76.5,
+        scoredAttempts: 8, topTopics: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    const summary = await api.analyticsSummary(7, controller.signal);
+    expect(summary.activeLearners).toBe(5);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/api/v1/admin/analytics/summary?windowDays=7");
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+  });
+
   it("normalizes the shared API error envelope", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(
       JSON.stringify({ code: "FORBIDDEN", message: "Permission denied." }),

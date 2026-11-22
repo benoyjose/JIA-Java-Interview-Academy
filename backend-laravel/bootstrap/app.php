@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         health: '/up',
     )
+    ->withCommands([ValidateCurriculumImport::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'jia.permission' => RequireJiaPermission::class,

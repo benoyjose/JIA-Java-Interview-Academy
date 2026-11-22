@@ -203,6 +203,54 @@ class QuizControllerPostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempts WHERE user_id=? AND mode='DAILY_CHALLENGE' AND challenge_date=CURRENT_DATE", Integer.class, USER_ONE)).isEqualTo(1);
     }
 
+
+
+    @Test
+    void codingQuestionIsReturnedForSelfReviewAndExcludedFromObjectiveScore() {
+        UUID categoryId=UUID.randomUUID();
+        String categorySlug="coding-review-"+UUID.randomUUID();
+        UUID questionId=UUID.randomUUID();
+        UUID revisionId=UUID.randomUUID();
+        jdbc.update("INSERT INTO categories(id,technology_id,slug,name,sort_order,status) VALUES (?,?,?,? ,1,'PUBLISHED')",
+                categoryId,TECHNOLOGY,categorySlug,"Coding review");
+        jdbc.update("""
+                INSERT INTO questions(id,academy_id,technology_id,category_id,question_type,difficulty,status,current_revision)
+                VALUES (?,?,?,?,'CODING','PROFESSIONAL','PUBLISHED',1)
+                """,questionId,ACADEMY,TECHNOLOGY,categoryId);
+        jdbc.update("""
+                INSERT INTO question_revisions(id,question_id,revision_number,prompt_json,options_json,answer_json,explanation,source_type)
+                VALUES (?,?,1,'{"text":"Implement a robust retry policy"}'::jsonb,NULL,
+                    '{"correctValues":["Reference implementation"]}'::jsonb,
+                    'Compare correctness, bounded retries, jitter and idempotency against the rubric.','ADMIN_AUTHORED')
+                """,revisionId,questionId);
+        Map<String,Object> started=controller.start(learnerOne,Map.of("difficulty","PROFESSIONAL",
+                "questionCount",1,"categorySlug",categorySlug));
+        UUID attemptId=(UUID)started.get("attemptId");
+        Map<String,Object> submitted=controller.submit(learnerOne,attemptId,Map.of("answers",List.of(
+                Map.of("position",1,"response",Map.of("value","My implementation"),"timeSpentMs",12000)
+        )));
+        assertThat(submitted.get("gradedQuestionCount")).isEqualTo(0);
+        assertThat(submitted.get("selfReviewQuestionCount")).isEqualTo(1);
+        assertThat(submitted.get("scorePercent")).isEqualTo(0.0);
+        Map<?,?> answer=(Map<?,?>)((List<?>)submitted.get("answers")).getFirst();
+        assertThat(answer.get("requiresSelfReview")).isEqualTo(true);
+        assertThat(answer.get("isCorrect")).isNull();
+        assertThat(jdbc.queryForObject("SELECT is_correct FROM quiz_attempt_answers WHERE attempt_id=? AND position=1",
+                Boolean.class,attemptId)).isNull();
+    }
+
+    @Test
+    void dailyChallengeCannotBeStartedAgainAfterCompletionForThatUtcDay() {
+        Map<String,Object> daily=controller.start(learnerOne,
+                Map.of("difficulty","BEGINNER","questionCount",2,"mode","DAILY_CHALLENGE"));
+        UUID attemptId=(UUID) daily.get("attemptId");
+        controller.submit(learnerOne,attemptId,answers(1,2));
+        assertThatThrownBy(() -> controller.start(learnerOne,
+                Map.of("difficulty","BEGINNER","questionCount",2,"mode","DAILY_CHALLENGE")))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+    }
+
     @Test
     void weakAreaModeUsesLearnerPerformanceAndCreatesAnAttempt() {
         UUID previousAttempt = startAttempt();
@@ -351,6 +399,91 @@ class QuizControllerPostgresIntegrationTest {
                 "[{\"value\":\"A\",\"label\":\"Option A\"},{\"value\":\"B\",\"label\":\"Option B\"}]",
                 "{\"correctValues\":[\"A\"]}", "A is correct");
     }
+
+    @Test
+    void timedMockRejectsDurationsOutsideClientChoicesAndAcceptsSupportedValues() {
+        for (int invalid : List.of(60, 901, 21600)) {
+            assertThatThrownBy(() -> controller.start(learnerOne, Map.of(
+                    "difficulty", "BEGINNER", "questionCount", 1, "mode", "TIMED_MOCK",
+                    "durationSeconds", invalid)))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(400));
+        }
+        Map<String, Object> valid = controller.start(learnerOne, Map.of(
+                "difficulty", "BEGINNER", "questionCount", 1, "mode", "TIMED_MOCK",
+                "durationSeconds", 900));
+        assertThat(valid.get("durationLimitSeconds")).isEqualTo(900);
+    }
+
+    @Test
+    void timedMockSubmissionAfterDeadlineUsesSavedAnswersAndMarksTimedOut() {
+        Map<String, Object> started = controller.start(learnerOne, Map.of(
+                "difficulty", "BEGINNER", "questionCount", 2, "mode", "TIMED_MOCK",
+                "durationSeconds", 900));
+        UUID id = (UUID) started.get("attemptId");
+        controller.saveAnswers(learnerOne, id, answers(1));
+        jdbc.update("UPDATE quiz_attempts SET deadline_at=? WHERE id=?",
+                Timestamp.from(Instant.now().minusSeconds(1)), id);
+        Map<String, Object> submitted = controller.submit(learnerOne, id, answers(2));
+        assertThat(submitted.get("timedOut")).isEqualTo(true);
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, id))
+                .isEqualTo("SUBMITTED");
+    }
+
+    @Test
+    void rejectsNegativeAndFractionalAnswerTimeWithoutPersistingPartialSubmission() {
+        UUID id = startAttempt();
+        for (Object invalid : List.of(-1, 1.5)) {
+            assertThatThrownBy(() -> controller.submit(learnerOne, id, Map.of("answers", List.of(
+                    Map.of("position", 1, "response", Map.of("value", "A"), "timeSpentMs", invalid),
+                    answer(2)))))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(400));
+        }
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, id))
+                .isEqualTo("IN_PROGRESS");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempt_answers WHERE attempt_id=?", Integer.class, id))
+                .isZero();
+    }
+
+    @Test
+    void resumesOwnedAttemptWithSavedAnswersAndTiming() {
+        UUID attemptId = startAttempt();
+        controller.saveAnswers(learnerOne, attemptId, Map.of("answers", List.of(
+                Map.of("position", 1, "response", Map.of("value", "A"), "timeSpentMs", 1450)
+        )));
+        Map<String,Object> resumed = controller.resume(learnerOne, attemptId);
+        assertThat(resumed.get("status")).isEqualTo("IN_PROGRESS");
+        assertThat(resumed.get("questions")).asList().hasSize(2);
+        assertThat(resumed.get("savedAnswers")).asList().hasSize(1);
+        Map<?,?> saved = (Map<?,?>) ((List<?>) resumed.get("savedAnswers")).getFirst();
+        assertThat(saved.get("position")).isEqualTo(1);
+        assertThat(saved.get("timeSpentMs")).isEqualTo(1450);
+        assertThat(saved.get("response")).isEqualTo(Map.of("value", "A"));
+    }
+
+    @Test
+    void resumeAndAbandonAreOwnerScopedAndEnforceAttemptState() {
+        UUID attemptId = startAttempt();
+        assertThatThrownBy(() -> controller.resume(learnerTwo, attemptId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
+        assertThatThrownBy(() -> controller.abandon(learnerTwo, attemptId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(404));
+
+        assertThat(controller.abandon(learnerOne, attemptId).get("status")).isEqualTo("ABANDONED");
+        assertThat(jdbc.queryForObject("SELECT status FROM quiz_attempts WHERE id=?", String.class, attemptId))
+                .isEqualTo("ABANDONED");
+        assertThat(controller.abandon(learnerOne, attemptId).get("status")).isEqualTo("ABANDONED");
+        assertThatThrownBy(() -> controller.resume(learnerOne, attemptId))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+        assertThatThrownBy(() -> controller.submit(learnerOne, attemptId, answers(1, 2)))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(409));
+    }
+
 
     private UUID startAttempt() {
         return (UUID) startResponse().get("attemptId");

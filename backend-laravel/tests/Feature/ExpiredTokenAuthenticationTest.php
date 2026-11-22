@@ -70,4 +70,29 @@ final class ExpiredTokenAuthenticationTest extends TestCase
             'last_used_at' => null,
         ]);
     }
+    public function test_revoked_persisted_bearer_token_returns_contract_401(): void
+    {
+        Schema::dropIfExists('api_tokens');
+        Schema::dropIfExists('users');
+        Schema::create('users', function (Blueprint $table): void {
+            $table->uuid('id')->primary(); $table->string('name', 160); $table->string('email', 254);
+            $table->string('password_hash', 255); $table->string('status', 20)->default('ACTIVE'); $table->timestampsTz();
+        });
+        Schema::create('api_tokens', function (Blueprint $table): void {
+            $table->uuid('id')->primary(); $table->uuid('user_id'); $table->char('token_hash', 64)->unique();
+            $table->string('token_name', 100); $table->timestampTz('created_at')->useCurrent();
+            $table->timestampTz('last_used_at')->nullable(); $table->timestampTz('expires_at'); $table->timestampTz('revoked_at')->nullable();
+        });
+        $rawToken = 'jia-revoked-token-feature-test';
+        DB::table('users')->insert(['id'=>'60000000-0000-0000-0000-000000000098','name'=>'Revoked User',
+            'email'=>'revoked-token@example.test','password_hash'=>'test-only','status'=>'ACTIVE',
+            'created_at'=>now(),'updated_at'=>now()]);
+        DB::table('api_tokens')->insert(['id'=>'72000000-0000-0000-0000-000000000098',
+            'user_id'=>'60000000-0000-0000-0000-000000000098','token_hash'=>hash('sha256',$rawToken),
+            'token_name'=>'revoked-test','created_at'=>now()->subDay(),'expires_at'=>now()->addDay(),
+            'revoked_at'=>now(),'last_used_at'=>null]);
+        $this->withHeader('Authorization','Bearer '.$rawToken)->getJson('/api/v1/auth/me')
+            ->assertUnauthorized()->assertJsonPath('code','UNAUTHENTICATED');
+        $this->assertDatabaseHas('api_tokens',['id'=>'72000000-0000-0000-0000-000000000098','last_used_at'=>null]);
+    }
 }

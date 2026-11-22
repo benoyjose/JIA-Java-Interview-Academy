@@ -81,6 +81,20 @@ class LessonContentParserTest {
         assertEquals("HTTP", diagram.edges[0].label)
     }
 
+    @Test(expected = org.json.JSONException::class)
+    fun rejectsMalformedJsonRatherThanReturningAnEmptyLesson() {
+        LessonContentParser.parse("{not-json")
+    }
+
+    @Test fun suppliesStableFallbackKeysAndCountsInvalidBlockEntries() {
+        val document = LessonContentParser.parse(
+            """{"schemaVersion":1,"blocks":[null,{"type":"markdown","body":"Intro"},{"type":"markdown","body":""}]}"""
+        )
+        assertEquals(1, document.blocks.size)
+        assertEquals("block-1", document.blocks.single().key)
+        assertEquals(2, document.skippedBlockCount)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnsupportedSchemaVersion() {
         LessonContentParser.parse("""{"schemaVersion":2,"blocks":[]}""")

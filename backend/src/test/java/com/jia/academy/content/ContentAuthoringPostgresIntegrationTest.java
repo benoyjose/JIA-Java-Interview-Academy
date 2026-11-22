@@ -82,6 +82,22 @@ class ContentAuthoringPostgresIntegrationTest {
     }
 
     @Test
+    void rejectsDuplicatePendingReviewSubmissionWithoutCreatingAnotherTask() {
+        String slug = "duplicate-review-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Review once"));
+        UUID firstTask = (UUID) service.submitForReview(editor, draft.id()).get("taskId");
+
+        assertThatThrownBy(() -> service.submitForReview(editor, draft.id()))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value())
+                        .isEqualTo(409));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM content_review_tasks WHERE lesson_id=?",
+                Integer.class, draft.id())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT status FROM content_review_tasks WHERE id=?",
+                String.class, firstTask)).isEqualTo("PENDING");
+    }
+
+    @Test
     void publishedLessonStaysLiveUntilApprovedRevisionIsPromoted() {
         String slug = "published-revision-" + UUID.randomUUID();
         var initial = service.createDraft(editor, request(slug, "Published title v1"));
@@ -408,6 +424,18 @@ class ContentAuthoringPostgresIntegrationTest {
                 new Content(1, List.of(Map.of("type", "markdown", "body", "Body"))), null);
         assertThatThrownBy(() -> imports.importLessons(editor, new BatchRequest(1, List.of(item))))
                 .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void reviewerCannotCreateOrPublishAuthoringContent() {
+        String slug = "reviewer-write-denied-" + UUID.randomUUID();
+        var draft = service.createDraft(editor, request(slug, "Editor draft"));
+        assertThatThrownBy(() -> service.publish(reviewer, draft.id()))
+                .isInstanceOf(ResponseStatusException.class);
+        assertThat(jdbc.queryForObject("SELECT status FROM lessons WHERE id=?", String.class, draft.id()))
+                .isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject("SELECT published_revision_id IS NULL FROM lessons WHERE id=?",
+                Boolean.class, draft.id())).isTrue();
     }
 
     @Test
