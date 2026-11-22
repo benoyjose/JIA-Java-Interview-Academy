@@ -34,6 +34,14 @@ class ApiErrorHttpIntegrationTest {
                 .build();
     }
 
+
+    @Test
+    void returnsSuccessfulJsonResponseWithoutBackendSpecificEnvelope() throws Exception {
+        mvc.perform(get("/api/v1/__test/success"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ok").value(true));
+    }
+
     @Test
     void returnsContractShapeForMalformedJson() throws Exception {
         mvc.perform(post("/api/v1/__test/validation")
