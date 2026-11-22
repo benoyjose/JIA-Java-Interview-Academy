@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import androidx.work.testing.WorkManagerTestInitHelper
 
 @RunWith(RobolectricTestRunner::class)
 class OfflineLearningStoreTest {
@@ -21,6 +22,7 @@ class OfflineLearningStoreTest {
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("jia-offline-learning.db")
+        WorkManagerTestInitHelper.initializeTestWorkManager(context)
         store = OfflineLearningStore(context)
     }
 
