@@ -339,9 +339,7 @@ public class QuizController {
             }, attemptId,user.id(),academyId);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found");
         Map<String,Object> response=rows.getFirst();
-        if (!"IN_PROGRESS".equals(response.get("status"))) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only in-progress attempts can be resumed");
-        }
+        validateResumableStatus(String.valueOf(response.get("status")));
         List<Map<String,Object>> questions=jdbc.query("""
             SELECT aq.position,q.id AS question_id,aq.question_revision_id AS revision_id,
                    q.question_type,qr.prompt_json::text AS prompt_json,qr.options_json::text AS options_json,qr.hint,q.difficulty
@@ -385,8 +383,8 @@ public class QuizController {
             """,(rs,n)->rs.getString("status"),attemptId,user.id(),academyId);
         if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Quiz attempt not found");
         String status=rows.getFirst();
-        if("ABANDONED".equals(status)) return Map.of("attemptId",attemptId,"status","ABANDONED");
-        if(!"IN_PROGRESS".equals(status)) throw new ResponseStatusException(HttpStatus.CONFLICT,"Submitted attempt cannot be abandoned");
+        String nextStatus=abandonedStatus(status);
+        if("ABANDONED".equals(nextStatus)) return Map.of("attemptId",attemptId,"status",nextStatus);
         jdbc.update("UPDATE quiz_attempts SET status='ABANDONED',submitted_at=? WHERE id=? AND user_id=? AND academy_id=?",
                 Timestamp.from(Instant.now()),attemptId,user.id(),academyId);
         return Map.of("attemptId",attemptId,"status","ABANDONED");
@@ -505,6 +503,18 @@ public class QuizController {
         response.put("challengeDate", a[3]);
         response.put("questions", questions);
         return response;
+    }
+
+    static void validateResumableStatus(String status) {
+        if (!"IN_PROGRESS".equals(status)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only in-progress attempts can be resumed");
+        }
+    }
+
+    static String abandonedStatus(String status) {
+        if ("ABANDONED".equals(status)) return status;
+        if ("IN_PROGRESS".equals(status)) return "ABANDONED";
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Submitted attempt cannot be abandoned");
     }
 
     static void validateMode(String mode) {
