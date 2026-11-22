@@ -23,6 +23,10 @@ final class QuizAnswerEvaluator {
         List<String> expectedNormalized = expected.stream().map(String::valueOf).sorted().toList();
         List<String> actualNormalized = actual.stream().map(String::valueOf).sorted().toList();
         if ("MULTI_SELECT".equals(questionType)) {
+            if (new java.util.HashSet<>(expectedNormalized).size() != expectedNormalized.size()
+                    || new java.util.HashSet<>(actualNormalized).size() != actualNormalized.size()) {
+                return false;
+            }
             return expectedNormalized.equals(actualNormalized);
         }
         return expectedNormalized.size() == 1 && actualNormalized.size() == 1

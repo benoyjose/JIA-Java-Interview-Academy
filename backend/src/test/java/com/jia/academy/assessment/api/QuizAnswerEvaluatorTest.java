@@ -32,4 +32,14 @@ class QuizAnswerEvaluatorTest {
         assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT", Map.of("value", "yes"), Map.of())).isFalse();
         assertThat(QuizAnswerEvaluator.isCorrect("MULTI_SELECT", Map.of("values", java.util.List.of("yes")), Map.of("correctValues", java.util.List.of() ))).isFalse();
     }
+
+    @Test
+    void multiSelectRejectsDuplicateValuesInSubmissionAndAnswerKey() {
+        Map<String, Object> answer = Map.of("correctValues", java.util.List.of("A", "C"));
+        assertThat(QuizAnswerEvaluator.isCorrect("MULTI_SELECT",
+                Map.of("values", java.util.List.of("A", "A", "C")), answer)).isFalse();
+        assertThat(QuizAnswerEvaluator.isCorrect("MULTI_SELECT",
+                Map.of("values", java.util.List.of("A", "C")),
+                Map.of("correctValues", java.util.List.of("A", "A", "C")))).isFalse();
+    }
 }
