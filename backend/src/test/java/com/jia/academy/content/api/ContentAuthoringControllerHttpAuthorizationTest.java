@@ -23,8 +23,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 import org.mockito.Mockito;
 
-@WebMvcTest(ContentAuthoringController.class)
-@Import({SecurityConfiguration.class, TokenAuthenticationFilter.class, ContentAuthoringControllerHttpAuthorizationTest.MockBeans.class})
+@WebMvcTest
+@Import({ContentAuthoringController.class, SecurityConfiguration.class, TokenAuthenticationFilter.class, ContentAuthoringControllerHttpAuthorizationTest.MockBeans.class})
 class ContentAuthoringControllerHttpAuthorizationTest {
     @Autowired MockMvc mvc;
 
