@@ -44,7 +44,12 @@ final class ApiErrorHttpParityTest extends TestCase
         });
     }
 
-    public function test_success_returns_shared_json_contract(): void\n    {\n        $this->getJson('/api/__parity/success')->assertOk()->assertExactJson(['ok' => true]);\n    }\n\n    public function test_missing_authentication_returns_contract_401(): void
+    public function test_success_returns_shared_json_contract(): void
+    {
+        $this->getJson('/api/__parity/success')->assertOk()->assertExactJson(['ok' => true]);
+    }
+
+    public function test_missing_authentication_returns_contract_401(): void
     {
         $this->getJson('/api/v1/auth/me')
             ->assertUnauthorized()
