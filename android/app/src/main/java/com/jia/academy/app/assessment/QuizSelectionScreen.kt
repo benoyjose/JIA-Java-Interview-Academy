@@ -15,6 +15,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,11 +71,18 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     var availability by remember { mutableStateOf<QuizAvailability?>(null) }
     var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
     var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
+    var answerStartedAt by remember { mutableStateOf<Map<Int, Long>>(emptyMap()) }
     var result by remember { mutableStateOf<JiaQuizResult?>(null) }
     var history by remember { mutableStateOf<List<JiaQuizHistoryItem>?>(null) }
     var performance by remember { mutableStateOf<JiaQuizPerformance?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    val elapsedForAnswers: () -> Map<Int, Long> = {
+        answerStartedAt.mapValues { (_, started) ->
+            (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
+        }
+    }
 
     LaunchedEffect(selected) {
         loading = true
@@ -92,7 +100,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
             val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
             if (!token.isNullOrBlank()) {
                 delay(500)
-                runCatching { quizRepository.saveAnswers(BuildConfig.JIA_API_BASE_URL, token, current, answers) }
+                runCatching { quizRepository.saveAnswers(BuildConfig.JIA_API_BASE_URL, token, current, answers, elapsedForAnswers()) }
                     .onFailure { error = it.message ?: "Unable to save timed mock progress." }
             }
         }
@@ -107,7 +115,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                     val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
                     if (!token.isNullOrBlank()) {
                         loading = true
-                        runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt!!, answers) }
+                        runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt!!, answers, elapsedForAnswers()) }
                             .onSuccess { result = it }
                             .onFailure { error = it.message ?: "Timed mock expired; unable to submit saved answers." }
                         loading = false
@@ -167,13 +175,43 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                                     CodeSnippet(question.codeLanguage, question.codeSource)
                                 }
                                 val multi = question.questionType == "MULTI_SELECT"
-                                Text(if (multi) "Select all that apply" else "Select one answer",
-                                    style = MaterialTheme.typography.bodySmall)
+                                val freeResponse = question.questionType in setOf(
+                                    "OUTPUT_PREDICTION", "DEBUGGING", "CODING", "SQL", "SCENARIO"
+                                )
+                                if (freeResponse) {
+                                    val label = when (question.questionType) {
+                                        "OUTPUT_PREDICTION" -> "Enter the program output"
+                                        "DEBUGGING" -> "Describe the bug and correction"
+                                        "CODING" -> "Write your solution"
+                                        "SQL" -> "Write your SQL query"
+                                        else -> "Explain your approach and trade-offs"
+                                    }
+                                    OutlinedTextField(
+                                        value = answers[question.position]?.firstOrNull().orEmpty(),
+                                        onValueChange = { value ->
+                                            if (!answerStartedAt.containsKey(question.position)) {
+                                                answerStartedAt = answerStartedAt + (question.position to android.os.SystemClock.elapsedRealtime())
+                                            }
+                                            answers = answers + (question.position to if (value.isBlank()) emptySet() else setOf(value))
+                                        },
+                                        label = { Text(label) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        minLines = if (question.questionType in setOf("CODING", "SQL", "SCENARIO", "DEBUGGING")) 5 else 2,
+                                        maxLines = 12
+                                    )
+                                    Text("Compare your response with the explanation/rubric after submission. Free-form answers are not automatically judged as exact text.", style = MaterialTheme.typography.bodySmall)
+                                } else {
+                                    Text(if (multi) "Select all that apply" else "Select one answer",
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
                                 question.options.forEach { (value, label) ->
                                     val checked = value in answers[question.position].orEmpty()
                                     FilterChip(
                                         selected = checked,
                                         onClick = {
+                                            if (!answerStartedAt.containsKey(question.position)) {
+                                                answerStartedAt = answerStartedAt + (question.position to android.os.SystemClock.elapsedRealtime())
+                                            }
                                             val current = answers[question.position].orEmpty()
                                             val next = if (multi) {
                                                 if (checked) current - value else current + value
@@ -202,7 +240,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                         loading = true
                         error = null
                         scope.launch {
-                            runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt, answers) }
+                            runCatching { quizRepository.submit(BuildConfig.JIA_API_BASE_URL, token, activeAttempt, answers, elapsedForAnswers()) }
                                 .onSuccess { result = it }.onFailure { error = it.message ?: "Unable to submit quiz." }
                             loading = false
                         }
@@ -265,7 +303,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                             val count = minOf(10, availability?.availableQuestionCount ?: 0)
                             scope.launch {
                                 runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds) }
-                                    .onSuccess { attempt = it; answers = emptyMap(); result = null }
+                                    .onSuccess { attempt = it; answers = emptyMap(); answerStartedAt = emptyMap(); result = null }
                                     .onFailure { error = it.message ?: "Unable to start quiz." }
                                 loading = false
                             }
