@@ -35,7 +35,7 @@ data class PendingLessonProgress(
 class OfflineLearningStore(context: Context) : AutoCloseable {
     private val appContext = context.applicationContext
     private val database = JIAOfflineRoomDatabase.open(appContext)
-    private val writableDatabase: SupportSQLiteDatabase get() = database.openHelper.writableDatabase
+    internal val writableDatabase: SupportSQLiteDatabase get() = database.openHelper.writableDatabase
     private val readableDatabase: SupportSQLiteDatabase get() = database.openHelper.readableDatabase
 
     override fun close() = database.close()
@@ -122,7 +122,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
                 put("last_position_json", merged.lastPositionJson)
                 put("updated_at", merged.updatedAt)
             }
-            db.insertWithOnConflict("pending_progress", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.insert("pending_progress", SQLiteDatabase.CONFLICT_REPLACE, values)
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -156,8 +156,8 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
                 put("is_bookmarked", if (bookmarked) 1 else 0)
                 put("updated_at", updatedAt)
             }
-            db.insertWithOnConflict("offline_bookmarks", null, values, SQLiteDatabase.CONFLICT_REPLACE)
-            db.insertWithOnConflict("pending_bookmarks", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+            db.insert("offline_bookmarks", SQLiteDatabase.CONFLICT_REPLACE, values)
+            db.insert("pending_bookmarks", SQLiteDatabase.CONFLICT_REPLACE, values)
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
         LearnerSyncScheduler.enqueue(context, baseUrl)
@@ -188,7 +188,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
     fun recordSyncAttempt() {
         val values = ContentValues().apply { put("id",1); put("last_attempt_at",System.currentTimeMillis()) }
         writableDatabase.insert("sync_diagnostics",SQLiteDatabase.CONFLICT_IGNORE,values)
-        writableDatabase.update("sync_diagnostics",values,"id=1",null)
+        writableDatabase.update("sync_diagnostics",SQLiteDatabase.CONFLICT_NONE,values,"id=1",null)
     }
 
     fun recordSyncSuccess(progressCount: Int, bookmarkCount: Int) {
@@ -198,7 +198,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             put("last_success_at",System.currentTimeMillis()); putNull("last_error")
             put("synced_progress_count",progressCount); put("synced_bookmark_count",bookmarkCount)
         }
-        writableDatabase.update("sync_diagnostics",values,"id=1",null)
+        writableDatabase.update("sync_diagnostics",SQLiteDatabase.CONFLICT_NONE,values,"id=1",null)
     }
 
     fun recordSyncFailure(message: String) {
@@ -206,8 +206,8 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             put("id",1); put("last_attempt_at",System.currentTimeMillis())
             put("last_error",message.take(240))
         }
-        writableDatabase.insertWithOnConflict("sync_diagnostics",null,values,SQLiteDatabase.CONFLICT_IGNORE)
-        writableDatabase.update("sync_diagnostics",values,"id=1",null)
+        writableDatabase.insert("sync_diagnostics",SQLiteDatabase.CONFLICT_IGNORE,values)
+        writableDatabase.update("sync_diagnostics",SQLiteDatabase.CONFLICT_NONE,values,"id=1",null)
     }
 
     fun syncDiagnostics(): OfflineSyncDiagnostics? =
