@@ -116,9 +116,10 @@ Configure these server-side values in both backends:
 JIA_SMS_ENDPOINT=<gateway-endpoint>
 JIA_SMS_TOKEN=<gateway-api-token>
 JIA_OTP_HMAC_SECRET=<at-least-32-random-bytes>
+JIA_SMS_VENDOR_VERIFIED=false
 ```
 
-The backend uses six-digit codes, five-minute expiry, single-use challenges, HMAC-SHA256 digests, a maximum of five verification attempts and a maximum of five challenges per phone number per hour. Add gateway-side spend controls and provider delivery monitoring. Store secrets only in a secret manager and never log OTP codes.
+The Spring backend has an explicit `JIA_SMS_VENDOR_VERIFIED` feature gate that defaults to false. Keep it false until the provider is selected and a documented vendor verification test passes; credentials alone do not enable phone login. Only then set it true in the protected deployment environment. The backend uses six-digit codes, five-minute expiry, single-use challenges, HMAC-SHA256 digests, a maximum of five verification attempts and a maximum of five challenges per phone number per hour. Add gateway-side spend controls and provider delivery monitoring. Store secrets only in a secret manager and never log OTP codes.
 
 ## 5. Backend environment variables
 
