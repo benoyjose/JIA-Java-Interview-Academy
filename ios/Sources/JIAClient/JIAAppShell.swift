@@ -22,10 +22,14 @@ public struct JIAAppShell: View {
                         description: Text("Published tracks will appear here."))
                 } else {
                     List(technologies) { technology in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(technology.name).font(.headline)
-                            if let description = technology.description {
-                                Text(description).font(.subheadline).foregroundStyle(.secondary)
+                        NavigationLink {
+                            JIACategoryListView(technology: technology, client: client)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(technology.name).font(.headline)
+                                if let description = technology.description {
+                                    Text(description).font(.subheadline).foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
