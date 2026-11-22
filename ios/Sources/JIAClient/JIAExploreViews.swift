@@ -12,15 +12,17 @@ public struct JIACategoryListView: View {
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
     let offlineStore: JIAOfflineContentStore
+    let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var categories: [JIACategory] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
+    public init(technology: JIATechnology, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore, offlineActivityQueue: JIAOfflineActivityQueue) {
         self.technology = technology
         self.client = client
         self.session = session
         self.offlineStore = offlineStore
+        self.offlineActivityQueue = offlineActivityQueue
     }
 
     public var body: some View {
@@ -34,7 +36,7 @@ public struct JIACategoryListView: View {
             }
             ForEach(categories) { category in
                 NavigationLink(category.name) {
-                    JIALessonListView(category: category, client: client, session: session, offlineStore: offlineStore)
+                    JIALessonListView(category: category, client: client, session: session, offlineStore: offlineStore, offlineActivityQueue: offlineActivityQueue)
                 }
             }
         }
@@ -59,15 +61,17 @@ public struct JIALessonListView: View {
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
     let offlineStore: JIAOfflineContentStore
+    let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var lessons: [JIALessonSummary] = []
     @State private var loading = true
     @State private var errorMessage: String?
 
-    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
+    public init(category: JIACategory, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore, offlineActivityQueue: JIAOfflineActivityQueue) {
         self.category = category
         self.client = client
         self.session = session
         self.offlineStore = offlineStore
+        self.offlineActivityQueue = offlineActivityQueue
     }
 
     public var body: some View {
@@ -81,7 +85,7 @@ public struct JIALessonListView: View {
             }
             ForEach(lessons) { lesson in
                 NavigationLink {
-                    JIALessonDetailView(lesson: lesson, client: client, session: session, offlineStore: offlineStore)
+                    JIALessonDetailView(lesson: lesson, client: client, session: session, offlineStore: offlineStore, offlineActivityQueue: offlineActivityQueue)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(lesson.title).font(.headline)
@@ -117,6 +121,7 @@ public struct JIALessonDetailView: View {
     let client: JIAAPIClient
     @ObservedObject var session: JIAAuthSession
     let offlineStore: JIAOfflineContentStore
+    let offlineActivityQueue: JIAOfflineActivityQueue
     @State private var content: JIALessonContent?
     @State private var loading = true
     @State private var errorMessage: String?
@@ -125,11 +130,12 @@ public struct JIALessonDetailView: View {
     @State private var progressToSave = 0.0
     @State private var isOfflineContent = false
 
-    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore) {
+    public init(lesson: JIALessonSummary, client: JIAAPIClient, session: JIAAuthSession, offlineStore: JIAOfflineContentStore, offlineActivityQueue: JIAOfflineActivityQueue) {
         self.lesson = lesson
         self.client = client
         self.session = session
         self.offlineStore = offlineStore
+        self.offlineActivityQueue = offlineActivityQueue
     }
 
     public var body: some View {
