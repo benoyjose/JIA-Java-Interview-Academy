@@ -47,7 +47,9 @@ data class JiaQuizAttempt(
     val savedAnswers: Map<Int, Set<String>> = emptyMap(), val savedTimeSpentMs: Map<Int, Long> = emptyMap()
 )
 data class JiaQuizResult(val questionCount: Int, val correctCount: Int, val scorePercent: Double,
-    val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false)
+    val explanations: Map<Int, Pair<Boolean, String>>, val timedOut: Boolean = false,
+    val selfReviewPositions: Set<Int> = emptySet(), val gradedQuestionCount: Int = questionCount,
+    val selfReviewQuestionCount: Int = 0)
 data class JiaQuizHistoryItem(val id: String, val difficulty: String, val questionCount: Int, val correctCount: Int?, val scorePercent: Double?, val status: String, val mode: String = "PRACTICE")
 data class JiaQuizPerformanceLevel(val difficulty: String, val attempts: Int, val questionsAttempted: Int, val correctAnswers: Int, val accuracyPercent: Double?, val bestScorePercent: Double?)
 data class JiaQuizTopicPerformance(val technologySlug: String?, val categorySlug: String?, val difficulty: String, val attempts: Int, val accuracyPercent: Double?)
@@ -236,12 +238,18 @@ class QuizRepository(private val context: Context? = null) {
             val result = JSONObject(request(baseUrl, "/quiz-attempts/${attempt.id}/submit", token, "POST",
                 JSONObject().put("answers", rows)))
             val answerRows = result.optJSONArray("answers") ?: JSONArray()
+            val selfReview = (0 until answerRows.length()).mapNotNull { i ->
+                val item = answerRows.getJSONObject(i)
+                item.getInt("position").takeIf { item.optBoolean("requiresSelfReview", false) }
+            }.toSet()
             val explanations = (0 until answerRows.length()).associate { i ->
                 val item = answerRows.getJSONObject(i)
                 item.getInt("position") to (item.optBoolean("isCorrect") to item.optString("explanation"))
             }
             JiaQuizResult(result.getInt("questionCount"), result.getInt("correctCount"),
-                result.getDouble("scorePercent"), explanations, result.optBoolean("timedOut", false))
+                result.getDouble("scorePercent"), explanations, result.optBoolean("timedOut", false),
+                selfReview, result.optInt("gradedQuestionCount", result.getInt("questionCount")),
+                result.optInt("selfReviewQuestionCount", selfReview.size))
         }
 
     suspend fun performance(baseUrl: String, token: String): JiaQuizPerformance = withContext(Dispatchers.IO) {
