@@ -1,0 +1,3759 @@
+{
+  "formatVersion": 1,
+  "questions": [
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-primitive-equality",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which operator compares primitive numeric values for equality?"
+      },
+      "options": [
+        {
+          "value": "==",
+          "label": "=="
+        },
+        {
+          "value": "distractor-b",
+          "label": "equals()"
+        },
+        {
+          "value": "distractor-c",
+          "label": "compareTo()"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "=="
+        ]
+      },
+      "explanation": "For primitive operands, == compares values; equals is an object method.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-stream-lazy-intermediate",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Intermediate Stream operations are generally lazy."
+      },
+      "options": [
+        {
+          "value": "true",
+          "label": "True"
+        },
+        {
+          "value": "false",
+          "label": "False"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "true"
+        ]
+      },
+      "explanation": "Intermediate operations build a pipeline; traversal begins at a terminal operation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-hashmap-null-key",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "How many null keys can a standard Java HashMap contain?"
+      },
+      "options": [
+        {
+          "value": "one",
+          "label": "one"
+        },
+        {
+          "value": "distractor-b",
+          "label": "zero"
+        },
+        {
+          "value": "distractor-c",
+          "label": "unlimited"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "one"
+        ]
+      },
+      "explanation": "HashMap permits one null key because keys are unique by equality.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-equals-hashcode-contract",
+      "questionType": "MULTI_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Which statements follow the equals/hashCode contract?"
+      },
+      "options": [
+        {
+          "value": "equal-same-hash",
+          "label": "Equal objects must have equal hash codes."
+        },
+        {
+          "value": "same-hash-equal",
+          "label": "Objects with equal hash codes must be equal."
+        },
+        {
+          "value": "mutable-key-safe",
+          "label": "Changing equality fields of a stored key is safe."
+        },
+        {
+          "value": "collision-allowed",
+          "label": "Unequal objects may share a hash code."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "equal-same-hash",
+          "collision-allowed"
+        ]
+      },
+      "explanation": "The contract requires equal objects to have equal hash codes; hash collisions between unequal objects are permitted.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-concurrenthashmap-null",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Why does ConcurrentHashMap reject null keys and values?"
+      },
+      "options": [
+        {
+          "value": "ambiguity",
+          "label": "Null would make absence and a mapped-null result ambiguous in concurrent retrieval."
+        },
+        {
+          "value": "distractor-b",
+          "label": "legacy"
+        },
+        {
+          "value": "distractor-c",
+          "label": "It preserves compatibility with Hashtable only."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "ambiguity"
+        ]
+      },
+      "explanation": "Null values would make a null result ambiguous between absence and a present mapping, complicating concurrent retrieval.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-completablefuture-compose",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which operation chains an asynchronous stage whose result is another CompletionStage?"
+      },
+      "options": [
+        {
+          "value": "thenCompose",
+          "label": "thenCompose"
+        },
+        {
+          "value": "distractor-b",
+          "label": "thenApply"
+        },
+        {
+          "value": "distractor-c",
+          "label": " exceptionally"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "thenCompose"
+        ]
+      },
+      "explanation": "thenCompose maps a result to another CompletionStage and flattens it; thenApply performs a value transformation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-list-immutable-to-list",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "What is the key property of Stream.toList() in modern Java?"
+      },
+      "options": [
+        {
+          "value": "unmodifiable",
+          "label": "It returns an unmodifiable list."
+        },
+        {
+          "value": "distractor-b",
+          "label": "mutable"
+        },
+        {
+          "value": "distractor-c",
+          "label": "It always returns ArrayList."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "unmodifiable"
+        ]
+      },
+      "explanation": "Stream.toList() returns an unmodifiable list; it does not promise a particular implementation class.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-final-reference",
+      "questionType": "TRUE_FALSE",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "A final object reference makes the referenced object immutable."
+      },
+      "options": [
+        {
+          "value": "true",
+          "label": "True"
+        },
+        {
+          "value": "false",
+          "label": "False"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "false"
+        ]
+      },
+      "explanation": "final prevents reassignment of the reference, not mutation of the object.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-gc-strong-reference",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "When is an object eligible for garbage collection?"
+      },
+      "options": [
+        {
+          "value": "unreachable",
+          "label": "When it is no longer reachable from GC roots through strong references."
+        },
+        {
+          "value": "distractor-b",
+          "label": "old"
+        },
+        {
+          "value": "distractor-c",
+          "label": "When it exceeds a fixed age."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "unreachable"
+        ]
+      },
+      "explanation": "An object is eligible when it is no longer reachable from GC roots through strong references.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-volatile-visibility",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does volatile primarily guarantee for a variable shared across threads?"
+      },
+      "options": [
+        {
+          "value": "visibility",
+          "label": "Visibility and ordering guarantees for reads/writes to that variable."
+        },
+        {
+          "value": "distractor-b",
+          "label": "atomic-compound"
+        },
+        {
+          "value": "distractor-c",
+          "label": "Atomicity of every compound operation."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "visibility"
+        ]
+      },
+      "explanation": "volatile provides visibility and ordering guarantees for that field, but does not make compound operations such as increment atomic.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-functional-interface",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "A functional interface has how many abstract methods, ignoring methods inherited from Object and default/static methods?"
+      },
+      "options": [
+        {
+          "value": "one",
+          "label": "one"
+        },
+        {
+          "value": "distractor-b",
+          "label": "zero"
+        },
+        {
+          "value": "distractor-c",
+          "label": "two"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "one"
+        ]
+      },
+      "explanation": "A functional interface has exactly one abstract method and supports lambda target typing.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "java-stream-side-effects",
+      "questionType": "MULTI_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which practices are appropriate for reliable Stream pipelines?"
+      },
+      "options": [
+        {
+          "value": "stateless",
+          "label": "Prefer stateless behavioral parameters."
+        },
+        {
+          "value": "shared-write",
+          "label": "Mutate one shared ArrayList from parallel forEach."
+        },
+        {
+          "value": "collector",
+          "label": "Use an appropriate collector to accumulate results."
+        },
+        {
+          "value": "order-assumption",
+          "label": "Assume parallel side effects execute in encounter order."
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "stateless",
+          "collector"
+        ]
+      },
+      "explanation": "Avoid shared mutable state and side effects in stream behavioral parameters; prefer stateless functions and collectors.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA seed content; verify against the stated Java platform behavior during editorial review."
+      },
+      "changeNote": "Initial Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-keyword-declares-a-class-that-cannot-be-subclassed",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which keyword declares a class that cannot be subclassed?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "final"
+        },
+        {
+          "value": "option-2",
+          "label": "static"
+        },
+        {
+          "value": "option-3",
+          "label": "private"
+        },
+        {
+          "value": "option-4",
+          "label": "volatile"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "A final class cannot be extended.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-java-type-represents-a-64-bit-signed-integer",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which Java type represents a 64-bit signed integer?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "int"
+        },
+        {
+          "value": "option-3",
+          "label": "short"
+        },
+        {
+          "value": "option-4",
+          "label": "double"
+        },
+        {
+          "value": "option-1",
+          "label": "long"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "long is a signed 64-bit integral primitive.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-is-the-default-value-of-an-instance-boolean-field",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which is the default value of an instance boolean field?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "null"
+        },
+        {
+          "value": "option-4",
+          "label": "0"
+        },
+        {
+          "value": "option-1",
+          "label": "false"
+        },
+        {
+          "value": "option-2",
+          "label": "true"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Boolean fields default to false; local variables have no default.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-access-modifier-permits-access-from-any-package",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which access modifier permits access from any package?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "public"
+        },
+        {
+          "value": "option-2",
+          "label": "protected"
+        },
+        {
+          "value": "option-3",
+          "label": "private"
+        },
+        {
+          "value": "option-4",
+          "label": "package-private"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Public members/types are accessible wherever their declaring type is accessible.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-the-new-operator-normally-do-for-a-class-instance",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "What does the new operator normally do for a class instance?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Calls the garbage collector"
+        },
+        {
+          "value": "option-3",
+          "label": "Loads a class only"
+        },
+        {
+          "value": "option-4",
+          "label": "Creates a thread"
+        },
+        {
+          "value": "option-1",
+          "label": "Allocates and initializes an object"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "new creates an instance and invokes its constructor.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-method-is-the-conventional-entry-point-of-a-java-application",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which method is the conventional entry point of a Java application?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "start(String[])"
+        },
+        {
+          "value": "option-4",
+          "label": "init(String[])"
+        },
+        {
+          "value": "option-1",
+          "label": "public static void main(String[] args)"
+        },
+        {
+          "value": "option-2",
+          "label": "run(String[])"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The launcher recognizes the conventional main method signature.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-keyword-prevents-a-variable-from-being-assigned-again-after-initia",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which keyword prevents a variable from being assigned again after initialization?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "final"
+        },
+        {
+          "value": "option-2",
+          "label": "const"
+        },
+        {
+          "value": "option-3",
+          "label": "immutable"
+        },
+        {
+          "value": "option-4",
+          "label": "fixed"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Java uses final; const is reserved but not used.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-result-type-of-an-equality-expression-such-as-5-5",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "What is the result type of an equality expression such as 5 == 5?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "int"
+        },
+        {
+          "value": "option-3",
+          "label": "Boolean only"
+        },
+        {
+          "value": "option-4",
+          "label": "void"
+        },
+        {
+          "value": "option-1",
+          "label": "boolean"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Equality operators produce a boolean value.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-class-is-the-mutable-character-sequence-commonly-used-for-single-t",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which class is the mutable character sequence commonly used for single-threaded string building?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Character"
+        },
+        {
+          "value": "option-4",
+          "label": "StringBuffer only"
+        },
+        {
+          "value": "option-1",
+          "label": "StringBuilder"
+        },
+        {
+          "value": "option-2",
+          "label": "String"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "StringBuilder is mutable and unsynchronized.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-statement-exits-the-current-loop-immediately",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "beginner",
+      "prompt": {
+        "text": "Which statement exits the current loop immediately?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "break"
+        },
+        {
+          "value": "option-2",
+          "label": "continue"
+        },
+        {
+          "value": "option-3",
+          "label": "return only"
+        },
+        {
+          "value": "option-4",
+          "label": "skip"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "break terminates the nearest loop or switch.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-method-overloading-require",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What does method overloading require?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Same name and same parameters only"
+        },
+        {
+          "value": "option-3",
+          "label": "Different return type alone"
+        },
+        {
+          "value": "option-4",
+          "label": "A subclass"
+        },
+        {
+          "value": "option-1",
+          "label": "Same method name with different parameter lists"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Overloads are distinguished by parameter types/count/order, not return type alone.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "can-a-java-constructor-declare-a-return-type",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Can a Java constructor declare a return type?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Yes, any type"
+        },
+        {
+          "value": "option-4",
+          "label": "Only primitive types"
+        },
+        {
+          "value": "option-1",
+          "label": "No"
+        },
+        {
+          "value": "option-2",
+          "label": "Yes, void"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Constructors have no return type, not even void.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-super-invoke-when-used-as-a-constructor-statement",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What does super() invoke when used as a constructor statement?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "A superclass constructor"
+        },
+        {
+          "value": "option-2",
+          "label": "The current constructor recursively"
+        },
+        {
+          "value": "option-3",
+          "label": "A static method"
+        },
+        {
+          "value": "option-4",
+          "label": "The garbage collector"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "super() delegates constructor initialization to the parent class.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-relationship-is-commonly-described-as-is-a",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Which relationship is commonly described as 'is-a'?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Composition"
+        },
+        {
+          "value": "option-3",
+          "label": "Aggregation only"
+        },
+        {
+          "value": "option-4",
+          "label": "Method invocation"
+        },
+        {
+          "value": "option-1",
+          "label": "Inheritance"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Subclassing models an is-a relationship.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-override-help-the-compiler-verify",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What does @Override help the compiler verify?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "That code is thread-safe"
+        },
+        {
+          "value": "option-4",
+          "label": "That a method is static"
+        },
+        {
+          "value": "option-1",
+          "label": "That a method overrides or implements an inherited method"
+        },
+        {
+          "value": "option-2",
+          "label": "That a method is private"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The annotation catches signature mistakes during compilation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-true-about-an-interface-field",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What is true about an interface field?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "It is implicitly public, static and final"
+        },
+        {
+          "value": "option-2",
+          "label": "It is private and mutable"
+        },
+        {
+          "value": "option-3",
+          "label": "It is an instance field"
+        },
+        {
+          "value": "option-4",
+          "label": "It must be volatile"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Interface fields are constants by language definition.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-exception-category-must-generally-be-caught-or-declared",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Which exception category must generally be caught or declared?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "All RuntimeException subclasses"
+        },
+        {
+          "value": "option-3",
+          "label": "Errors only"
+        },
+        {
+          "value": "option-4",
+          "label": "No exception category"
+        },
+        {
+          "value": "option-1",
+          "label": "Checked exceptions"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Checked exceptions are subject to catch-or-declare rules.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-try-with-resources-guarantee-for-autocloseable-resources",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What does try-with-resources guarantee for AutoCloseable resources?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Close only by GC"
+        },
+        {
+          "value": "option-4",
+          "label": "No close behavior"
+        },
+        {
+          "value": "option-1",
+          "label": "Automatic close when the block exits"
+        },
+        {
+          "value": "option-2",
+          "label": "Close only on success"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Resources are closed on normal or abrupt completion.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-collection-preserves-insertion-order-and-allows-duplicates",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Which collection preserves insertion order and allows duplicates?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "ArrayList"
+        },
+        {
+          "value": "option-2",
+          "label": "HashSet"
+        },
+        {
+          "value": "option-3",
+          "label": "TreeSet"
+        },
+        {
+          "value": "option-4",
+          "label": "EnumSet"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "ArrayList is ordered and permits duplicate elements.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-collection-models-unique-elements-without-a-guaranteed-iteration-o",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "Which collection models unique elements without a guaranteed iteration order?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "ArrayList"
+        },
+        {
+          "value": "option-3",
+          "label": "LinkedList"
+        },
+        {
+          "value": "option-4",
+          "label": "Vector"
+        },
+        {
+          "value": "option-1",
+          "label": "HashSet"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "HashSet enforces uniqueness and does not promise a stable order.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-map-put-k-v-do-when-k-already-exists",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What does Map.put(k,v) do when k already exists?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Throws by default"
+        },
+        {
+          "value": "option-4",
+          "label": "Removes the map"
+        },
+        {
+          "value": "option-1",
+          "label": "Replaces the value associated with k"
+        },
+        {
+          "value": "option-2",
+          "label": "Always adds a duplicate key"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Map keys are unique; put returns the previous value if present.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-generics-in-java",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What is the purpose of generics in Java?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Compile-time type safety and reusable parameterized types"
+        },
+        {
+          "value": "option-2",
+          "label": "Automatic parallelism"
+        },
+        {
+          "value": "option-3",
+          "label": "Garbage collection"
+        },
+        {
+          "value": "option-4",
+          "label": "Runtime primitive specialization"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Generics improve type checking and reduce casts.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-main-difference-between-and-equals-for-typical-objects",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "novice",
+      "prompt": {
+        "text": "What is the main difference between == and equals() for typical objects?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "They always behave identically"
+        },
+        {
+          "value": "option-3",
+          "label": "equals tests memory address only"
+        },
+        {
+          "value": "option-4",
+          "label": "== invokes equals"
+        },
+        {
+          "value": "option-1",
+          "label": "== tests reference identity; equals may test logical equality"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Object == compares references; equals behavior is defined by the class.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-should-equals-and-hashcode-be-overridden-consistently",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Why should equals() and hashCode() be overridden consistently?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Unequal objects must have different hashes"
+        },
+        {
+          "value": "option-4",
+          "label": "hashCode controls object lifetime"
+        },
+        {
+          "value": "option-1",
+          "label": "Equal objects must return equal hash codes"
+        },
+        {
+          "value": "option-2",
+          "label": "Hash codes must be globally unique"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Hash-based collections depend on the contract for lookup.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-happens-if-a-mutable-hashmap-key-changes-fields-used-by-hashcode-af",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What happens if a mutable HashMap key changes fields used by hashCode after insertion?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Lookup may fail while the key remains stored"
+        },
+        {
+          "value": "option-2",
+          "label": "The map automatically rehashes every key"
+        },
+        {
+          "value": "option-3",
+          "label": "The key is removed immediately"
+        },
+        {
+          "value": "option-4",
+          "label": "The map becomes immutable"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The key may now map to a different bucket than its insertion bucket.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-concurrenthashmap-disallow",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does ConcurrentHashMap disallow?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Concurrent reads"
+        },
+        {
+          "value": "option-3",
+          "label": "Atomic operations"
+        },
+        {
+          "value": "option-4",
+          "label": "Multiple threads"
+        },
+        {
+          "value": "option-1",
+          "label": "Null keys and null values"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Null would complicate concurrent retrieval semantics; CHM rejects it.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-queue-is-commonly-used-for-producer-consumer-handoff-with-blocking",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which queue is commonly used for producer-consumer handoff with blocking take/put?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Optional"
+        },
+        {
+          "value": "option-4",
+          "label": "StringBuilder"
+        },
+        {
+          "value": "option-1",
+          "label": "BlockingQueue"
+        },
+        {
+          "value": "option-2",
+          "label": "HashMap"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "BlockingQueue provides thread-safe blocking producer-consumer operations.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-executorservice-shutdown-do",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does ExecutorService.shutdown() do?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Rejects new tasks while allowing submitted tasks to finish"
+        },
+        {
+          "value": "option-2",
+          "label": "Immediately kills all running tasks"
+        },
+        {
+          "value": "option-3",
+          "label": "Waits forever before rejecting"
+        },
+        {
+          "value": "option-4",
+          "label": "Restarts the executor"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "shutdown is orderly; shutdownNow attempts interruption/cancellation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-future-get",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the purpose of Future.get()?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Submit another task"
+        },
+        {
+          "value": "option-3",
+          "label": "Guarantee task success"
+        },
+        {
+          "value": "option-4",
+          "label": "Cancel every task"
+        },
+        {
+          "value": "option-1",
+          "label": "Retrieve a result, blocking if it is not ready"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "get waits for completion and may throw execution or interruption exceptions.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-completablefuture-thenapply-transform",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does CompletableFuture.thenApply() transform?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Only exceptions"
+        },
+        {
+          "value": "option-4",
+          "label": "A thread into an executor"
+        },
+        {
+          "value": "option-1",
+          "label": "The completed stage's result synchronously in its dependent stage"
+        },
+        {
+          "value": "option-2",
+          "label": "A stage into a flattened stage automatically"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "thenApply maps a value; thenCompose flattens nested CompletionStage results.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "when-is-a-stream-pipeline-usually-evaluated",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "When is a Stream pipeline usually evaluated?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "When a terminal operation is invoked"
+        },
+        {
+          "value": "option-2",
+          "label": "When the stream variable is declared"
+        },
+        {
+          "value": "option-3",
+          "label": "After every intermediate operation"
+        },
+        {
+          "value": "option-4",
+          "label": "Only by garbage collection"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Intermediate operations are lazy; terminal operations initiate traversal.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-stream-operation-is-designed-to-flatten-nested-streams",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which Stream operation is designed to flatten nested streams?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "map"
+        },
+        {
+          "value": "option-3",
+          "label": "filter"
+        },
+        {
+          "value": "option-4",
+          "label": "peek"
+        },
+        {
+          "value": "option-1",
+          "label": "flatMap"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "flatMap maps each element to a stream and flattens the results.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-should-side-effects-in-parallel-stream-operations-be-minimized",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Why should side effects in parallel Stream operations be minimized?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Side effects are prohibited by syntax"
+        },
+        {
+          "value": "option-4",
+          "label": "They disable the common pool"
+        },
+        {
+          "value": "option-1",
+          "label": "Execution order and concurrent access may be nondeterministic"
+        },
+        {
+          "value": "option-2",
+          "label": "Parallel streams always run sequentially"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Shared mutable state can cause races and unpredictable ordering.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-optional-of-null-do",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does Optional.of(null) do?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Throws NullPointerException"
+        },
+        {
+          "value": "option-2",
+          "label": "Returns Optional.empty"
+        },
+        {
+          "value": "option-3",
+          "label": "Returns null"
+        },
+        {
+          "value": "option-4",
+          "label": "Creates an Optional containing null"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Use Optional.ofNullable when the input may be null.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-collectors-groupingby-produce-by-default",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does Collectors.groupingBy() produce by default?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "A sorted list"
+        },
+        {
+          "value": "option-3",
+          "label": "A single scalar"
+        },
+        {
+          "value": "option-4",
+          "label": "A concurrent queue"
+        },
+        {
+          "value": "option-1",
+          "label": "A Map grouping elements by classifier"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The collector groups values under classifier keys.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-volatile-guarantee-for-a-field",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does volatile guarantee for a field?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Atomicity of i++"
+        },
+        {
+          "value": "option-4",
+          "label": "A permanent value"
+        },
+        {
+          "value": "option-1",
+          "label": "Visibility and ordering effects, not compound-operation atomicity"
+        },
+        {
+          "value": "option-2",
+          "label": "Mutual exclusion"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "volatile establishes memory visibility but does not make increments atomic.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-mechanism-provides-mutual-exclusion-around-a-critical-section",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which mechanism provides mutual exclusion around a critical section?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "synchronized"
+        },
+        {
+          "value": "option-2",
+          "label": "volatile alone"
+        },
+        {
+          "value": "option-3",
+          "label": "transient"
+        },
+        {
+          "value": "option-4",
+          "label": "strictfp"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "A synchronized monitor permits one thread at a time and establishes happens-before.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-a-deadlock",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is a deadlock?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "A thread completes exceptionally"
+        },
+        {
+          "value": "option-3",
+          "label": "A task is queued"
+        },
+        {
+          "value": "option-4",
+          "label": "A CPU cache miss"
+        },
+        {
+          "value": "option-1",
+          "label": "Threads wait indefinitely for resources held by one another"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Circular resource waiting can prevent all involved threads from progressing.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-thread-interrupt-generally-do",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does Thread.interrupt() generally do?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Always pauses the thread"
+        },
+        {
+          "value": "option-4",
+          "label": "Clears every lock"
+        },
+        {
+          "value": "option-1",
+          "label": "Sets interrupt status and may cause interruptible blocking calls to throw"
+        },
+        {
+          "value": "option-2",
+          "label": "Forcefully terminates the thread safely"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Interruption is cooperative; code should respond to the signal.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-a-reentrantlock-compared-with-intrinsic-locks",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the purpose of a ReentrantLock compared with intrinsic locks?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "It offers explicit lock/unlock and additional acquisition policies"
+        },
+        {
+          "value": "option-2",
+          "label": "It cannot be re-entered"
+        },
+        {
+          "value": "option-3",
+          "label": "It is always faster"
+        },
+        {
+          "value": "option-4",
+          "label": "It replaces memory visibility"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "ReentrantLock supports features such as timed and interruptible acquisition.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-class-loader-do",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does a class loader do?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Compiles Java source on every call"
+        },
+        {
+          "value": "option-3",
+          "label": "Runs garbage collection"
+        },
+        {
+          "value": "option-4",
+          "label": "Manages SQL transactions"
+        },
+        {
+          "value": "option-1",
+          "label": "Loads class definitions into the JVM"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Class loading locates and defines bytecode for runtime use.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-jvm-heap-primarily-used-for",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the JVM heap primarily used for?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Only thread stacks"
+        },
+        {
+          "value": "option-4",
+          "label": "Class source files"
+        },
+        {
+          "value": "option-1",
+          "label": "Objects and arrays allocated at runtime"
+        },
+        {
+          "value": "option-2",
+          "label": "Only method bytecode"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Most Java object instances are allocated in the heap.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-stored-in-a-typical-thread-stack-frame",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is stored in a typical thread stack frame?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Local variables, operand stack and per-call execution state"
+        },
+        {
+          "value": "option-2",
+          "label": "All application objects"
+        },
+        {
+          "value": "option-3",
+          "label": "The entire heap"
+        },
+        {
+          "value": "option-4",
+          "label": "Database indexes"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Frames support method invocation and local execution state.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-garbage-collection-reclaim",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does garbage collection reclaim?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Every object older than a threshold"
+        },
+        {
+          "value": "option-3",
+          "label": "All static fields"
+        },
+        {
+          "value": "option-4",
+          "label": "Native resources automatically in every case"
+        },
+        {
+          "value": "option-1",
+          "label": "Memory occupied by objects that are no longer reachable"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Reachability determines eligibility; external resources still need explicit management.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-a-memory-leak-in-a-garbage-collected-java-application",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is a memory leak in a garbage-collected Java application?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Any allocation"
+        },
+        {
+          "value": "option-4",
+          "label": "A JVM restart"
+        },
+        {
+          "value": "option-1",
+          "label": "Unneeded objects remain reachable and cannot be reclaimed"
+        },
+        {
+          "value": "option-2",
+          "label": "A syntax error"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Retained references can cause memory growth despite garbage collection.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-classnotfoundexception-typically-indicate",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does ClassNotFoundException typically indicate?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Explicit class loading could not locate a requested class"
+        },
+        {
+          "value": "option-2",
+          "label": "A method body is missing at runtime always"
+        },
+        {
+          "value": "option-3",
+          "label": "Heap exhaustion"
+        },
+        {
+          "value": "option-4",
+          "label": "A null field"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "It commonly arises from Class.forName or class-loader lookup.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-noclassdeffounderror-generally-indicate",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does NoClassDefFoundError generally indicate?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "A checked exception from file input"
+        },
+        {
+          "value": "option-3",
+          "label": "A compile-time warning"
+        },
+        {
+          "value": "option-4",
+          "label": "An invalid generic type"
+        },
+        {
+          "value": "option-1",
+          "label": "A class definition needed by the JVM is unavailable at runtime"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "It is a linkage error, often caused by runtime classpath or initialization problems.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-the-java-memory-model-s-happens-before-relation-establish",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does the Java Memory Model's happens-before relation establish?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "That all operations are atomic"
+        },
+        {
+          "value": "option-4",
+          "label": "That threads share one stack"
+        },
+        {
+          "value": "option-1",
+          "label": "Visibility and ordering guarantees between actions"
+        },
+        {
+          "value": "option-2",
+          "label": "A global execution order for all threads"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "A happens-before edge constrains visibility and ordering without requiring global serialization.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-is-double-checked-locking-traditionally-paired-with-volatile",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Why is double-checked locking traditionally paired with volatile?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "To prevent unsafe publication/reordering of the instance reference"
+        },
+        {
+          "value": "option-2",
+          "label": "To make constructors private automatically"
+        },
+        {
+          "value": "option-3",
+          "label": "To avoid class loading"
+        },
+        {
+          "value": "option-4",
+          "label": "To make every field immutable"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "volatile ensures correct publication under the Java memory model.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-safe-publication",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is safe publication?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Publishing an object only to logs"
+        },
+        {
+          "value": "option-3",
+          "label": "Calling finalize()"
+        },
+        {
+          "value": "option-4",
+          "label": "Allocating on the stack"
+        },
+        {
+          "value": "option-1",
+          "label": "Making an object visible to other threads with its initialized state"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Synchronization, volatile, static initialization and concurrent utilities can provide safe publication.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-the-forkjoinpool-work-stealing-strategy",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of the ForkJoinPool work-stealing strategy?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "It prevents task splitting"
+        },
+        {
+          "value": "option-4",
+          "label": "It runs only I/O operations"
+        },
+        {
+          "value": "option-1",
+          "label": "Idle workers steal tasks from other workers' queues"
+        },
+        {
+          "value": "option-2",
+          "label": "Workers share one synchronized queue only"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Work stealing helps balance recursively decomposed tasks.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-key-difference-between-thencompose-and-thenapply-on-completa",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the key difference between thenCompose() and thenApply() on CompletableFuture?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "thenCompose flattens a returned CompletionStage; thenApply maps a value"
+        },
+        {
+          "value": "option-2",
+          "label": "thenApply is always asynchronous"
+        },
+        {
+          "value": "option-3",
+          "label": "thenCompose handles only errors"
+        },
+        {
+          "value": "option-4",
+          "label": "They are identical"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "thenCompose avoids nested CompletionStage results.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-can-parallel-streams-be-a-poor-fit-for-blocking-i-o",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Why can parallel streams be a poor fit for blocking I/O?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Parallel streams cannot use threads"
+        },
+        {
+          "value": "option-3",
+          "label": "I/O is always CPU-bound"
+        },
+        {
+          "value": "option-4",
+          "label": "They force database transactions"
+        },
+        {
+          "value": "option-1",
+          "label": "Blocking can starve or impair shared worker-pool throughput"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The common ForkJoinPool is not generally an ideal dedicated blocking-I/O executor.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-non-interference-requirement-mean-for-stream-sources",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a non-interference requirement mean for Stream sources?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "All streams must be parallel"
+        },
+        {
+          "value": "option-4",
+          "label": "The terminal operation must be collect"
+        },
+        {
+          "value": "option-1",
+          "label": "The source should not be structurally modified during pipeline execution"
+        },
+        {
+          "value": "option-2",
+          "label": "No object may implement equals"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Modifying a source during traversal can yield undefined or inconsistent results.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-a-spliterator-s-role",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is a spliterator's role?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Traverse and potentially partition elements for processing"
+        },
+        {
+          "value": "option-2",
+          "label": "Serialize objects to disk"
+        },
+        {
+          "value": "option-3",
+          "label": "Lock all collections"
+        },
+        {
+          "value": "option-4",
+          "label": "Compile lambda expressions"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Spliterators expose traversal, splitting and size/characteristic information.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-type-erasure-in-java-generics",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is type erasure in Java generics?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Generic types are converted to primitives"
+        },
+        {
+          "value": "option-3",
+          "label": "The compiler skips type checking"
+        },
+        {
+          "value": "option-4",
+          "label": "All generic code is interpreted"
+        },
+        {
+          "value": "option-1",
+          "label": "Most generic type parameters are removed from runtime type representation"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The compiler enforces generic constraints, while runtime representation uses erased types.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-can-t-java-overload-methods-solely-by-generic-parameter-types-that-e",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Why can't Java overload methods solely by generic parameter types that erase identically?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Overloading requires different names"
+        },
+        {
+          "value": "option-4",
+          "label": "The JVM stores source code only"
+        },
+        {
+          "value": "option-1",
+          "label": "Their erased signatures collide"
+        },
+        {
+          "value": "option-2",
+          "label": "Generics are not supported in methods"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Erasure can make signatures such as List<String> and List<Integer> identical at bytecode level.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-covariance-permit-for-arrays-and-what-risk-remains",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does covariance permit for arrays, and what risk remains?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "A subtype array can be assigned to a supertype array, risking ArrayStoreException"
+        },
+        {
+          "value": "option-2",
+          "label": "Arrays are invariant and cannot be assigned"
+        },
+        {
+          "value": "option-3",
+          "label": "It guarantees safe writes"
+        },
+        {
+          "value": "option-4",
+          "label": "It applies only to primitives"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Array covariance is checked at runtime on stores.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-the-try-with-resources-suppressed-exception-mecha",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of the try-with-resources suppressed-exception mechanism?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Ignore all exceptions"
+        },
+        {
+          "value": "option-3",
+          "label": "Replace the primary exception always"
+        },
+        {
+          "value": "option-4",
+          "label": "Retry close indefinitely"
+        },
+        {
+          "value": "option-1",
+          "label": "Preserve a close failure as suppressed when the body already threw"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The primary exception remains primary; close exceptions can be attached as suppressed.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-main-guarantee-of-an-immutable-object-design",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the main guarantee of an immutable object design?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "It must use synchronized methods"
+        },
+        {
+          "value": "option-4",
+          "label": "It cannot reference other objects"
+        },
+        {
+          "value": "option-1",
+          "label": "Its observable state cannot change after construction"
+        },
+        {
+          "value": "option-2",
+          "label": "Every field must be primitive"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Defensive copies and controlled construction help maintain immutability.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-the-sealed-class-feature-restrict",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does the sealed class feature restrict?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Which classes or interfaces may directly extend or implement it"
+        },
+        {
+          "value": "option-2",
+          "label": "Which methods may be called"
+        },
+        {
+          "value": "option-3",
+          "label": "All object allocation"
+        },
+        {
+          "value": "option-4",
+          "label": "Access to package-private fields"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Permitted subclasses are declared with permits or inferred in the same compilation unit.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-a-record-intended-to-model",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is a record intended to model?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "A mutable ORM entity by default"
+        },
+        {
+          "value": "option-3",
+          "label": "A thread pool"
+        },
+        {
+          "value": "option-4",
+          "label": "A checked exception"
+        },
+        {
+          "value": "option-1",
+          "label": "A transparent carrier for a fixed set of data components"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Records provide component fields/accessors and value-oriented generated members.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-pattern-matching-for-instanceof-avoid-in-common-code",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does pattern matching for instanceof avoid in common code?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "Null handling in every case"
+        },
+        {
+          "value": "option-4",
+          "label": "Class loading"
+        },
+        {
+          "value": "option-1",
+          "label": "A separate explicit cast after a successful type test"
+        },
+        {
+          "value": "option-2",
+          "label": "All runtime type checks"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The tested variable can be flow-scoped with the matched type.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-a-module-s-exports-directive",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of a module's exports directive?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "Make a package accessible to other modules"
+        },
+        {
+          "value": "option-2",
+          "label": "Open all reflection access"
+        },
+        {
+          "value": "option-3",
+          "label": "Declare a dependency"
+        },
+        {
+          "value": "option-4",
+          "label": "Start the application"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "exports controls ordinary package access across module boundaries.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-difference-between-an-error-and-an-exception-in-java-s-hiera",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the difference between an Error and an Exception in Java's hierarchy?"
+      },
+      "options": [
+        {
+          "value": "option-2",
+          "label": "Error is always checked"
+        },
+        {
+          "value": "option-3",
+          "label": "Exception is always unchecked"
+        },
+        {
+          "value": "option-4",
+          "label": "They are unrelated"
+        },
+        {
+          "value": "option-1",
+          "label": "Error represents serious JVM/system conditions; Exception represents conditions applications may handle"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Both extend Throwable but are used for different failure categories.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-should-a-finally-block-avoid-returning-a-value",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Why should a finally block avoid returning a value?"
+      },
+      "options": [
+        {
+          "value": "option-3",
+          "label": "finally runs only on success"
+        },
+        {
+          "value": "option-4",
+          "label": "It disables resource closing"
+        },
+        {
+          "value": "option-1",
+          "label": "A return in finally can override a return or exception from try/catch"
+        },
+        {
+          "value": "option-2",
+          "label": "It prevents compilation in all cases"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "Control flow in finally can mask the original outcome.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-the-initialization-on-demand-holder-idiom-leverage",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does the initialization-on-demand holder idiom leverage?"
+      },
+      "options": [
+        {
+          "value": "option-1",
+          "label": "JVM class initialization synchronization and laziness"
+        },
+        {
+          "value": "option-2",
+          "label": "A background thread"
+        },
+        {
+          "value": "option-3",
+          "label": "Weak references"
+        },
+        {
+          "value": "option-4",
+          "label": "Reflection-only construction"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "option-1"
+        ]
+      },
+      "explanation": "The nested holder initializes when first actively used and is safely initialized by the JVM.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; Java language/API behavior should receive editorial review before publication."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-operation-removes-matching-elements-from-a-collection-using-a-predicate",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which operation removes matching elements from a collection using a predicate?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "removeIf"
+        },
+        {
+          "value": "choice-2",
+          "label": "filter"
+        },
+        {
+          "value": "choice-3",
+          "label": "deleteWhere"
+        },
+        {
+          "value": "choice-4",
+          "label": "map"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Collection.removeIf accepts a Predicate and removes matching elements.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-map-computeifabsent-do-when-the-key-is-absent-or-mapped-to-null",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does Map.computeIfAbsent do when the key is absent or mapped to null?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "Always overwrites an existing non-null value"
+        },
+        {
+          "value": "choice-3",
+          "label": "Removes the key"
+        },
+        {
+          "value": "choice-4",
+          "label": "Runs the mapping function for every key"
+        },
+        {
+          "value": "choice-1",
+          "label": "Computes a value and associates it if the result is non-null"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "The mapping function is applied when no non-null mapping exists.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-statement-about-weakhashmap-keys-is-correct",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which statement about WeakHashMap keys is correct?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "Values are weak references too by definition"
+        },
+        {
+          "value": "choice-4",
+          "label": "It is a concurrent map"
+        },
+        {
+          "value": "choice-1",
+          "label": "Entries may disappear when keys are no longer strongly reachable"
+        },
+        {
+          "value": "choice-2",
+          "label": "Keys are permanently retained"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Weak keys allow entries to be reclaimed when keys are otherwise unreachable.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-main-purpose-of-the-copyonwritearraylist",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the main purpose of the CopyOnWriteArrayList?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "Sorted concurrent keys"
+        },
+        {
+          "value": "choice-1",
+          "label": "Read-heavy workloads with infrequent mutations"
+        },
+        {
+          "value": "choice-2",
+          "label": "High-frequency writes with no allocation"
+        },
+        {
+          "value": "choice-3",
+          "label": "Lock-free arithmetic"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Mutations copy the backing array, making iteration snapshot-based and reads inexpensive.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-an-atomicinteger-provide",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does an AtomicInteger provide?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Atomic operations on an integer value"
+        },
+        {
+          "value": "choice-2",
+          "label": "A lock for an entire object graph"
+        },
+        {
+          "value": "choice-3",
+          "label": "A volatile array of integers"
+        },
+        {
+          "value": "choice-4",
+          "label": "Automatic persistence"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "AtomicInteger uses atomic update operations suitable for concurrent counters.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-operation-on-a-stream-is-a-short-circuiting-terminal-operation",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "Which operation on a stream is a short-circuiting terminal operation?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "sorted"
+        },
+        {
+          "value": "choice-3",
+          "label": "map"
+        },
+        {
+          "value": "choice-4",
+          "label": "peek"
+        },
+        {
+          "value": "choice-1",
+          "label": "anyMatch"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "anyMatch may stop as soon as a matching element is found.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-contract-of-comparator-compare-a-b-when-a-and-b-are-equal-in-ordering",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the contract of Comparator.compare(a,b) when a and b are equal in ordering?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "It must return 1"
+        },
+        {
+          "value": "choice-4",
+          "label": "It must throw"
+        },
+        {
+          "value": "choice-1",
+          "label": "It returns zero"
+        },
+        {
+          "value": "choice-2",
+          "label": "It must return -1"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "A comparator returns a negative, zero or positive result according to ordering.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-string-intern-provide",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What does String.intern() provide?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "A UTF-8 byte array"
+        },
+        {
+          "value": "choice-1",
+          "label": "A canonical representation from the string pool"
+        },
+        {
+          "value": "choice-2",
+          "label": "A mutable string"
+        },
+        {
+          "value": "choice-3",
+          "label": "A thread lock"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Interning returns the canonical pooled string for equal contents.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-benefit-of-a-primitive-stream-such-as-intstream",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "professional",
+      "prompt": {
+        "text": "What is the benefit of a primitive stream such as IntStream?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Primitive-specialized operations can avoid boxing in many pipelines"
+        },
+        {
+          "value": "choice-2",
+          "label": "It stores only strings"
+        },
+        {
+          "value": "choice-3",
+          "label": "It guarantees parallel execution"
+        },
+        {
+          "value": "choice-4",
+          "label": "It disables terminal operations"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "IntStream and related types operate on primitive values.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-class-s-static-initializer-execute-relative-to-initialization",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a class's static initializer execute relative to initialization?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "On every instance method call"
+        },
+        {
+          "value": "choice-3",
+          "label": "Only during garbage collection"
+        },
+        {
+          "value": "choice-4",
+          "label": "Before class loading"
+        },
+        {
+          "value": "choice-1",
+          "label": "During class initialization, before normal use completes"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Class initialization runs static initializers under JVM initialization rules.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-a-java-agent",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of a Java agent?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "Manage SQL schemas only"
+        },
+        {
+          "value": "choice-4",
+          "label": "Provide automatic thread termination"
+        },
+        {
+          "value": "choice-1",
+          "label": "Instrument or transform classes using JVM instrumentation facilities"
+        },
+        {
+          "value": "choice-2",
+          "label": "Replace the Java compiler"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Agents can transform bytecode during class loading or retransformation.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-can-cause-a-class-loader-memory-leak-in-an-application-server",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What can cause a class-loader memory leak in an application server?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "Only primitive fields are retained"
+        },
+        {
+          "value": "choice-1",
+          "label": "References prevent an obsolete class loader and its classes from being reclaimed"
+        },
+        {
+          "value": "choice-2",
+          "label": "Class loaders are always immortal"
+        },
+        {
+          "value": "choice-3",
+          "label": "Every static field is automatically cleared"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Thread locals, static references and threads can retain application class loaders.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-distinction-between-stack-overflow-and-heap-exhaustion",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the distinction between stack overflow and heap exhaustion?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Stack overflow exhausts thread call-stack space; heap exhaustion cannot allocate objects"
+        },
+        {
+          "value": "choice-2",
+          "label": "They are the same JVM error"
+        },
+        {
+          "value": "choice-3",
+          "label": "Heap exhaustion means too many threads only"
+        },
+        {
+          "value": "choice-4",
+          "label": "Stack overflow means disk is full"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "StackOverflowError and OutOfMemoryError commonly reflect different memory areas.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "why-is-using-a-thread-pool-generally-preferable-to-creating-unbounded-threads-per-task",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Why is using a thread pool generally preferable to creating unbounded threads per task?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "It makes every task synchronous"
+        },
+        {
+          "value": "choice-3",
+          "label": "It guarantees no task failures"
+        },
+        {
+          "value": "choice-4",
+          "label": "It removes scheduling"
+        },
+        {
+          "value": "choice-1",
+          "label": "It bounds resource usage and amortizes thread creation overhead"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Pools control concurrency and reuse workers; sizing and queue policy still matter.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-countdownlatch-allow",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a CountDownLatch allow?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "A lock that is always reentrant"
+        },
+        {
+          "value": "choice-4",
+          "label": "A queue sorted by priority"
+        },
+        {
+          "value": "choice-1",
+          "label": "Threads to wait until a count reaches zero"
+        },
+        {
+          "value": "choice-2",
+          "label": "A count to increase after reaching zero"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "CountDownLatch is a one-shot synchronization aid.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "which-property-does-a-semaphore-regulate",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "Which property does a Semaphore regulate?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "Class initialization"
+        },
+        {
+          "value": "choice-1",
+          "label": "The number of concurrent permits available"
+        },
+        {
+          "value": "choice-2",
+          "label": "Object equality"
+        },
+        {
+          "value": "choice-3",
+          "label": "Thread stack size"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "A semaphore can limit concurrent access to a resource.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-key-distinction-between-a-monitor-lock-and-a-readwritelock",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the key distinction between a monitor lock and a ReadWriteLock?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "A read-write lock can permit multiple readers while excluding writers"
+        },
+        {
+          "value": "choice-2",
+          "label": "A monitor allows unlimited writers"
+        },
+        {
+          "value": "choice-3",
+          "label": "ReadWriteLock is not thread-safe"
+        },
+        {
+          "value": "choice-4",
+          "label": "It is only usable with primitive values"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "ReadWriteLock separates shared read access from exclusive write access.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-a-defensive-copy-protect-in-an-immutable-api",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does a defensive copy protect in an immutable API?"
+      },
+      "options": [
+        {
+          "value": "choice-2",
+          "label": "The API from compilation"
+        },
+        {
+          "value": "choice-3",
+          "label": "The JVM from class loading"
+        },
+        {
+          "value": "choice-4",
+          "label": "A method from exceptions"
+        },
+        {
+          "value": "choice-1",
+          "label": "Internal state from mutation through caller-owned mutable references"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Copying mutable inputs/outputs prevents external aliasing from changing state.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-purpose-of-the-functionalinterface-annotation",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the purpose of the @FunctionalInterface annotation?"
+      },
+      "options": [
+        {
+          "value": "choice-3",
+          "label": "It creates a thread"
+        },
+        {
+          "value": "choice-4",
+          "label": "It makes an interface sealed"
+        },
+        {
+          "value": "choice-1",
+          "label": "It requests compiler validation of the single-abstract-method contract"
+        },
+        {
+          "value": "choice-2",
+          "label": "It makes methods asynchronous"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "The annotation is optional but catches accidental extra abstract methods.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-is-the-behavior-of-list-of-with-a-null-element",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What is the behavior of List.of() with a null element?"
+      },
+      "options": [
+        {
+          "value": "choice-4",
+          "label": "It stores null as Optional.empty"
+        },
+        {
+          "value": "choice-1",
+          "label": "It throws NullPointerException"
+        },
+        {
+          "value": "choice-2",
+          "label": "It silently drops null"
+        },
+        {
+          "value": "choice-3",
+          "label": "It creates a mutable list"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "The unmodifiable factory collections reject null elements.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    },
+    {
+      "categorySlug": "java-language-fundamentals",
+      "slug": "what-does-java-s-switch-expression-require-from-its-result-producing-branches",
+      "questionType": "SINGLE_SELECT",
+      "difficulty": "expert",
+      "prompt": {
+        "text": "What does Java's switch expression require from its result-producing branches?"
+      },
+      "options": [
+        {
+          "value": "choice-1",
+          "label": "Each branch must produce a value or complete abruptly"
+        },
+        {
+          "value": "choice-2",
+          "label": "Every branch must call break"
+        },
+        {
+          "value": "choice-3",
+          "label": "It can return different unrelated statements without values"
+        },
+        {
+          "value": "choice-4",
+          "label": "It must be used only on integers"
+        }
+      ],
+      "answer": {
+        "correctValues": [
+          "choice-1"
+        ]
+      },
+      "explanation": "Switch expressions yield a value and must be exhaustive for their selector domain.",
+      "provenance": {
+        "sourceType": "ADMIN_AUTHORED",
+        "sourceDescription": "Original JIA authored question; verify language/API details during editorial review."
+      },
+      "changeNote": "Expanded Java foundations seed; draft only, not approved or published."
+    }
+  ]
+}
