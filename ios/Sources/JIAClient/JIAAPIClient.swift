@@ -16,6 +16,18 @@ public struct JIAAPIClient: Sendable {
         body: Data? = nil,
         as type: T.Type = T.self
     ) async throws -> T {
+        let data = try await perform(path, token: token, method: method, body: body)
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// Performs a request whose success response may be empty (for example HTTP 204 DELETE).
+    @discardableResult
+    public func perform(
+        _ path: String,
+        token: String? = nil,
+        method: String = "GET",
+        body: Data? = nil
+    ) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw JIAAPIError.invalidURL
         }
@@ -31,7 +43,7 @@ public struct JIAAPIClient: Sendable {
         guard (200..<300).contains(http.statusCode) else {
             throw JIAAPIError.httpStatus(http.statusCode)
         }
-        return try JSONDecoder().decode(T.self, from: data)
+        return data
     }
 }
 
