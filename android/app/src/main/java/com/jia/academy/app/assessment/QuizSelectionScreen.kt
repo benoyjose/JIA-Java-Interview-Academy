@@ -67,6 +67,9 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     var selected by remember { mutableStateOf("BEGINNER") }
     var selectedMode by remember { mutableStateOf(JiaQuizMode.PRACTICE) }
     var selectedDuration by remember { mutableStateOf(JiaQuizMode.defaultTimedDurationSeconds) }
+    var selectedQuestionCount by remember { mutableStateOf(10) }
+    var selectedCategorySlug by remember { mutableStateOf<String?>(null) }
+    var topicOptions by remember { mutableStateOf<List<Pair<String?, String>>>(emptyList()) }
     var remainingSeconds by remember { mutableStateOf<Int?>(null) }
     var availability by remember { mutableStateOf<QuizAvailability?>(null) }
     var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
@@ -85,10 +88,20 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
         }
     }
 
-    LaunchedEffect(selected) {
+    LaunchedEffect(Unit) {
+        runCatching {
+            repository.getTechnologies(BuildConfig.JIA_API_BASE_URL).flatMap { technology ->
+                repository.getCategories(BuildConfig.JIA_API_BASE_URL, technology.slug).map { category ->
+                    category.slug to "${technology.name} / ${category.name}"
+                }
+            }.distinctBy { it.first }.sortedBy { it.second }
+        }.onSuccess { topicOptions = listOf(null to "All topics") + it }
+    }
+
+    LaunchedEffect(selected, selectedCategorySlug) {
         loading = true
         error = null
-        runCatching { repository.getQuizAvailability(BuildConfig.JIA_API_BASE_URL, selected) }
+        runCatching { repository.getQuizAvailability(BuildConfig.JIA_API_BASE_URL, selected, categorySlug = selectedCategorySlug) }
             .onSuccess { availability = it }.onFailure { error = it.message ?: "Unable to check quiz availability." }
         loading = false
     }
@@ -288,6 +301,20 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                             onClick = { selectedDuration = seconds }, label = { Text(label) })
                     }
                 }
+                Text("Question count", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf(5, 10, 20).forEach { count ->
+                        FilterChip(selected = selectedQuestionCount == count,
+                            onClick = { selectedQuestionCount = count }, label = { Text("$count questions") })
+                    }
+                }
+                Text("Topic mix", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    topicOptions.forEach { (slug, label) ->
+                        FilterChip(selected = selectedCategorySlug == slug,
+                            onClick = { selectedCategorySlug = slug }, label = { Text(label) })
+                    }
+                }
                 Text("Choose your difficulty", style = MaterialTheme.typography.titleMedium)
                 levels.forEach { (value, label) ->
                     Card(Modifier.fillMaxWidth()) {
@@ -318,11 +345,12 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                             if (token.isNullOrBlank()) { error = "Please sign in again."; return@Button }
                             loading = true
                             error = null
-                            val count = minOf(10, availability?.availableQuestionCount ?: 0)
+                            val count = minOf(selectedQuestionCount, availability?.availableQuestionCount ?: 0)
                             scope.launch {
                                 runCatching {
                                     val started = quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode,
-                                        JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds)
+                                        JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds,
+                                        selectedCategorySlug)
                                     if (selectedMode == JiaQuizMode.DAILY_CHALLENGE) quizRepository.resume(BuildConfig.JIA_API_BASE_URL, token, started.id) else started
                                 }
                                     .onSuccess { restored -> attempt = restored; answers = restored.savedAnswers; answerBaseTimeMs = restored.savedTimeSpentMs; answerStartedAt = restored.savedAnswers.keys.associateWith { android.os.SystemClock.elapsedRealtime() }; result = null }
