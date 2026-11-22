@@ -192,3 +192,29 @@ test("lesson editor blocks malformed content before issuing a save request", asy
   await expect(page.getByRole("alert")).toContainText("not valid JSON");
   expect(saveRequests).toBe(0);
 });
+
+
+test("editor previews valid draft blocks locally without publishing or saving", async ({ page }) => {
+  let writeRequests = 0;
+  await page.route("**/api/v1/**", async route => {
+    const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
+    if (path === "/auth/login") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ accessToken: "preview-token", tokenType: "Bearer", expiresAt: "2026-12-01T00:00:00Z", user }) });
+    if (path === "/admin/lessons" && route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], page: 0, size: 25, totalItems: 0, totalPages: 0 }) });
+    if (["POST", "PUT"].includes(route.request().method()) && path.startsWith("/admin/lessons")) writeRequests++;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+  });
+  await page.goto("/");
+  await page.getByLabel("Email address").fill(user.email);
+  await page.getByLabel("Password").fill("test-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: /Lessons/ }).click();
+  await page.getByRole("button", { name: /New lesson/ }).click();
+  await page.getByLabel("Lesson title").fill("Preview-only draft");
+  await page.getByLabel("Category slug").fill("java");
+  await page.getByLabel("Lesson slug").fill("preview-only-draft");
+  await page.getByLabel("Content document (JSON)").fill(JSON.stringify({ schemaVersion: 1, blocks: [{ type: "markdown", title: "Preview heading", body: "Preview body content" }] }));
+  await page.getByRole("button", { name: "Preview as learner" }).click();
+  await expect(page.getByRole("region", { name: "Private learner preview" })).toContainText("Preview body content");
+  await expect(page.getByText("Draft only · not publicly visible")).toBeVisible();
+  expect(writeRequests).toBe(0);
+});
