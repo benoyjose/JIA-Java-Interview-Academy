@@ -72,6 +72,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     var attempt by remember { mutableStateOf<JiaQuizAttempt?>(null) }
     var answers by remember { mutableStateOf<Map<Int, Set<String>>>(emptyMap()) }
     var answerStartedAt by remember { mutableStateOf<Map<Int, Long>>(emptyMap()) }
+    var answerBaseTimeMs by remember { mutableStateOf<Map<Int, Long>>(emptyMap()) }
     var result by remember { mutableStateOf<JiaQuizResult?>(null) }
     var history by remember { mutableStateOf<List<JiaQuizHistoryItem>?>(null) }
     var performance by remember { mutableStateOf<JiaQuizPerformance?>(null) }
@@ -79,8 +80,8 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     var error by remember { mutableStateOf<String?>(null) }
 
     val elapsedForAnswers: () -> Map<Int, Long> = {
-        answerStartedAt.mapValues { (_, started) ->
-            (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
+        (answerBaseTimeMs.keys + answerStartedAt.keys).associateWith { questionPosition ->
+            (answerBaseTimeMs[questionPosition] ?: 0L) + (answerStartedAt[questionPosition]?.let { (android.os.SystemClock.elapsedRealtime() - it).coerceAtLeast(0L) } ?: 0L)
         }
     }
 
@@ -96,7 +97,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     val completed = result
     LaunchedEffect(activeAttempt?.id, answers) {
         val current = activeAttempt
-        if (current?.mode == JiaQuizMode.TIMED_MOCK) {
+        if (current != null) {
             val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
             if (!token.isNullOrBlank()) {
                 delay(500)
@@ -150,7 +151,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                         }
                     }
                 }
-                Button(onClick = { attempt = null; result = null; answers = emptyMap() }) { Text("Back to difficulty selection") }
+                Button(onClick = { attempt = null; result = null; answers = emptyMap(); answerBaseTimeMs = emptyMap(); answerStartedAt = emptyMap() }) { Text("Back to difficulty selection") }
             }
             activeAttempt != null -> {
                 Text("${levels.first { it.first == activeAttempt.difficulty }.second} · ${activeAttempt.mode.displayName} · ${activeAttempt.questions.size} questions")
@@ -247,6 +248,20 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(if (loading) "Submitting…" else if (activeAttempt.mode == JiaQuizMode.TIMED_MOCK) "Submit mock interview" else "Submit all answers") }
+                TextButton(
+                    enabled = !loading,
+                    onClick = {
+                        val token = SecureSessionStore(context).accessToken()
+                        if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
+                        loading = true
+                        scope.launch {
+                            runCatching { quizRepository.abandon(BuildConfig.JIA_API_BASE_URL, token, activeAttempt.id) }
+                                .onSuccess { attempt = null; answers = emptyMap(); answerBaseTimeMs = emptyMap(); answerStartedAt = emptyMap(); history = null }
+                                .onFailure { error = it.message ?: "Unable to abandon attempt." }
+                            loading = false
+                        }
+                    }
+                ) { Text("Abandon attempt") }
             }
             else -> {
                 Text("Quiz mode", style = MaterialTheme.typography.titleMedium)
@@ -303,7 +318,7 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                             val count = minOf(10, availability?.availableQuestionCount ?: 0)
                             scope.launch {
                                 runCatching { quizRepository.start(BuildConfig.JIA_API_BASE_URL, token, selected, count, selectedMode, JiaQuizMode.durationSecondsFor(selectedMode, selectedDuration) ?: JiaQuizMode.defaultTimedDurationSeconds) }
-                                    .onSuccess { attempt = it; answers = emptyMap(); answerStartedAt = emptyMap(); result = null }
+                                    .onSuccess { restored -> attempt = restored; answers = restored.savedAnswers; answerBaseTimeMs = restored.savedTimeSpentMs; answerStartedAt = restored.savedAnswers.keys.associateWith { android.os.SystemClock.elapsedRealtime() }; result = null }
                                     .onFailure { error = it.message ?: "Unable to start quiz." }
                                 loading = false
                             }
@@ -339,7 +354,31 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                         Text("Recent attempts", style = MaterialTheme.typography.titleMedium)
                         if (rows.isEmpty()) Text("No quiz attempts yet.")
                         rows.forEach { row ->
-                            Text("${row.difficulty} · ${row.correctCount ?: 0}/${row.questionCount} · ${row.scorePercent?.let { "$it%" } ?: row.status}")
+                            Text("${row.difficulty} · ${row.mode.replace('_', ' ')} · ${row.correctCount ?: 0}/${row.questionCount} · ${row.scorePercent?.let { "$it%" } ?: row.status}")
+                            if (row.status == "IN_PROGRESS") {
+                                TextButton(enabled = !loading, onClick = {
+                                    val token = SecureSessionStore(context).accessToken()
+                                    if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
+                                    loading = true
+                                    scope.launch {
+                                        runCatching { quizRepository.resume(BuildConfig.JIA_API_BASE_URL, token, row.id) }
+                                            .onSuccess { restored -> attempt = restored; answers = restored.savedAnswers; answerBaseTimeMs = restored.savedTimeSpentMs; answerStartedAt = restored.savedAnswers.keys.associateWith { android.os.SystemClock.elapsedRealtime() } }
+                                            .onFailure { error = it.message ?: "Unable to resume attempt." }
+                                        loading = false
+                                    }
+                                }) { Text("Resume") }
+                                TextButton(enabled = !loading, onClick = {
+                                    val token = SecureSessionStore(context).accessToken()
+                                    if (token.isNullOrBlank()) { error = "Please sign in again."; return@TextButton }
+                                    loading = true
+                                    scope.launch {
+                                        runCatching { quizRepository.abandon(BuildConfig.JIA_API_BASE_URL, token, row.id) }
+                                            .onSuccess { history = null }
+                                            .onFailure { error = it.message ?: "Unable to abandon attempt." }
+                                        loading = false
+                                    }
+                                }) { Text("Abandon") }
+                            }
                         }
                     }
                 }
