@@ -136,17 +136,22 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
                 Text("Quiz result", style = MaterialTheme.typography.titleLarge)
                 if (completed.timedOut) Text("Time expired — your saved answers were submitted automatically.",
                     color = MaterialTheme.colorScheme.error)
-                Text("${completed.correctCount} / ${completed.questionCount} correct",
+                Text("${completed.correctCount} correct · ${completed.gradedQuestionCount} auto-graded · ${completed.selfReviewQuestionCount} self-review",
                     style = MaterialTheme.typography.headlineMedium)
-                Text("Score: ${completed.scorePercent}%")
+                Text("Objective score: ${completed.scorePercent}%")
                 activeAttempt.questions.forEach { question ->
                     val review = completed.explanations[question.position]
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Q${question.position}. ${question.prompt}")
                             if (!question.codeSource.isNullOrBlank()) CodeSnippet(question.codeLanguage, question.codeSource)
-                            Text(if (review?.first == true) "Correct" else "Incorrect",
-                                color = if (review?.first == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            if (question.position in completed.selfReviewPositions) {
+                                Text("Self-review required", color = MaterialTheme.colorScheme.tertiary)
+                                Text("Your response: ${answers[question.position]?.joinToString().orEmpty()}")
+                            } else {
+                                Text(if (review?.first == true) "Correct" else "Incorrect",
+                                    color = if (review?.first == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            }
                             if (!review?.second.isNullOrBlank()) Text(review!!.second)
                         }
                     }
