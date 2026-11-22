@@ -33,12 +33,12 @@ class JIAOfflineRoomMigrationTest {
         }
         val db = legacy.writableDatabase
         db.execSQL("INSERT INTO cached_lessons VALUES (?,?,?,?,?,?,?,?,?,?)",
-            arrayOf("java-memory","lesson-1","JMM",null,"PROFESSIONAL",2,"ADMIN_AUTHORED","{}","checksum",123L))
+            arrayOf<Any?>("java-memory","lesson-1","JMM",null,"PROFESSIONAL",2,"ADMIN_AUTHORED","{}","checksum",123L))
         db.execSQL("INSERT INTO pending_progress VALUES (?,?,?,?,?)",
-            arrayOf("java-memory",2,65.0,"{\"block\":4}",456L))
-        db.execSQL("INSERT INTO offline_bookmarks VALUES (?,?,?)", arrayOf("java-memory",1,789L))
-        db.execSQL("INSERT INTO pending_bookmarks VALUES (?,?,?)", arrayOf("java-memory",1,789L))
-        db.execSQL("INSERT INTO sync_diagnostics VALUES (?,?,?,?,?,?)", arrayOf(1,100L,90L,null,3,2))
+            arrayOf<Any?>("java-memory",2,65.0,"{\"block\":4}",456L))
+        db.execSQL("INSERT INTO offline_bookmarks VALUES (?,?,?)", arrayOf<Any?>("java-memory",1,789L))
+        db.execSQL("INSERT INTO pending_bookmarks VALUES (?,?,?)", arrayOf<Any?>("java-memory",1,789L))
+        db.execSQL("INSERT INTO sync_diagnostics VALUES (?,?,?,?,?,?)", arrayOf<Any?>(1,100L,90L,null,3,2))
         legacy.close()
 
         room = Room.databaseBuilder(context, JIAOfflineRoomDatabase::class.java, "jia-offline-learning.db")
