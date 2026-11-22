@@ -1,5 +1,6 @@
 package com.jia.academy.assessment.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -82,5 +83,30 @@ class QuizSubmissionValidationTest {
         assertThatThrownBy(() -> QuizController.validateTimeSpentMs("100"))
                 .isInstanceOf(ResponseStatusException.class);
     }
+
+    @Test
+    void onlyInProgressAttemptCanResume() {
+        assertThatCode(() -> QuizController.validateResumableStatus("IN_PROGRESS"))
+                .doesNotThrowAnyException();
+        for (String status : Set.of("SUBMITTED", "ABANDONED")) {
+            assertThatThrownBy(() -> QuizController.validateResumableStatus(status))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .hasMessageContaining("Only in-progress");
+        }
+    }
+
+    @Test
+    void abandonIsIdempotentForAlreadyAbandonedAttempt() {
+        assertThat(QuizController.abandonedStatus("IN_PROGRESS")).isEqualTo("ABANDONED");
+        assertThat(QuizController.abandonedStatus("ABANDONED")).isEqualTo("ABANDONED");
+    }
+
+    @Test
+    void submittedAttemptCannotBeAbandoned() {
+        assertThatThrownBy(() -> QuizController.abandonedStatus("SUBMITTED"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Submitted attempt");
+    }
+
 
 }

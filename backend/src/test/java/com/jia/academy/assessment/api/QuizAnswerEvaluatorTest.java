@@ -42,4 +42,20 @@ class QuizAnswerEvaluatorTest {
                 Map.of("values", java.util.List.of("A", "C")),
                 Map.of("correctValues", java.util.List.of("A", "A", "C")))).isFalse();
     }
+    @Test
+    void codingSqlDebuggingAndScenarioRequireRubricBasedSelfReview() {
+        for (String type : java.util.List.of("CODING", "SQL", "DEBUGGING", "SCENARIO")) {
+            assertThat(QuizAnswerEvaluator.requiresSelfReview(type)).isTrue();
+            assertThat(QuizAnswerEvaluator.isCorrect(type, Map.of("value", "alternative valid answer"),
+                    Map.of("correctValues", java.util.List.of("canonical answer")))).isFalse();
+        }
+    }
+
+    @Test
+    void outputPredictionRemainsAutomaticallyGraded() {
+        assertThat(QuizAnswerEvaluator.requiresSelfReview("OUTPUT_PREDICTION")).isFalse();
+        assertThat(QuizAnswerEvaluator.isCorrect("OUTPUT_PREDICTION",
+                Map.of("value", "42"), Map.of("correctValues", java.util.List.of("42")))).isTrue();
+    }
+
 }

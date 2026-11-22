@@ -78,10 +78,15 @@ class CatalogueRepository(private val offlineStore: com.jia.academy.app.learning
         }
     }
 
-    suspend fun getQuizAvailability(baseUrl: String, difficulty: String): QuizAvailability {
-        val query = URLEncoder.encode(difficulty, Charsets.UTF_8.name())
-        val item = JSONObject(get(baseUrl, "/quizzes/availability?difficulty=$query"))
-        return QuizAvailability(item.getString("difficulty"), item.getInt("availableQuestionCount"))
+    suspend fun getQuizAvailability(baseUrl: String, difficulty: String,
+        technologySlug: String? = null, categorySlug: String? = null): QuizAvailability {
+        val params = buildList {
+            add("difficulty=" + segment(difficulty))
+            technologySlug?.takeIf(String::isNotBlank)?.let { add("technologySlug=" + segment(it)) }
+            categorySlug?.takeIf(String::isNotBlank)?.let { add("categorySlug=" + segment(it)) }
+        }.joinToString("&")
+        val json = JSONObject(get(baseUrl, "/quizzes/availability?$params"))
+        return QuizAvailability(json.getString("difficulty"), json.getInt("availableQuestionCount"))
     }
 
     suspend fun getLesson(baseUrl: String, slug: String): LessonDetail {
