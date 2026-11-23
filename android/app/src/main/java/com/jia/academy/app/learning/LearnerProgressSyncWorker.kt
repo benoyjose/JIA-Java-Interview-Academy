@@ -40,8 +40,7 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         try {
             val token = ensureAccessToken(baseUrl, sessionStore)
             downloadReleaseLessons(baseUrl, token, store)
-            val progressCount = syncPendingProgress(baseUrl, token, store)
-            val bookmarkCount = syncPendingBookmarks(baseUrl, token, store)
+            val (progressCount, bookmarkCount) = syncPendingEvents(baseUrl, token, store)
             store.recordSyncSuccess(progressCount, bookmarkCount)
             Result.success()
         } catch (error: IOException) {
@@ -85,51 +84,45 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         }
     }
 
-    private fun syncPendingProgress(baseUrl: String, token: String, store: OfflineLearningStore): Int {
-        var synced = 0
-        for (item in store.pendingProgress()) {
-            val encodedSlug = URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
-            val path = "/me/lesson-progress/" + encodedSlug
-            val body = ProgressSyncResponsePolicy.requestBody(item)
-            val (status, _) = request(baseUrl, path, token, "PUT", body)
-            when (ProgressSyncResponsePolicy.classify(status)) {
-                SyncResponseAction.ACKNOWLEDGE -> {
-                    store.markProgressSynced(item)
-                    synced++
-                }
-                SyncResponseAction.REBASE -> {
-                    val (lessonStatus, lessonJson) = request(baseUrl, "/lessons/" + encodedSlug, null, "GET")
-                    if (lessonStatus in 200..299) {
-                        val currentRevision = JSONObject(lessonJson).optInt("contentRevision", 0)
-                        if (currentRevision > 0) {
-                            store.enqueueProgress(item.lessonSlug, currentRevision, item.progressPercent, item.lastPositionJson)
-                            throw IOException("Progress revision rebased; retrying synchronization")
-                        }
-                    }
-                    throw IllegalStateException("Progress conflict could not be reconciled")
-                }
-                SyncResponseAction.RETRY -> throw IOException("Progress sync should be retried (HTTP $status)")
-                SyncResponseAction.REJECT -> throw IllegalStateException("Progress sync rejected with HTTP $status")
-            }
+    /**
+     * Flushes durable progress and bookmark snapshots through the event ledger's atomic batch API.
+     * UUIDs are derived from each persisted snapshot so a retry/restart sends the identical body.
+     * No queue row is removed until the entire response has passed exact receipt validation.
+     */
+    private fun syncPendingEvents(baseUrl: String, token: String, store: OfflineLearningStore): Pair<Int, Int> {
+        val pending = buildList {
+            store.pendingProgress().forEach { add(ProgressBatchEventFactory.progress(it)) }
+            store.pendingBookmarks().forEach { add(ProgressBatchEventFactory.bookmark(it)) }
         }
-        return synced
-    }
+        var syncedProgress = 0
+        var syncedBookmarks = 0
+        for (batch in pending.chunked(ProgressBatchReceiptParser.MAX_BATCH_SIZE)) {
+            val (status, responseBody) = request(
+                baseUrl, "/me/progress-events/batch", token, "POST",
+                ProgressBatchEventFactory.batchBody(batch)
+            )
+            when (ProgressBatchSyncResponsePolicy.classify(status)) {
+                BatchSyncResponseAction.RETRY -> throw IOException("Progress event batch should be retried (HTTP $status)")
+                BatchSyncResponseAction.REJECT -> throw IllegalStateException("Progress event batch rejected with HTTP $status")
+                BatchSyncResponseAction.ACKNOWLEDGE -> Unit
+            }
 
-    private fun syncPendingBookmarks(baseUrl: String, token: String, store: OfflineLearningStore): Int {
-        var synced = 0
-        for (item in store.pendingBookmarks()) {
-            val path = "/me/bookmarks/" + URLEncoder.encode(item.lessonSlug, Charsets.UTF_8.name())
-            val (status, _) = request(baseUrl, path, token, if (item.bookmarked) "PUT" else "DELETE")
-            if (status in 200..299 || (!item.bookmarked && status == 404)) {
-                store.markBookmarkSynced(item)
-                synced++
-            } else if (status == 408 || status == 429 || status >= 500) {
-                throw IOException("Bookmark sync should be retried")
-            } else {
-                throw IllegalStateException("Bookmark sync rejected with HTTP $status")
+            // Parse first, acknowledge second. A malformed or partial response leaves all rows queued.
+            val receipts = ProgressBatchReceiptParser.parse(responseBody, batch.map { it.eventId })
+            val byId = batch.associateBy { it.eventId }
+            for (receipt in receipts) {
+                val acknowledged = byId.getValue(receipt.eventId)
+                acknowledged.progressSnapshot?.let {
+                    store.markProgressSynced(it)
+                    syncedProgress++
+                }
+                acknowledged.bookmarkSnapshot?.let {
+                    store.markBookmarkSynced(it)
+                    syncedBookmarks++
+                }
             }
         }
-        return synced
+        return syncedProgress to syncedBookmarks
     }
 
     private suspend fun ensureAccessToken(baseUrl: String, store: SecureSessionStore): String {
