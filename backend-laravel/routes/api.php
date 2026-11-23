@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\PhoneOtpController;
 use App\Http\Controllers\Api\V1\CatalogueController;
 use App\Http\Controllers\Api\V1\QuizController;
 use App\Http\Controllers\Api\V1\StudyPlanController;
+use App\Http\Controllers\Api\V1\SpacedReviewController;
 use App\Http\Controllers\Api\V1\LearnerLibraryController;
 use App\Http\Controllers\Api\V1\LearnerPrivacyController;
 use App\Http\Controllers\Api\V1\LessonImportController;
