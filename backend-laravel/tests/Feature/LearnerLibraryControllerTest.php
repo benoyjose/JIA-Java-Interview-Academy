@@ -106,4 +106,28 @@ final class LearnerLibraryControllerTest extends TestCase
         $controller->removeBookmark($bookmarkRequest, 'laravel-progress-test');
         $this->assertDatabaseCount('learner_bookmarks', 0);
     }
+    public function test_stale_progress_cannot_regress_revision_or_reading_position(): void
+    {
+        $user = (object) ['id' => '60000000-0000-0000-0000-000000000001'];
+        $controller = new LearnerLibraryController();
+        $first = Request::create('/api/v1/me/lesson-progress/laravel-progress-test', 'PUT', [
+            'contentRevision' => 3, 'progressPercent' => 65,
+            'lastPosition' => ['blockId' => 'newer'],
+        ]);
+        $first->attributes->set('jia_user', $user);
+        $controller->updateProgress($first, 'laravel-progress-test');
+
+        $stale = Request::create('/api/v1/me/lesson-progress/laravel-progress-test', 'PUT', [
+            'contentRevision' => 1, 'progressPercent' => 20,
+            'lastPosition' => ['blockId' => 'stale'],
+        ]);
+        $stale->attributes->set('jia_user', $user);
+        $controller->updateProgress($stale, 'laravel-progress-test');
+
+        $row = DB::table('learner_lesson_progress')->where('user_id', $user->id)->first();
+        $this->assertSame(3, (int) $row->content_revision);
+        $this->assertSame(65.0, (float) $row->progress_percent);
+        $this->assertSame('newer', json_decode($row->last_position_json, true)['blockId']);
+    }
+
 }
