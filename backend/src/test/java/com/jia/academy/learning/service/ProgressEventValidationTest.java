@@ -52,4 +52,23 @@ class ProgressEventValidationTest {
         assertThrows(ResponseStatusException.class, () ->
                 ProgressEventService.validateProjectionEvent("BOOKMARK_CHANGED", "streams", mapper.readTree("{\"bookmarked\":\"false\"}")));
     }
+    @Test void batchCannotReuseEventIdForDifferentPayload() throws Exception {
+        UUID id = UUID.randomUUID();
+        var time = java.time.Instant.now();
+        var first = new ProgressEventService.EventRequest(id, "LESSON_STARTED", time,
+                "streams", mapper.readTree("{\"contentRevision\":1,\"progressPercent\":10}"));
+        var conflict = new ProgressEventService.EventRequest(id, "LESSON_STARTED", time,
+                "streams", mapper.readTree("{\"contentRevision\":1,\"progressPercent\":90}"));
+        assertThrows(ResponseStatusException.class, () ->
+                ProgressEventService.validateBatchEventIdentity(List.of(first, conflict)));
+    }
+
+    @Test void identicalRepeatedEventInBatchRemainsIdempotent() throws Exception {
+        UUID id = UUID.randomUUID();
+        var time = java.time.Instant.now();
+        var event = new ProgressEventService.EventRequest(id, "QUESTION_ANSWERED", time,
+                "streams", mapper.readTree("{\"questionId\":\"q-1\"}"));
+        assertDoesNotThrow(() -> ProgressEventService.validateBatchEventIdentity(List.of(event, event)));
+    }
+
 }
