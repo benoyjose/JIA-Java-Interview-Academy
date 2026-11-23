@@ -63,7 +63,9 @@ final class LearnerLibraryController
                     content_revision = GREATEST(learner_lesson_progress.content_revision, EXCLUDED.content_revision),
                     status = CASE WHEN learner_lesson_progress.status = 'COMPLETED' THEN 'COMPLETED' ELSE EXCLUDED.status END,
                     progress_percent = GREATEST(learner_lesson_progress.progress_percent, EXCLUDED.progress_percent),
-                    last_position_json = CASE WHEN EXCLUDED.progress_percent >= learner_lesson_progress.progress_percent\n                        THEN COALESCE(EXCLUDED.last_position_json, learner_lesson_progress.last_position_json)\n                        ELSE learner_lesson_progress.last_position_json END,
+                    last_position_json = CASE WHEN EXCLUDED.progress_percent >= learner_lesson_progress.progress_percent
+                        THEN COALESCE(EXCLUDED.last_position_json, learner_lesson_progress.last_position_json)
+                        ELSE learner_lesson_progress.last_position_json END,
                     completed_at = COALESCE(learner_lesson_progress.completed_at, EXCLUDED.completed_at),
                     updated_at = EXCLUDED.updated_at
                 SQL, [
