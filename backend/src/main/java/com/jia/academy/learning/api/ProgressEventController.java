@@ -2,6 +2,7 @@ package com.jia.academy.learning.api;
 
 import com.jia.academy.learning.service.ProgressEventService;
 import com.jia.academy.learning.service.ProgressEventService.EventReceipt;
+import com.jia.academy.learning.service.ProgressEventService.BatchReceipt;
 import com.jia.academy.learning.service.ProgressEventService.EventRequest;
 import com.jia.academy.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -22,6 +23,8 @@ public class ProgressEventController {
                                     @RequestBody BatchEventRequest request) {
         return events.appendBatch(user, request == null ? null : request.events());
     }
+
+    public record BatchEventRequest(List<EventRequest> events) {}
 
     @PostMapping
     public EventReceipt append(@AuthenticationPrincipal CurrentUser user,
