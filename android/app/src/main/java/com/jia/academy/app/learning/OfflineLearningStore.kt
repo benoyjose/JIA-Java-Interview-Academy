@@ -45,6 +45,33 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
 
     override fun close() = database.close()
 
+    /** Maximum number of coalesced progress + bookmark records retained for sync. */
+    fun pendingQueueLimit(): Int = appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+        .getInt(KEY_PENDING_QUEUE_LIMIT, OfflineQueueCapacityPolicy.DEFAULT_MAX_PENDING_ITEMS)
+        .coerceIn(OfflineQueueCapacityPolicy.MIN_MAX_PENDING_ITEMS, OfflineQueueCapacityPolicy.MAX_MAX_PENDING_ITEMS)
+
+    /** Configure the local sync queue bound. Lowering it never deletes already queued records. */
+    fun setPendingQueueLimit(maximum: Int) {
+        require(maximum in OfflineQueueCapacityPolicy.MIN_MAX_PENDING_ITEMS..OfflineQueueCapacityPolicy.MAX_MAX_PENDING_ITEMS) {
+            "Pending queue limit must be between ${OfflineQueueCapacityPolicy.MIN_MAX_PENDING_ITEMS} and ${OfflineQueueCapacityPolicy.MAX_MAX_PENDING_ITEMS}"
+        }
+        appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+            .edit().putInt(KEY_PENDING_QUEUE_LIMIT, maximum).apply()
+    }
+
+    /** Number of durable records awaiting a server receipt, across both event types. */
+    fun pendingQueueSize(): Int = readableDatabase.query(
+        "SELECT (SELECT COUNT(*) FROM pending_progress) + (SELECT COUNT(*) FROM pending_bookmarks)", emptyArray()
+    ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+
+    private fun enforcePendingQueueCapacity(existingItem: Boolean) {
+        val current = pendingQueueSize()
+        val maximum = pendingQueueLimit()
+        if (OfflineQueueCapacityPolicy.shouldReject(existingItem, current, maximum)) {
+            throw IllegalStateException(OfflineQueueCapacityPolicy.rejectionMessage(maximum))
+        }
+    }
+
     fun downloadsOnMeteredNetwork(): Boolean =
         appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
             .getBoolean("downloads_on_metered_network", false)
@@ -183,6 +210,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             db.query("SELECT content_revision, progress_percent, last_position_json, updated_at FROM pending_progress WHERE lesson_slug=?", arrayOf(lessonSlug)).use { cursor ->
                 if (cursor.moveToFirst()) existing = ProgressSnapshot(cursor.getInt(0), cursor.getDouble(1), cursor.getString(2), cursor.getLong(3))
             }
+            enforcePendingQueueCapacity(existingItem = existing != null)
             val merged = ProgressMergePolicy.merge(existing, contentRevision, progressPercent, lastPositionJson, System.currentTimeMillis())
             val values = ContentValues().apply {
                 put("lesson_slug", lessonSlug)
@@ -219,6 +247,8 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             val existing = db.query("SELECT updated_at FROM offline_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use {
                 if (it.moveToFirst()) it.getLong(0) else 0L
             }
+            val pendingExists = db.query("SELECT 1 FROM pending_bookmarks WHERE lesson_slug=?", arrayOf(lessonSlug)).use { it.moveToFirst() }
+            enforcePendingQueueCapacity(existingItem = pendingExists)
             val updatedAt = maxOf(now, existing + 1L)
             val values = ContentValues().apply {
                 put("lesson_slug", lessonSlug)
@@ -326,6 +356,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
     companion object {
         private const val MAX_CONTENT_CHARS = 2_000_000
         private const val KEY_CACHE_LIMIT_BYTES = "offline_cache_limit_bytes"
+        private const val KEY_PENDING_QUEUE_LIMIT = "offline_pending_queue_limit"
         const val MIN_CACHE_LIMIT_BYTES = 1L * 1024L * 1024L
         const val DEFAULT_CACHE_LIMIT_BYTES = 64L * 1024L * 1024L
     }
