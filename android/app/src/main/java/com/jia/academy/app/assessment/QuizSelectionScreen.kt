@@ -16,6 +16,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -82,6 +83,8 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     var result by remember { mutableStateOf<JiaQuizResult?>(null) }
     var history by remember { mutableStateOf<List<JiaQuizHistoryItem>?>(null) }
     var performance by remember { mutableStateOf<JiaQuizPerformance?>(null) }
+    var studyPlan by remember { mutableStateOf<JiaStudyPlan?>(null) }
+    var studyPlanLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -148,6 +151,21 @@ fun QuizSelectionScreen(repository: CatalogueRepository, signedIn: Boolean, modi
     val totalQuestions = activeAttempt?.questions?.size ?: 0
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Java practice", style = MaterialTheme.typography.headlineSmall)
+        OutlinedCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Personalized study plan", style = MaterialTheme.typography.titleMedium)
+                Text("Build a plan from unfinished lessons and quiz topic accuracy.")
+                Button(enabled = !studyPlanLoading, onClick = {
+                    scope.launch {
+                        studyPlanLoading = true
+                        runCatching { StudyPlanRepository(context).load(BuildConfig.JIA_API_BASE_URL, 30) }
+                            .onSuccess { studyPlan = it }.onFailure { error = it.message ?: "Unable to load study plan." }
+                        studyPlanLoading = false
+                    }
+                }) { Text(if (studyPlanLoading) "Building plan…" else "Generate my plan") }
+                studyPlan?.let { StudyPlanScreen(it) }
+            }
+        }
         when {
             completed != null && activeAttempt != null -> {
                 Text("Quiz result", style = MaterialTheme.typography.titleLarge)
