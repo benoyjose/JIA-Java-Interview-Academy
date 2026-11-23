@@ -23,6 +23,24 @@ public class ProgressEventService {
     }
 
     @Transactional
+    public BatchReceipt appendBatch(CurrentUser user, java.util.List<EventRequest> requests) {
+        validateBatchSize(requests);
+        if (requests.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Batch cannot contain null events");
+        }
+        java.util.List<EventReceipt> receipts = new java.util.ArrayList<>(requests.size());
+        int accepted = 0;
+        int duplicates = 0;
+        for (EventRequest request : requests) {
+            EventReceipt receipt = append(user, request);
+            receipts.add(receipt);
+            if ("ACCEPTED".equals(receipt.status())) accepted++;
+            else duplicates++;
+        }
+        return new BatchReceipt(receipts, accepted, duplicates);
+    }
+
+    @Transactional
     public EventReceipt append(CurrentUser user, EventRequest request) {
         if (request.eventId() == null || request.occurredAt() == null || request.eventType() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "eventId, eventType and occurredAt are required");
@@ -81,6 +99,13 @@ public class ProgressEventService {
     }
 
 
+    static void validateBatchSize(java.util.List<EventRequest> requests) {
+        if (requests == null || requests.isEmpty() || requests.size() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Batch must contain between 1 and 100 progress events");
+        }
+    }
+
     static UUID requireAcademyId(java.util.List<UUID> academyIds) {
         if (academyIds == null || academyIds.isEmpty() || academyIds.getFirst() == null) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No academy membership is available for progress events");
@@ -113,7 +138,6 @@ public class ProgressEventService {
         }
     }
 
-
     @Transactional(readOnly = true)
     public ProgressHistory history(CurrentUser user, int requestedSize, String cursor, String eventType) {
         int size = Math.max(1, Math.min(requestedSize, 100));
@@ -127,11 +151,9 @@ public class ProgressEventService {
         var rows = jdbc.query("""
                 SELECT e.event_id,e.event_type,e.occurred_at,l.slug
                 FROM learner_progress_events e LEFT JOIN lessons l ON l.id=e.lesson_id
-                WHERE e.user_id=? AND e.academy_code=?
-                  AND (? IS NULL OR e.event_type=?)
+                WHERE e.user_id=? AND e.academy_code=? AND (? IS NULL OR e.event_type=?)
                   AND (? IS NULL OR (e.occurred_at,e.event_id) < (?,?))
-                ORDER BY e.occurred_at DESC,e.event_id DESC
-                LIMIT ?
+                ORDER BY e.occurred_at DESC,e.event_id DESC LIMIT ?
                 """, (rs, row) -> new HistoryItem(rs.getObject("event_id", UUID.class),
                 rs.getString("event_type"), rs.getTimestamp("occurred_at").toInstant(), rs.getString("slug")),
                 user.id(), academyId.toString(), normalizedType, normalizedType,
@@ -147,33 +169,25 @@ public class ProgressEventService {
                 user.id(), academyId.toString());
         return new ProgressHistory(items, next, size, counts);
     }
-
     private static String encodeCursor(HistoryItem item) {
         String raw = item.occurredAt().toString() + "|" + item.eventId();
-        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
-                raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
-
     private static Cursor decodeCursor(String value) {
         if (value == null || value.isBlank()) return null;
         try {
-            String raw = new String(java.util.Base64.getUrlDecoder().decode(value),
-                    java.nio.charset.StandardCharsets.UTF_8);
-            String[] parts = raw.split("\\|", -1);
+            String[] parts = new String(java.util.Base64.getUrlDecoder().decode(value), java.nio.charset.StandardCharsets.UTF_8).split("\\|", -1);
             if (parts.length != 2) throw new IllegalArgumentException();
             return new Cursor(Instant.parse(parts[0]), UUID.fromString(parts[1]));
-        } catch (RuntimeException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid progress history cursor");
-        }
+        } catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid progress history cursor"); }
     }
-
     private record Cursor(Instant occurredAt, UUID eventId) {}
     public record HistoryItem(UUID eventId, String eventType, Instant occurredAt, String lessonSlug) {}
     public record EventCount(String eventType, long count) {}
-    public record ProgressHistory(java.util.List<HistoryItem> items, String nextCursor, int pageSize,
-                                 java.util.List<EventCount> summary) {}
+    public record ProgressHistory(java.util.List<HistoryItem> items, String nextCursor, int pageSize, java.util.List<EventCount> summary) {}
 
     public record EventRequest(UUID eventId, String eventType, Instant occurredAt,
                                String lessonSlug, JsonNode payload) {}
     public record EventReceipt(UUID eventId, String status, Instant occurredAt) {}
+    public record BatchReceipt(java.util.List<EventReceipt> events, int acceptedCount, int duplicateCount) {}
 }
