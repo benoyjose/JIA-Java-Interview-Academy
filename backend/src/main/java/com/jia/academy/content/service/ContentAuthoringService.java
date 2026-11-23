@@ -376,6 +376,26 @@ public class ContentAuthoringService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Only an approved lesson or approved revision can be published");
         }
+        // Fail closed: validate the exact immutable snapshot and approval being published.
+        var snapshotRows = jdbc.query("""
+                SELECT revision_number,source_type,content_json::text AS content_json
+                FROM lesson_revisions WHERE id=? AND lesson_id=?
+                """, (rs, row) -> new ApprovedRevision(rs.getInt("revision_number"),
+                rs.getString("source_type"), rs.getString("content_json")), revisionId, lessonId);
+        if (snapshotRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Approved revision snapshot is missing");
+        }
+        ApprovedRevision snapshot = snapshotRows.getFirst();
+        contentValidator.validate(snapshot.contentJson());
+        validatePublicationEditorialGate(snapshot.contentJson(), snapshot.sourceType());
+        Integer exactApproval = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM content_review_tasks
+                WHERE lesson_id=? AND revision_id=? AND status='APPROVED'
+                """, Integer.class, lessonId, revisionId);
+        if (exactApproval == null || exactApproval == 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Publication requires approval for this exact revision");
+        }
         int changed = jdbc.update("""
                 UPDATE lessons SET status='PUBLISHED',published_revision_id=?,draft_revision_id=NULL,
                     content_revision=(SELECT revision_number FROM lesson_revisions WHERE id=?),updated_at=now()
@@ -589,6 +609,7 @@ public class ContentAuthoringService {
     private record LessonReviewState(String status, int contentRevision, UUID draftRevisionId) {}
     private record ReviewTaskOwner(UUID lessonId, UUID submittedBy, UUID revisionId, String lessonStatus) {}
     private record PublishState(String status, UUID draftRevisionId) {}
+    private record ApprovedRevision(int revisionNumber, String sourceType, String contentJson) {}
 
     private record UnpublishState(String status, UUID publishedRevisionId, UUID draftRevisionId) {}
     private record PublishedLessonState(String slug, int contentRevision, UUID draftRevisionId, String categorySlug) {}
@@ -617,6 +638,41 @@ public class ContentAuthoringService {
 
     private static int totalPages(long totalItems, int size) {
         return totalItems == 0 ? 0 : (int) ((totalItems + size - 1) / size);
+    }
+
+    private void validatePublicationEditorialGate(String contentJson, String sourceType) {
+        try {
+            var root = mapper.readTree(contentJson);
+            var blocks = root.path("blocks");
+            boolean explanation = false, practice = false;
+            for (var block : blocks) {
+                String type = block.path("type").asText("");
+                explanation |= type.equals("markdown") || type.equals("interviewAnswer");
+                practice |= type.equals("practice") || type.equals("question")
+                        || type.equals("quiz") || type.equals("exercise");
+            }
+            if (!explanation) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Editorial gate: add an explanation or structured interview answer");
+            if (!practice) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Editorial gate: add practice, a question, quiz or exercise");
+            if ("EXTERNAL_REFERENCE".equalsIgnoreCase(sourceType)) {
+                var sources = root.path("sources");
+                if (!sources.isArray() || sources.isEmpty())
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "External content requires sources[] provenance");
+                for (var source : sources) {
+                    if (source.path("url").asText("").isBlank()
+                            || source.path("title").asText("").isBlank()
+                            || source.path("accessedAt").asText("").isBlank()
+                            || source.path("licenseNotes").asText("").isBlank())
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Each source needs url, title, accessedAt and licenseNotes");
+                }
+            }
+        } catch (ResponseStatusException ex) { throw ex; }
+        catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Editorial metadata is invalid");
+        }
     }
 
     private void validateContent(String contentJson) {
