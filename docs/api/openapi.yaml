@@ -133,6 +133,98 @@ paths:
                   notificationPreferences: { type: array, items: { type: object } }
                   notifications: { type: array, items: { type: object } }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/progress-snapshot:
+    get:
+      summary: Read paginated server-derived learner progress
+      tags: [Learning]
+      operationId: getLearnerProgressSnapshot
+      parameters:
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: afterSlug, in: query, schema: { type: string, maxLength: 160 } }
+      responses:
+        '200':
+          description: Academy-scoped progress and server-computed aggregate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, aggregate]
+                properties:
+                  items: { type: array, items: { type: object } }
+                  nextAfterSlug: { type: [string, 'null'] }
+                  aggregate:
+                    type: object
+                    required: [lessonsStarted, lessonsCompleted, averageProgressPercent]
+                    properties:
+                      lessonsStarted: { type: integer, format: int64 }
+                      lessonsCompleted: { type: integer, format: int64 }
+                      averageProgressPercent: { type: number }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /coding-submissions:
+    post:
+      summary: Queue a Java coding practice submission; execution remains disabled
+      tags: [Learning]
+      operationId: createCodingSubmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exerciseId, idempotencyKey, language, sourceCode]
+              properties:
+                exerciseId: { type: string, format: uuid }
+                idempotencyKey: { type: string, format: uuid }
+                language: { type: string, const: JAVA }
+                sourceCode: { type: string, minLength: 1, maxLength: 65536 }
+      responses:
+        '202': { description: Queued; sandbox execution is disabled }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { description: Source exceeds 64 KiB }
+  /coding-submissions/{submissionId}:
+    get:
+      summary: Read owned coding submission status
+      tags: [Learning]
+      operationId: getCodingSubmissionStatus
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Status and execution-disabled notice }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /coding-submissions/{submissionId}/cancel:
+    post:
+      summary: Cancel a queued submission or request cancellation
+      tags: [Learning]
+      operationId: cancelCodingSubmission
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Current status and cancellation state }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/study-plan:
+    get:
+      summary: Get a personalized study plan within a daily time budget
+      tags: [Learner Discovery]
+      operationId: getPersonalizedStudyPlan
+      parameters:
+        - { name: dailyMinutes, in: query, schema: { type: integer, minimum: 10, maximum: 180, default: 30 } }
+      responses:
+        '200':
+          description: Server-derived prioritized study tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dailyMinutes, tasks]
+                properties:
+                  dailyMinutes: { type: integer }
+                  tasks: { type: array, items: { type: object } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /health/live:
     get:
       summary: Report API process liveness
