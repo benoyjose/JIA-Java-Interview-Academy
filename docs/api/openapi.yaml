@@ -1997,6 +1997,59 @@ paths:
         '429': { description: Rate limit exceeded; retry with backoff }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /me/progress-events/history:
+    get:
+      summary: Read learner progress history and server-derived event totals
+      tags: [Learning]
+      operationId: getLearnerProgressHistory
+      description: >-
+        Returns only the authenticated learner's event records in the selected academy
+        membership. Cursor is an opaque continuation token; clients must not interpret it.
+        Summary counts are calculated from the deduplicated server ledger and are not mastery scores.
+      parameters:
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
+        - name: cursor
+          in: query
+          schema: { type: string, maxLength: 256 }
+        - name: eventType
+          in: query
+          schema: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+      responses:
+        '200':
+          description: Learner-scoped history page and event counts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor, pageSize, summary]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventId, eventType, occurredAt]
+                      properties:
+                        eventId: { type: string, format: uuid }
+                        eventType: { type: string }
+                        occurredAt: { type: string, format: date-time }
+                        lessonSlug: { type: [string, 'null'] }
+                  nextCursor: { type: [string, 'null'] }
+                  pageSize: { type: integer }
+                  summary:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventType, count]
+                      properties:
+                        eventType: { type: string }
+                        count: { type: integer, format: int64 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
 components:
   securitySchemes:
     bearerAuth:
