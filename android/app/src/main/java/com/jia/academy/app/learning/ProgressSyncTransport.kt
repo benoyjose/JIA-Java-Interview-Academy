@@ -1,9 +1,13 @@
 package com.jia.academy.app.learning
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.time.Instant
+import java.util.UUID
 
 internal data class SyncHttpResponse(val status: Int, val body: String)
 
@@ -49,4 +53,111 @@ internal object ProgressSyncResponsePolicy {
         JSONObject().put("contentRevision", item.contentRevision)
             .put("progressPercent", item.progressPercent)
             .also { json -> item.lastPositionJson?.let { json.put("lastPosition", JSONObject(it)) } }
+}
+
+internal data class BatchSyncEvent(
+    val eventId: String,
+    val json: JSONObject,
+    val progressSnapshot: PendingLessonProgress? = null,
+    val bookmarkSnapshot: PendingBookmark? = null
+)
+
+internal object ProgressBatchEventFactory {
+    fun progress(item: PendingLessonProgress): BatchSyncEvent {
+        val eventId = stableId("progress", item.lessonSlug, item.updatedAt)
+        val payload = JSONObject()
+            .put("contentRevision", item.contentRevision)
+            .put("progressPercent", item.progressPercent)
+        item.lastPositionJson?.let { payload.put("lastPosition", JSONObject(it)) }
+        return BatchSyncEvent(eventId, envelope(eventId,
+            if (item.progressPercent >= 100.0) "LESSON_COMPLETED" else "LESSON_STARTED",
+            item.lessonSlug, item.updatedAt, payload), progressSnapshot = item)
+    }
+
+    fun bookmark(item: PendingBookmark): BatchSyncEvent {
+        val eventId = stableId("bookmark", item.lessonSlug, item.updatedAt)
+        return BatchSyncEvent(eventId, envelope(eventId, "BOOKMARK_CHANGED", item.lessonSlug,
+            item.updatedAt, JSONObject().put("bookmarked", item.bookmarked)), bookmarkSnapshot = item)
+    }
+
+    fun batchBody(events: List<BatchSyncEvent>): JSONObject {
+        require(events.isNotEmpty() && events.size <= ProgressBatchReceiptParser.MAX_BATCH_SIZE)
+        return JSONObject().put("events", JSONArray().also { array -> events.forEach { array.put(it.json) } })
+    }
+
+    private fun envelope(eventId: String, type: String, slug: String, updatedAt: Long, payload: JSONObject) =
+        JSONObject().put("eventId", eventId)
+            .put("eventType", type)
+            .put("occurredAt", Instant.ofEpochMilli(updatedAt).toString())
+            .put("lessonSlug", slug)
+            .put("payload", payload)
+
+    /** Same persisted snapshot always yields the same UUID across retries and process restarts. */
+    private fun stableId(kind: String, slug: String, updatedAt: Long): String =
+        UUID.nameUUIDFromBytes("jia-progress-v1:$kind:$slug:$updatedAt".toByteArray(StandardCharsets.UTF_8)).toString()
+}
+
+internal enum class BatchSyncResponseAction { ACKNOWLEDGE, RETRY, REJECT }
+
+internal object ProgressBatchSyncResponsePolicy {
+    fun classify(status: Int): BatchSyncResponseAction = when {
+        status in 200..299 -> BatchSyncResponseAction.ACKNOWLEDGE
+        status == 408 || status == 429 || status >= 500 -> BatchSyncResponseAction.RETRY
+        else -> BatchSyncResponseAction.REJECT
+    }
+}
+
+/** Receipt validation is fail-closed: queue rows are acknowledged only for exact returned IDs. */
+internal data class ProgressBatchReceipt(
+    val eventId: String,
+    val disposition: ProgressReceiptDisposition,
+    val occurredAt: String
+)
+
+internal enum class ProgressReceiptDisposition { ACCEPTED, DUPLICATE }
+
+internal object ProgressBatchReceiptParser {
+    const val MAX_BATCH_SIZE = 100
+
+    fun parse(responseBody: String, submittedEventIds: List<String>): List<ProgressBatchReceipt> {
+        require(submittedEventIds.isNotEmpty() && submittedEventIds.size <= MAX_BATCH_SIZE) {
+            "Progress batch must contain between 1 and $MAX_BATCH_SIZE events"
+        }
+        require(submittedEventIds.all(String::isNotBlank) && submittedEventIds.toSet().size == submittedEventIds.size) {
+            "Submitted progress event IDs must be nonblank and unique"
+        }
+        val root = JSONObject(responseBody)
+        val events = root.optJSONArray("events")
+            ?: throw IllegalArgumentException("Batch response is missing event receipts")
+        require(events.length() == submittedEventIds.size) {
+            "Batch response does not contain one receipt per submitted event"
+        }
+        val expected = submittedEventIds.toSet()
+        val seen = HashSet<String>()
+        val receipts = buildList {
+            for (index in 0 until events.length()) {
+                val item = events.optJSONObject(index)
+                    ?: throw IllegalArgumentException("Batch receipt at index $index is invalid")
+                val id = item.optString("eventId").takeIf(String::isNotBlank)
+                    ?: throw IllegalArgumentException("Batch receipt is missing eventId")
+                require(id in expected) { "Batch response contains an unknown event ID" }
+                require(seen.add(id)) { "Batch response repeats an event ID" }
+                val disposition = when (item.optString("status")) {
+                    "ACCEPTED" -> ProgressReceiptDisposition.ACCEPTED
+                    "DUPLICATE" -> ProgressReceiptDisposition.DUPLICATE
+                    else -> throw IllegalArgumentException("Batch response contains an unrecognized receipt status")
+                }
+                val occurredAt = item.optString("occurredAt").takeIf(String::isNotBlank)
+                    ?: throw IllegalArgumentException("Batch receipt is missing occurredAt")
+                Instant.parse(occurredAt)
+                add(ProgressBatchReceipt(id, disposition, occurredAt))
+            }
+        }
+        require(seen == expected) { "Batch response omitted one or more submitted event IDs" }
+        require(root.optInt("acceptedCount", -1) == receipts.count { it.disposition == ProgressReceiptDisposition.ACCEPTED } &&
+            root.optInt("duplicateCount", -1) == receipts.count { it.disposition == ProgressReceiptDisposition.DUPLICATE }) {
+            "Batch receipt summary does not match its event receipts"
+        }
+        return receipts
+    }
 }
