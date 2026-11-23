@@ -22,6 +22,6 @@ export function AppShell({ activeTab, onNavigate, children }: PropsWithChildren<
       </nav>
       <div className="sidebar-footer"><div className="avatar" aria-hidden="true">{user?.name.slice(0, 1).toUpperCase() ?? "A"}</div><div className="account-copy"><strong>{user?.name}</strong><span>{user?.roles.join(" · ")}</span></div><button className="icon-button" title="Sign out" aria-label="Sign out" onClick={() => void logout()}>↗</button></div>
     </aside>
-    <main id="main-content" className="main-area" tabIndex={-1}><header className="topbar"><div><span className="topbar-kicker">JIA / CONTENT OPERATIONS</span><span className="topbar-status"><i /> API workspace</span></div><span className="topbar-user">{user?.email}</span></header><div className="page-content" id="page-content">{children}</div></main>
+    <main id="main-content" className="main-area" tabIndex={-1}><header className="topbar" role="region" aria-label="Workspace header"><div><span className="topbar-kicker">JIA / CONTENT OPERATIONS</span><span className="topbar-status"><i /> API workspace</span></div><span className="topbar-user">{user?.email}</span></header><div className="page-content" id="page-content">{children}</div></main>
   </div>;
 }
