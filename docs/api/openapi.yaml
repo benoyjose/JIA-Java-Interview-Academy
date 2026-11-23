@@ -2362,7 +2362,7 @@ components:
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
         '200':
-          description: Page of academy-scoped published, publicly accessible matches; question results expose prompt metadata only
+          description: Academy-scoped published public search results; question prompts only, never answer keys
           content:
             application/json:
               schema:
