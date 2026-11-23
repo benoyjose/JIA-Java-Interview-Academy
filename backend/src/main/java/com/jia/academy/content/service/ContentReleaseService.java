@@ -169,11 +169,11 @@ public class ContentReleaseService {
                 JOIN lessons l ON l.id=req.lesson_id JOIN categories c ON c.id=l.category_id
                 JOIN technologies t ON t.id=c.technology_id
                 WHERE t.academy_id=?
-                """, (rs, row) -> {
-            requiredByLesson.computeIfAbsent(rs.getObject("lesson_id", UUID.class), ignored -> new HashSet<>())
-                    .add(rs.getString("entitlement_code"));
-            return null;
-        }, academyId);
+                """, (rs, row) -> Map.entry(rs.getObject("lesson_id", UUID.class),
+                rs.getString("entitlement_code")), academyId)
+                .forEach(requirement -> requiredByLesson
+                        .computeIfAbsent(requirement.getKey(), ignored -> new HashSet<>())
+                        .add(requirement.getValue()));
         Set<String> granted = activeEntitlements(user, academyId);
         return items.stream().filter(item -> {
             Set<String> required = requiredByLesson.getOrDefault(item.id(), Set.of());
