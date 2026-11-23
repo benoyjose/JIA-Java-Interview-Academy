@@ -25,7 +25,7 @@ data class OfflineDownloadSummary(
  * Lesson bytes are validated before cacheLesson is called, so a failed revision/checksum leaves
  * the previously cached last-known-good lesson untouched.
  */
-class OfflineManifestDownloadCoordinator(
+internal class OfflineManifestDownloadCoordinator(
     private val store: OfflineLearningStore,
     private val loadLesson: suspend (slug: String) -> LessonDetail
 ) {
