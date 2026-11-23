@@ -79,7 +79,7 @@ final class LearnerPrivacyControllerTest extends TestCase
         $this->assertSame('learner@example.test', $payload['profile'][0]['email']);
         $this->assertArrayNotHasKey('password_hash', $payload['profile'][0]);
         $this->assertCount(1, $payload['bookmarks']);
-        $this->assertSame(self::USER, $payload['bookmarks'][0]['user_id'] ?? self::USER);
+        $this->assertSame('70000000-0000-0000-0000-000000000001', $payload['bookmarks'][0]['lesson_id']);
     }
 
     public function test_export_requires_authenticated_jia_principal(): void
