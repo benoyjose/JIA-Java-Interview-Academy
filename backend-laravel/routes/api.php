@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\FederatedAuthController;
 use App\Http\Controllers\Api\V1\PhoneOtpController;
 use App\Http\Controllers\Api\V1\CatalogueController;
 use App\Http\Controllers\Api\V1\QuizController;
+use App\Http\Controllers\Api\V1\StudyPlanController;
 use App\Http\Controllers\Api\V1\LearnerLibraryController;
 use App\Http\Controllers\Api\V1\LearnerPrivacyController;
 use App\Http\Controllers\Api\V1\LessonImportController;
@@ -36,6 +37,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/quiz-attempts/{attemptId}/answers', [QuizController::class, 'saveAnswers']);
         Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);
         Route::get('/me/quiz-performance', [QuizController::class, 'performance']);
+        Route::get('/me/study-plan', [StudyPlanController::class, 'show']);
         Route::get('/me/quiz-attempts', [QuizController::class, 'history']);
         Route::get('/me/lesson-progress', [LearnerLibraryController::class, 'progress']);
         Route::put('/me/lesson-progress/{lessonSlug}', [LearnerLibraryController::class, 'updateProgress']);
