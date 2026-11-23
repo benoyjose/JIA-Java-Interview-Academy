@@ -67,7 +67,7 @@ final class LearnerLibraryControllerTest extends TestCase
         DB::table('lesson_revisions')->insert([
             'id' => '74000000-0000-0000-0000-000000000001',
             'lesson_id' => '73000000-0000-0000-0000-000000000001',
-            'revision_number' => 1,
+            'revision_number' => 3,
         ]);
     }
 
