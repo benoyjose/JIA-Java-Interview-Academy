@@ -26,7 +26,7 @@ public class SpacedReviewScheduleController {
    """,user.id(),ACADEMY);
   return Map.of("dueCount",items.size(),"items",items);
  }
- @PostMapping("/{lessonSlug}/grade") public Map<String,Object> grade(@AuthenticationPrincipal CurrentUser user,@PathVariable String lessonSlug,@RequestBody GradeRequest request){
+ @PostMapping("/{lessonSlug}/grade") public Map<String,Object> grade(@AuthenticationPrincipal CurrentUser user,@PathVariable String lessonSlug,@RequestBody ReviewRatingRequest request){
   requireUser(user);if(request.rating()<0||request.rating()>5)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"rating must be 0..5");
   UUID lesson=jdbc.query("SELECT l.id FROM lessons l JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id WHERE l.slug=? AND l.status='PUBLISHED' AND t.academy_id=?",(rs)->rs.next()?UUID.fromString(rs.getString(1)):null,lessonSlug,ACADEMY);
   if(lesson==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Published lesson not found");
@@ -45,5 +45,5 @@ public class SpacedReviewScheduleController {
   return Map.of("algorithmVersion",1,"repetitions",state.repetitions(),"easeFactor",state.easeFactor(),"intervalDays",state.intervalDays(),"dueDate",state.dueDate());
  }
  private static void requireUser(CurrentUser user){if(user==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Unauthenticated");}
- public record GradeRequest(int rating,int repetitions,double easeFactor,int intervalDays,LocalDate reviewedOn){}
+ public record GradeRequest(int rating,int repetitions,double easeFactor,int intervalDays,LocalDate reviewedOn){}\n public record ReviewRatingRequest(int rating){}
 }
