@@ -59,6 +59,11 @@ internal class OfflineManifestDownloadCoordinator(
             }
             onProgress(OfflineDownloadProgress(manifest.version, index + 1, manifest.items.size, null))
         }
+        // Prune only after every manifest item was fetched and integrity-checked. A failed or
+        // cancelled download keeps the last known-good library intact.
+        if (OfflineReleaseReconciliation.shouldPruneAfterDownload(true, true)) {
+            store.reconcileCachedLessons(manifest.items.map { it.slug }.toSet())
+        }
         return OfflineDownloadSummary(manifest.version, downloaded, current)
     }
 }
