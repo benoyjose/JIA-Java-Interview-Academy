@@ -140,5 +140,6 @@ public class ProgressEventService {
 
     public record EventRequest(UUID eventId, String eventType, Instant occurredAt,
                                String lessonSlug, JsonNode payload) {}
-    public record EventReceipt(UUID eventId, String status, Instant occurredAt) {}\n    public record BatchReceipt(java.util.List<EventReceipt> events, int acceptedCount, int duplicateCount) {}
+    public record EventReceipt(UUID eventId, String status, Instant occurredAt) }
+    public record BatchReceipt(java.util.List<EventReceipt> events, int acceptedCount, int duplicateCount) {}
 }
