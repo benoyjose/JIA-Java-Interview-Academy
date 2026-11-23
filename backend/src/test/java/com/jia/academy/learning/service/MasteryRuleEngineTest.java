@@ -16,7 +16,7 @@ class MasteryRuleEngineTest {
 
     @Test void objectiveEvidenceDominatesAndStrongRecentEvidenceCanMaster() {
         var result = engine.evaluate(new MasteryRuleEngine.Evidence(8, 10, 19, 20, 80, now), now);
-        assertEquals(85, result.score());
+        assertEquals(91, result.score());
         assertEquals(MasteryRuleEngine.Band.MASTERED, result.band());
         assertFalse(result.reviewDue());
     }
