@@ -1,0 +1,7 @@
+<?php
+namespace App\Http\Controllers\Api\V1;
+use App\Services\SpacedReviewScheduler;use Illuminate\Http\JsonResponse;use Illuminate\Http\Request;use Illuminate\Support\Facades\DB;
+final class SpacedReviewController {
+ public function queue(Request $r):JsonResponse{$u=$r->attributes->get('jia_user');abort_if(!$u,401);$items=DB::table('learner_spaced_reviews as s')->join('lessons as l','l.id','=','s.lesson_id')->where('s.user_id',$u->id)->where('s.due_at','<=',now())->where('l.status','PUBLISHED')->orderBy('s.due_at')->limit(50)->get(['l.slug','l.title','s.repetitions','s.interval_days','s.due_at']);return response()->json(['dueCount'=>$items->count(),'items'=>$items]);}
+ public function grade(Request $r,string $slug,SpacedReviewScheduler $scheduler):JsonResponse{$u=$r->attributes->get('jia_user');abort_if(!$u,401);$d=$r->validate(['rating'=>['required','integer','min:0','max:5']]);$l=DB::table('lessons')->where('slug',$slug)->where('status','PUBLISHED')->first(['id']);abort_if(!$l,404);$old=DB::table('learner_spaced_reviews')->where('user_id',$u->id)->where('lesson_id',$l->id)->first();$state=$scheduler->schedule($d['rating'],(int)($old->repetitions??0),(float)($old->ease_factor??2.5),(int)($old->interval_days??0));DB::table('learner_spaced_reviews')->updateOrInsert(['user_id'=>$u->id,'lesson_id'=>$l->id],[...$state,'last_rating'=>$d['rating'],'last_reviewed_at'=>now(),'updated_at'=>now(),'created_at'=>$old->created_at??now()]);return response()->json(['lessonSlug'=>$slug,'rating'=>$d['rating'],...$state]);}
+}
