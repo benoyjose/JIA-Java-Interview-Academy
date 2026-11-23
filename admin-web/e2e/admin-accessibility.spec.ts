@@ -33,5 +33,5 @@ test("admin shell exposes skip navigation, named landmarks and keyboard focus", 
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   await expect(navigation.getByRole("button", { name: /Dashboard/ })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("complementary", { name: "Workspace navigation" })).toBeVisible();
-  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Workspace header" })).toBeVisible();
 });
