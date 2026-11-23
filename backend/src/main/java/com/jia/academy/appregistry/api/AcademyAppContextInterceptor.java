@@ -11,9 +11,10 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Validates registered academy identity whenever supplied. Existing JIA
- * headerless reads remain compatible during rollout; admin mutations require
- * an explicit registered app context so privileged writes are auditable.
+ * Validates registered academy identity whenever supplied. Every admin
+ * endpoint requires registered app context, including reads, so tenant context
+ * cannot silently disappear from audit and authorization paths. Public and
+ * legacy learner reads remain compatible during staged client rollout.
  */
 @Component
 public class AcademyAppContextInterceptor implements HandlerInterceptor {
@@ -36,7 +37,7 @@ public class AcademyAppContextInterceptor implements HandlerInterceptor {
         if (context == null) {
             if (requiresRegisteredContext(request)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Admin mutations require registered academy-app identity headers");
+                        "Admin requests require registered academy-app identity headers");
             }
             return true;
         }
@@ -63,8 +64,6 @@ public class AcademyAppContextInterceptor implements HandlerInterceptor {
                 || !request.getRequestURI().startsWith("/api/v1/admin/")) {
             return false;
         }
-        String method = request.getMethod();
-        return "POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)
-                || "PATCH".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method);
+        return true;
     }
 }
