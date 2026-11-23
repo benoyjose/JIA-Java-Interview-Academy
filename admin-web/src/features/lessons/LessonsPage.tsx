@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, validateLessonContent } from "../../api/client";
 import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, LessonStatus, PageResult, RevisionHistoryItem } from "../../api/types";
-import { useAuth } from "../../auth/AuthContext";\nimport { LessonContentWorkbench } from "./LessonContentWorkbench";
+import { useAuth } from "../../auth/AuthContext";
+import { LessonContentWorkbench } from "./LessonContentWorkbench";
 
 const PAGE_SIZE = 25;
 const statuses: Array<LessonStatus | "ALL"> = ["ALL", "DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"];
