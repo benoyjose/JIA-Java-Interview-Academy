@@ -132,10 +132,11 @@ export function TaxonomyPage() {
         <div className="taxonomy-filters"><label>Search categories<input type="search" value={categorySearch} onChange={event => setCategorySearch(event.target.value)} placeholder="Name, slug or status" /></label><label>Status<select value={categoryStatus} onChange={event => setCategoryStatus(event.target.value)}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label></div>
         {loading ? <p className="muted">Loading taxonomy…</p> : visible.length === 0 ?
           <p className="muted">No categories found for this technology.</p> :
-          {categoryRows.length === 0 ? <p className="muted">No categories match these filters.</p> : <div className="table-wrap"><table className="data-table"><thead><tr>
+          categoryRows.length === 0 ? <p className="muted">No categories match these filters.</p> :
+          <div className="table-wrap"><table className="data-table"><thead><tr>
             <th>Category</th><th>Slug</th><th>Content</th><th>Status</th><th>Actions</th>
-          </tr></thead><tbody>{visible.map(item => <tr key={item.id}>
-            <td><strong>{item.parentSlug ? "↳ " : ""}{item.name}</strong></td><td><code>{item.slug}</code></td>
+          </tr></thead><tbody>{categoryRows.map(({ item, depth }) => <tr key={item.id}>
+            <td><strong style={{ paddingInlineStart: `${depth * 1.25}rem` }}>{depth > 0 ? "↳ " : ""}{item.name}</strong></td><td><code>{item.slug}</code></td>
             <td>{item.lessonCount} lessons · {item.questionCount} questions</td><td>{item.status}</td>
             <td><button className="text-button" onClick={() => edit(item)} disabled={item.status === "ARCHIVED"}>Edit</button>
               <button className="text-button danger-text" onClick={() => void archive(item)} disabled={item.status === "ARCHIVED"}>Archive</button></td>
