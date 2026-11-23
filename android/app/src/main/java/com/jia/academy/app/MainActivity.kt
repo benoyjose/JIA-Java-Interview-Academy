@@ -165,18 +165,60 @@ fun JiaApp() {
             composable("search") { PublicSearchScreen(BuildConfig.JIA_API_BASE_URL, Modifier.fillMaxSize()) }
             composable("offline-library") {
                 val offlineStore = remember(context) { OfflineLearningStore(context) }
+                val sessionStore = remember(context) { com.jia.academy.app.auth.SecureSessionStore(context) }
+                val downloadController = remember(context, offlineStore) {
+                    com.jia.academy.app.learning.OfflineLibraryDownloadController(
+                        BuildConfig.JIA_API_BASE_URL, offlineStore, { sessionStore.accessToken() })
+                }
+                val downloadScope = rememberCoroutineScope()
                 var cachedLessons by remember { mutableStateOf<List<OfflineCachedLessonInfo>>(emptyList()) }
                 var loadError by remember { mutableStateOf<String?>(null) }
+                var downloadActive by remember { mutableStateOf(false) }
+                var downloadProgressLabel by remember { mutableStateOf<String?>(null) }
+                var downloadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
                 fun refreshOfflineLibrary() {
                     runCatching { offlineStore.cachedLessonLibrary() }
                         .onSuccess { cachedLessons = it; loadError = null }
                         .onFailure { loadError = it.message ?: "Unable to read offline library" }
                 }
+                fun startOfflineDownload() {
+                    if (downloadActive) return
+                    downloadJob = downloadScope.launch {
+                        downloadActive = true
+                        downloadProgressLabel = "Checking published content…"
+                        loadError = null
+                        try {
+                            val summary = downloadController.downloadLatest { progress ->
+                                downloadScope.launch(Dispatchers.Main.immediate) {
+                                    downloadProgressLabel = if (progress.currentSlug != null) {
+                                        "Downloading ${progress.currentSlug} (${progress.completedItems}/${progress.totalItems})"
+                                    } else {
+                                        "Downloaded ${progress.completedItems} of ${progress.totalItems} lessons"
+                                    }
+                                }
+                            }
+                            refreshOfflineLibrary()
+                            downloadProgressLabel = "Downloaded ${summary.downloadedCount}; ${summary.alreadyCurrentCount} already current"
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            refreshOfflineLibrary()
+                            downloadProgressLabel = "Download cancelled"
+                        } catch (error: Exception) {
+                            loadError = error.message ?: "Offline download failed"
+                        } finally {
+                            downloadActive = false
+                            downloadJob = null
+                        }
+                    }
+                }
+
                 LaunchedEffect(Unit) { refreshOfflineLibrary() }
                 OfflineLibraryScreen(
-                    lessons = cachedLessons, loading = false, downloadActive = false,
+                    lessons = cachedLessons, loading = false, downloadActive = downloadActive,
+                    downloadProgressLabel = downloadProgressLabel,
                     errorMessage = loadError, onRefresh = ::refreshOfflineLibrary,
-                    onCancelDownload = {},
+                    onDownload = ::startOfflineDownload,
+                    onCancelDownload = { downloadJob?.cancel() },
                     onOpenLesson = { slug ->
                         val title = cachedLessons.firstOrNull { it.slug == slug }?.title ?: slug
                         selectedLesson = slug to title
