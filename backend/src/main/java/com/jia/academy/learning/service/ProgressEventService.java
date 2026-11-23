@@ -34,12 +34,12 @@ public class ProgressEventService {
                 || request.payload().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 8192)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event payload must be an object up to 8 KiB");
         }
-        String type = request.eventType().toUpperCase(java.util.Locale.ROOT);
+        String type = request.eventType().trim().toUpperCase(java.util.Locale.ROOT);
         if (!java.util.Set.of("LESSON_STARTED", "LESSON_COMPLETED", "QUESTION_ANSWERED",
                 "QUIZ_SUBMITTED", "BOOKMARK_CHANGED", "REVIEW_COMPLETED").contains(type)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported progress event type");
         }
-        UUID academyId = user.academyIds().getFirst();
+        UUID academyId = requireAcademyId(user.academyIds());
         UUID lessonId = null;
         if (request.lessonSlug() != null && !request.lessonSlug().isBlank()) {
             lessonId = jdbc.query("""
@@ -51,13 +51,7 @@ public class ProgressEventService {
                     new ResponseStatusException(HttpStatus.NOT_FOUND, "Published lesson not found"));
         }
         JsonNode payload = request.payload() == null ? mapper.createObjectNode() : request.payload();
-        // Reject arbitrary learner data; schema intentionally carries only small, non-sensitive event metadata.
-        var forbidden = java.util.List.of("answer", "answerKey", "password", "token", "email",
-                "mastery", "correctness", "solution", "submission");
-        forbidden.forEach(key -> {
-            if (payload.has(key)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Progress event payload must not contain sensitive or authoritative field: " + key);
-        });
+        validatePayload(payload);
         String json;
         try { json = mapper.writeValueAsString(payload); }
         catch (Exception ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid event payload"); }
@@ -70,6 +64,39 @@ public class ProgressEventService {
                 java.sql.Timestamp.from(request.occurredAt()), lessonId, json);
         return new EventReceipt(request.eventId(), inserted == 1 ? "ACCEPTED" : "DUPLICATE",
                 request.occurredAt());
+    }
+
+
+    static UUID requireAcademyId(java.util.List<UUID> academyIds) {
+        if (academyIds == null || academyIds.isEmpty() || academyIds.getFirst() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No academy membership is available for progress events");
+        }
+        return academyIds.getFirst();
+    }
+
+    static void validatePayload(JsonNode payload) {
+        if (payload == null || payload.isNull()) return;
+        if (!payload.isObject()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Event payload must be an object");
+        validateNode(payload);
+    }
+
+    private static void validateNode(JsonNode node) {
+        if (node.isObject()) {
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                String normalized = field.getKey().replaceAll("[^A-Za-z0-9]", "").toLowerCase(java.util.Locale.ROOT);
+                if (java.util.List.of("answer", "answerkey", "password", "token", "email", "mastery",
+                        "correctness", "correct", "score", "solution", "submission", "credential",
+                        "secret", "phone", "authorization").stream().anyMatch(normalized::contains)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Event payload contains a prohibited sensitive or authoritative field");
+                }
+                validateNode(field.getValue());
+            }
+        } else if (node.isArray()) {
+            node.forEach(ProgressEventService::validateNode);
+        }
     }
 
     public record EventRequest(UUID eventId, String eventType, Instant occurredAt,
