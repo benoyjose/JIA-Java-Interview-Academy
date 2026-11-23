@@ -1997,28 +1997,61 @@ paths:
         '429': { description: Rate limit exceeded; retry with backoff }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /me/progress-events/batch:
+    post:
+      summary: Atomically ingest a bounded batch of learner activity events
+      tags: [Learning]
+      operationId: appendLearnerProgressEventBatch
+      description: >-
+        Accepts 1–100 events in one transaction. Authenticated learner and academy
+        are server-derived. Identical retries return DUPLICATE receipts. A malformed
+        event or conflicting reuse of an event ID rolls back the whole batch.
+        Client mastery, correctness, answer keys and credentials are prohibited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { $ref: '#/components/schemas/LearnerProgressEvent' }
+      responses:
+        '200':
+          description: Batch committed; events are accepted or identical duplicates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, acceptedCount, duplicateCount]
+                properties:
+                  events:
+                    type: array
+                    items: { $ref: '#/components/schemas/LearnerProgressEventReceipt' }
+                  acceptedCount: { type: integer, minimum: 0 }
+                  duplicateCount: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Conflicting event ID; entire batch rolled back }
+
   /me/progress-events/history:
     get:
       summary: Read learner progress history and server-derived event totals
       tags: [Learning]
       operationId: getLearnerProgressHistory
-      description: >-
-        Returns only the authenticated learner's event records in the selected academy
-        membership. Cursor is an opaque continuation token; clients must not interpret it.
-        Summary counts are calculated from the deduplicated server ledger and are not mastery scores.
+      description: Learner- and academy-scoped event records with opaque cursor pagination. Summary counts come from the deduplicated server ledger; they are not mastery scores.
       parameters:
-        - name: size
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 30 }
-        - name: cursor
-          in: query
-          schema: { type: string, maxLength: 256 }
-        - name: eventType
-          in: query
-          schema: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 256 } }
+        - { name: eventType, in: query, schema: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] } }
       responses:
         '200':
-          description: Learner-scoped history page and event counts
+          description: History page and event counts
           content:
             application/json:
               schema:
@@ -2048,7 +2081,6 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '500': { $ref: '#/components/responses/InternalError' }
 
 components:
   securitySchemes:
@@ -2104,6 +2136,22 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
   schemas:
+    LearnerProgressEvent:
+      type: object
+      required: [eventId, eventType, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+        occurredAt: { type: string, format: date-time }
+        lessonSlug: { type: [string, 'null'], maxLength: 160 }
+        payload: { type: object, maxProperties: 30, description: Optional non-sensitive metadata; server validates content and 8 KiB limit }
+    LearnerProgressEventReceipt:
+      type: object
+      required: [eventId, status, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        status: { type: string, enum: [ACCEPTED, DUPLICATE] }
+        occurredAt: { type: string, format: date-time }
     LearnerNotificationPreferences:
       type: object
       required: [remindersEnabled, pushEnabled, timezone]
