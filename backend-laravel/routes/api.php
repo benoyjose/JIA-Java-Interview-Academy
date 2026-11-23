@@ -37,7 +37,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/quiz-attempts/{attemptId}/answers', [QuizController::class, 'saveAnswers']);
         Route::post('/quiz-attempts/{attemptId}/submit', [QuizController::class, 'submit']);
         Route::get('/me/quiz-performance', [QuizController::class, 'performance']);
-        Route::get('/me/study-plan', [StudyPlanController::class, 'show']);\n        Route::get('/me/reviews/due', [SpacedReviewController::class, 'queue']);\n        Route::post('/me/reviews/{lessonSlug}/grade', [SpacedReviewController::class, 'grade']);
+        Route::get('/me/study-plan', [StudyPlanController::class, 'show']);
+        Route::get('/me/reviews/due', [SpacedReviewController::class, 'queue']);
+        Route::post('/me/reviews/{lessonSlug}/grade', [SpacedReviewController::class, 'grade']);
         Route::get('/me/quiz-attempts', [QuizController::class, 'history']);
         Route::get('/me/lesson-progress', [LearnerLibraryController::class, 'progress']);
         Route::put('/me/lesson-progress/{lessonSlug}', [LearnerLibraryController::class, 'updateProgress']);
