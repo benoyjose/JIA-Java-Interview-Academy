@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ApiError, api } from "../../api/client";
 import type { AcademyAnalyticsSummary } from "../../api/analytics";
-import { StudyPlanInsights } from "./StudyPlanInsights";\nimport { SpacedReviewPolicyPanel } from "../reviews/SpacedReviewPolicyPanel";
+import { StudyPlanInsights } from "./StudyPlanInsights";
+import { SpacedReviewPolicyPanel } from "../reviews/SpacedReviewPolicyPanel";
 
 const WINDOWS = [7, 30, 90] as const;
 type WindowDays = typeof WINDOWS[number];
