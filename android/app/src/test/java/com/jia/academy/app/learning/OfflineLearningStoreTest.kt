@@ -60,6 +60,33 @@ class OfflineLearningStoreTest {
     }
 
     @Test
+    fun cacheQuotaEvictsOldestLessonsAndPreservesNewLesson() {
+        store.setCacheLimitBytes(OfflineLearningStore.MIN_CACHE_LIMIT_BYTES)
+        val largeContent = """{"body":"${"y".repeat(400_000)}"}"""
+        store.cacheLesson(lesson("old-cache-a", 1, largeContent))
+        store.cacheLesson(lesson("old-cache-b", 1, largeContent))
+        store.cacheLesson(lesson("new-cache", 1, largeContent))
+
+        assertTrue(store.cachedContentBytes() <= store.cacheLimitBytes())
+        assertEquals(1, store.cachedLesson("new-cache")?.contentRevision)
+        assertNull(store.cachedLesson("old-cache-a"))
+        assertEquals(1, store.cachedLesson("old-cache-b")?.contentRevision)
+    }
+
+    @Test
+    fun loweringCacheQuotaEvictsImmediatelyWithoutTouchingProgressQueue() {
+        store.enqueueProgress("queued-progress", 1, 25.0)
+        val largeContent = """{"body":"${"y".repeat(400_000)}"}"""
+        store.cacheLesson(lesson("cached-a", 1, largeContent))
+        store.cacheLesson(lesson("cached-b", 1, largeContent))
+        store.cacheLesson(lesson("cached-c", 1, largeContent))
+        store.setCacheLimitBytes(OfflineLearningStore.MIN_CACHE_LIMIT_BYTES)
+
+        assertTrue(store.cachedContentBytes() <= store.cacheLimitBytes())
+        assertEquals(1, store.pendingProgress().size)
+    }
+
+    @Test
     fun progressQueueDeduplicatesAndNeverRegressesAcrossRevision() {
         store.enqueueProgress("lesson-a", 4, 45.0, """{"block":4}""")
         val first = store.pendingProgress().single()
