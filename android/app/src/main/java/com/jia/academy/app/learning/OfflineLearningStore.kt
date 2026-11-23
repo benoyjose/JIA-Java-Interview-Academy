@@ -64,6 +64,48 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             sourceType = lesson.sourceType, contentJson = content, checksum = checksum,
             cachedAt = System.currentTimeMillis()
         ))
+        evictToCacheLimit(protectedSlug = lesson.slug)
+    }
+
+    /** Current UTF-8 content bytes retained in the offline lesson cache. */
+    fun cachedContentBytes(): Long =
+        readableDatabase.query("SELECT COALESCE(SUM(LENGTH(CAST(content_json AS BLOB))),0) FROM cached_lessons", emptyArray()).use {
+            if (it.moveToFirst()) it.getLong(0) else 0L
+        }
+
+    fun cacheLimitBytes(): Long = appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+        .getLong(KEY_CACHE_LIMIT_BYTES, DEFAULT_CACHE_LIMIT_BYTES).coerceAtLeast(MIN_CACHE_LIMIT_BYTES)
+
+    /** Learner-selected limit; enforce immediately while preserving the most recently saved lesson. */
+    fun setCacheLimitBytes(limitBytes: Long) {
+        require(limitBytes >= MIN_CACHE_LIMIT_BYTES) { "Offline cache limit must be at least 16 MiB" }
+        appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+            .edit().putLong(KEY_CACHE_LIMIT_BYTES, limitBytes).apply()
+        evictToCacheLimit()
+    }
+
+    /** Removes least-recently-cached lessons only; pending learner activity is stored separately. */
+    fun evictToCacheLimit(protectedSlug: String? = null): Int {
+        val db = writableDatabase
+        var removed = 0
+        db.beginTransaction()
+        try {
+            var bytes = cachedContentBytes()
+            val limit = cacheLimitBytes()
+            if (bytes > limit) {
+                db.query("SELECT slug, LENGTH(CAST(content_json AS BLOB)) FROM cached_lessons ORDER BY cached_at ASC, slug ASC", emptyArray()).use { cursor ->
+                    while (bytes > limit && cursor.moveToNext()) {
+                        val slug = cursor.getString(0)
+                        val size = cursor.getLong(1)
+                        if (slug == protectedSlug) continue
+                        removed += db.delete("cached_lessons", "slug=?", arrayOf(slug))
+                        if (removed > 0) bytes -= size
+                    }
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        return removed
     }
 
     fun cachedLesson(slug: String): LessonDetail? {
@@ -240,6 +282,9 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
 
     companion object {
         private const val MAX_CONTENT_CHARS = 2_000_000
+        private const val KEY_CACHE_LIMIT_BYTES = "offline_cache_limit_bytes"
+        const val MIN_CACHE_LIMIT_BYTES = 16L * 1024L * 1024L
+        const val DEFAULT_CACHE_LIMIT_BYTES = 64L * 1024L * 1024L
     }
 }
 
