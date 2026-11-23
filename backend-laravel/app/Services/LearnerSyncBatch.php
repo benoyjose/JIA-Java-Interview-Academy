@@ -38,7 +38,7 @@ final class LearnerSyncBatch
         return DB::transaction(function () use ($userId, $events): array {
             $receipts = [];
             foreach ($events as $event) {
-                $canonical = json_encode($event, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+                $canonical = json_encode(self::canonicalize($event), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
                 $hash = hash('sha256', $canonical);
                 $inserted = DB::table('learner_sync_receipts')->insertOrIgnore([
                     'user_id' => $userId, 'event_id' => $event['eventId'],
