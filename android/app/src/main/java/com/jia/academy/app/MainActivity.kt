@@ -2,6 +2,8 @@ package com.jia.academy.app
 
 import com.jia.academy.app.catalogue.*
 import com.jia.academy.app.learning.OfflineLearningStore
+import com.jia.academy.app.learning.OfflineCachedLessonInfo
+import com.jia.academy.app.learning.OfflineLibraryScreen
 import com.jia.academy.app.lesson.LessonScreen
 import com.jia.academy.app.navigation.BrowseRoute
 
@@ -157,9 +159,41 @@ fun JiaApp() {
         NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") {
                 TechnologyScreen(catalogueViewModel, signedInAccount, Modifier.fillMaxSize(), ::navigate,
-                    onSignOut = { signedInAccount = null }, onSearch = { navController.navigate("search") })
+                    onSignOut = { signedInAccount = null }, onSearch = { navController.navigate("search") },
+                    onOfflineLibrary = { navController.navigate("offline-library") })
             }
             composable("search") { PublicSearchScreen(BuildConfig.JIA_API_BASE_URL, Modifier.fillMaxSize()) }
+            composable("offline-library") {
+                val offlineStore = remember(context) { OfflineLearningStore(context) }
+                var cachedLessons by remember { mutableStateOf<List<OfflineCachedLessonInfo>>(emptyList()) }
+                var loadError by remember { mutableStateOf<String?>(null) }
+                fun refreshOfflineLibrary() {
+                    runCatching { offlineStore.cachedLessonLibrary() }
+                        .onSuccess { cachedLessons = it; loadError = null }
+                        .onFailure { loadError = it.message ?: "Unable to read offline library" }
+                }
+                LaunchedEffect(Unit) { refreshOfflineLibrary() }
+                OfflineLibraryScreen(
+                    lessons = cachedLessons, loading = false, downloadActive = false,
+                    errorMessage = loadError, onRefresh = ::refreshOfflineLibrary,
+                    onCancelDownload = {},
+                    onOpenLesson = { slug ->
+                        val title = cachedLessons.firstOrNull { it.slug == slug }?.title ?: slug
+                        selectedLesson = slug to title
+                        navController.navigate("lesson")
+                    },
+                    onRemoveLesson = { slug ->
+                        runCatching { offlineStore.removeCachedLesson(slug) }
+                            .onSuccess { refreshOfflineLibrary() }
+                            .onFailure { loadError = it.message ?: "Unable to remove cached lesson" }
+                    },
+                    onClearLibrary = {
+                        runCatching { offlineStore.clearCachedLessons() }
+                            .onSuccess { refreshOfflineLibrary() }
+                            .onFailure { loadError = it.message ?: "Unable to clear offline library" }
+                    }, modifier = Modifier.fillMaxSize()
+                )
+            }
             composable("quiz") {
                 QuizSelectionScreen(repository, signedInAccount != null, Modifier.fillMaxSize())
             }
@@ -193,7 +227,8 @@ private fun TechnologyScreen(
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit,
     onSignOut: () -> Unit,
-    onSearch: () -> Unit
+    onSearch: () -> Unit,
+    onOfflineLibrary: () -> Unit
 ) {
     val state by catalogueViewModel.technologies.collectAsStateWithLifecycle()
     val items = state.data.orEmpty()
@@ -223,6 +258,7 @@ private fun TechnologyScreen(
         }
         Text("Quick explanations. Practical code. Interview-ready answers.")
         OutlinedButton(onClick = onSearch, modifier = Modifier.fillMaxWidth()) { Text("Search lessons and questions") }
+        OutlinedButton(onClick = onOfflineLibrary, modifier = Modifier.fillMaxWidth()) { Text("Offline library") }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Allow lesson downloads on mobile data", style = MaterialTheme.typography.bodyMedium)
