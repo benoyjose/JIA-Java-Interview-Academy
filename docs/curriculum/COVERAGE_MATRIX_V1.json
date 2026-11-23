@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "interpretation": "Coverage roadmap; does not assert authored, reviewed, imported, or published inventory.",
+  "domains": [
+    {
+      "slug": "java-language",
+      "name": "Java language, collections, streams and generics",
+      "targetLessons": 35,
+      "targetQuestions": 105,
+      "difficulty": [
+        "BEGINNER",
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "advanced-java/02-collections-generics-and-streams.md"
+      ],
+      "prerequisites": [],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "jvm-concurrency",
+      "name": "JVM, memory model, concurrency and performance",
+      "targetLessons": 25,
+      "targetQuestions": 75,
+      "difficulty": [
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "advanced-java/01-java-memory-model-and-safe-publication.md",
+        "advanced-java/03-jvm-internals-gc-and-performance.md"
+      ],
+      "prerequisites": [
+        "java-language"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "spring",
+      "name": "Spring Framework, Boot, transactions and security",
+      "targetLessons": 30,
+      "targetQuestions": 90,
+      "difficulty": [
+        "BEGINNER",
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "spring/01-spring-container-boot-transactions-security.md"
+      ],
+      "prerequisites": [
+        "java-language"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "persistence",
+      "name": "SQL, persistence, JPA and data engineering",
+      "targetLessons": 25,
+      "targetQuestions": 75,
+      "difficulty": [
+        "BEGINNER",
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "persistence/01-jpa-hibernate-sql-and-data-engineering.md"
+      ],
+      "prerequisites": [
+        "java-language"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "distributed-systems",
+      "name": "Microservices, resilience, consistency and sagas",
+      "targetLessons": 25,
+      "targetQuestions": 75,
+      "difficulty": [
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "distributed-systems/01-microservices-resilience-consistency-and-sagas.md"
+      ],
+      "prerequisites": [
+        "spring",
+        "persistence"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "messaging",
+      "name": "Kafka, RabbitMQ and event-driven architecture",
+      "targetLessons": 20,
+      "targetQuestions": 60,
+      "difficulty": [
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "messaging/01-kafka-rabbitmq-event-driven-systems.md"
+      ],
+      "prerequisites": [
+        "distributed-systems"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "system-design",
+      "name": "System design, capacity, reliability and multi-region",
+      "targetLessons": 25,
+      "targetQuestions": 75,
+      "difficulty": [
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "system-design/01-system-design-capacity-reliability-multiregion.md"
+      ],
+      "prerequisites": [
+        "distributed-systems",
+        "persistence"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "platform",
+      "name": "Docker, Kubernetes, cloud, CI/CD and GitOps",
+      "targetLessons": 20,
+      "targetQuestions": 60,
+      "difficulty": [
+        "NOVICE",
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "platform/01-docker-kubernetes-cloud-cicd-gitops.md"
+      ],
+      "prerequisites": [
+        "spring"
+      ],
+      "status": "DRAFT"
+    },
+    {
+      "slug": "operations",
+      "name": "Observability, security, incident response and leadership",
+      "targetLessons": 20,
+      "targetQuestions": 60,
+      "difficulty": [
+        "PROFESSIONAL",
+        "EXPERT"
+      ],
+      "drafts": [
+        "operations/01-observability-security-incidents-engineering-leadership.md"
+      ],
+      "prerequisites": [
+        "spring",
+        "distributed-systems"
+      ],
+      "status": "DRAFT"
+    }
+  ]
+}
