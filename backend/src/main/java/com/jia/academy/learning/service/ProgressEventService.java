@@ -98,7 +98,8 @@ public class ProgressEventService {
             node.forEach(ProgressEventService::validateNode);
         }
     }
-\n    public record EventRequest(UUID eventId, String eventType, Instant occurredAt,
+
+    public record EventRequest(UUID eventId, String eventType, Instant occurredAt,
                                String lessonSlug, JsonNode payload) {}
     public record EventReceipt(UUID eventId, String status, Instant occurredAt) {}
 }
