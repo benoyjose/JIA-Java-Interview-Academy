@@ -556,7 +556,7 @@ public class QuizController {
     }
 
     static void validateMode(String mode) {
-        if (!Set.of("PRACTICE","DAILY_CHALLENGE","WEAK_AREA","TOPIC_ASSESSMENT","MIXED_CHALLENGE","RETRY_INCORRECT").contains(mode)) {
+        if (mode == null || !Set.of("PRACTICE","DAILY_CHALLENGE","WEAK_AREA","TOPIC_ASSESSMENT","MIXED_CHALLENGE","RETRY_INCORRECT").contains(mode)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Quiz mode is not available yet: " + mode);
         }
