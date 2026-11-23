@@ -31,7 +31,7 @@ fun PublicSearchScreen(apiBaseUrl:String,modifier:Modifier=Modifier) {
     var error by remember { mutableStateOf<String?>(null) }
     val recent=remember { mutableStateListOf<String>().apply {
         context.getSharedPreferences("public_search_history",0).getString("queries","").orEmpty()
-            .split("\\n").filter(String::isNotBlank).take(8).forEach(::add)
+            .split("\n").filter(String::isNotBlank).take(8).forEach(::add)
     } }
     fun search(term:String=query,targetPage:Int=0,targetType:String=type) {
         val clean=term.trim()
@@ -61,7 +61,7 @@ fun PublicSearchScreen(apiBaseUrl:String,modifier:Modifier=Modifier) {
             }
             response.onSuccess { result=it
                 if(clean !in recent){recent.add(0,clean);while(recent.size>8)recent.removeAt(recent.lastIndex)
-                    context.getSharedPreferences("public_search_history",0).edit().putString("queries",recent.joinToString("\\n")).apply()}
+                    context.getSharedPreferences("public_search_history",0).edit().putString("queries",recent.joinToString("\n")).apply()}
             }.onFailure { error=it.message ?: "Unable to search. Check your connection and retry." }
             loading=false
         }
