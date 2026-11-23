@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\PhoneOtpController;
 use App\Http\Controllers\Api\V1\CatalogueController;
 use App\Http\Controllers\Api\V1\QuizController;
 use App\Http\Controllers\Api\V1\LearnerLibraryController;
+use App\Http\Controllers\Api\V1\LearnerPrivacyController;
 use App\Http\Controllers\Api\V1\LessonImportController;
 use App\Http\Controllers\Api\V1\QuestionImportController;
 use App\Http\Controllers\Api\V1\AppReleasePolicyController;
@@ -23,6 +24,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware(AuthenticateJiaToken::class)->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::get('/me/privacy/export', [LearnerPrivacyController::class, 'export']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/quiz-attempts', [QuizController::class, 'start']);
         Route::put('/apps/{appCode}/release-policy', [AppReleasePolicyController::class, 'update'])->middleware('jia.permission:releases.manage');
