@@ -28,6 +28,45 @@ tags:
   - name: Learner Notifications
     description: Learner revision schedules, preferences and in-app reminders.
 paths:
+  /public/academies/{academyCode}/search:
+    get:
+      summary: Search published public academy content without registration
+      security: []
+      tags: [Catalogue]
+      operationId: searchPublicAcademyCatalogue
+      parameters:
+        - { name: academyCode, in: path, required: true, schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' } }
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 80 } }
+        - { name: type, in: query, schema: { type: string, enum: [ALL, TECHNOLOGY, CATEGORY, LESSON, QUESTION], default: ALL } }
+        - { name: difficulty, in: query, schema: { type: string, enum: [ALL, BEGINNER, NOVICE, PROFESSIONAL, EXPERT], default: ALL } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, maximum: 10000, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Academy-scoped published public search results; question prompts only, never answer keys
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, size, totalItems, totalPages]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [type, slug, title, summary]
+                      properties:
+                        type: { type: string, enum: [TECHNOLOGY, CATEGORY, LESSON, QUESTION] }
+                        slug: { type: string }
+                        title: { type: string }
+                        summary: { type: string }
+                        categorySlug: { type: [string, 'null'] }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalItems: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /me/privacy/export:
     get:
       summary: Export learner-owned personal data for portability

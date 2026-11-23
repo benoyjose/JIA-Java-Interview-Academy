@@ -24,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -156,8 +157,9 @@ fun JiaApp() {
         NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") {
                 TechnologyScreen(catalogueViewModel, signedInAccount, Modifier.fillMaxSize(), ::navigate,
-                    onSignOut = { signedInAccount = null })
+                    onSignOut = { signedInAccount = null }, onSearch = { navController.navigate("search") })
             }
+            composable("search") { PublicSearchScreen(BuildConfig.JIA_API_BASE_URL, Modifier.fillMaxSize()) }
             composable("quiz") {
                 QuizSelectionScreen(repository, signedInAccount != null, Modifier.fillMaxSize())
             }
@@ -190,7 +192,8 @@ private fun TechnologyScreen(
     signedInAccount: String?,
     modifier: Modifier,
     navigate: (BrowseRoute) -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onSearch: () -> Unit
 ) {
     val state by catalogueViewModel.technologies.collectAsStateWithLifecycle()
     val items = state.data.orEmpty()
@@ -219,6 +222,7 @@ private fun TechnologyScreen(
             }) { Text("Sign out") }
         }
         Text("Quick explanations. Practical code. Interview-ready answers.")
+        OutlinedButton(onClick = onSearch, modifier = Modifier.fillMaxWidth()) { Text("Search lessons and questions") }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Allow lesson downloads on mobile data", style = MaterialTheme.typography.bodyMedium)
