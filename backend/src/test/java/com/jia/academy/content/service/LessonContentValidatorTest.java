@@ -60,4 +60,25 @@ class LessonContentValidatorTest {
         assertThrows(ResponseStatusException.class, () -> validator.validate(
             "{\"schemaVersion\":1,\"blocks\":" + blocks + "}"));
     }
+
+    @Test
+    void rejectsBlocksWithoutType() {
+        assertThrows(ResponseStatusException.class, () -> validator.validate(
+            "{\"schemaVersion\":1,\"blocks\":[{\"body\":\"missing type\"}]}"));
+    }
+
+    @Test
+    void rejectsContentLargerThanOneMiB() {
+        String oversized = "x".repeat(LessonContentValidator.MAX_CONTENT_BYTES + 1);
+        assertThrows(ResponseStatusException.class, () -> validator.validate(oversized));
+    }
+
+    @Test
+    void rejectsOversizedTextFields() {
+        String body = "x".repeat(LessonContentValidator.MAX_TEXT_FIELD_CHARS + 1);
+        String json = "{\"schemaVersion\":1,\"blocks\":[{\"type\":\"markdown\",\"body\":\""
+            + body + "\"}]}";
+        assertThrows(ResponseStatusException.class, () -> validator.validate(json));
+    }
+
 }
