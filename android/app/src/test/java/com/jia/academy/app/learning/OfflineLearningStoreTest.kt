@@ -134,6 +134,38 @@ class OfflineLearningStoreTest {
         assertTrue((diagnostics?.lastAttemptAt ?: 0L) >= (diagnostics?.lastSuccessAt ?: 0L))
     }
 
+    @Test
+    fun libraryInventoryReportsSizeAndRevisionAndRemovalPreservesQueuedProgress() {
+        val saved = lesson("library-one", 7, """{"body":"offline"}""")
+        store.cacheLesson(saved)
+        store.enqueueProgress("library-one", 7, 35.0)
+
+        val info = store.cachedLessonLibrary().single()
+        assertEquals("library-one", info.slug)
+        assertEquals(7, info.contentRevision)
+        assertEquals(saved.contentJson!!.toByteArray(Charsets.UTF_8).size.toLong(), info.contentBytes)
+        assertTrue(info.cachedAt > 0L)
+
+        assertTrue(store.removeCachedLesson("library-one"))
+        assertFalse(store.removeCachedLesson("library-one"))
+        assertNull(store.cachedLesson("library-one"))
+        assertEquals(1, store.pendingProgress().size)
+    }
+
+    @Test
+    fun clearLibraryRemovesOnlyCachedLessonsAndLeavesBookmarksAndProgress() {
+        store.cacheLesson(lesson("cache-a", 1, """{"a":1}"""))
+        store.cacheLesson(lesson("cache-b", 2, """{"b":2}"""))
+        store.enqueueProgress("pending-a", 1, 10.0)
+        store.setBookmarkAndSchedule(context, "https://example.test", "bookmark-a", true)
+
+        assertEquals(2, store.clearCachedLessons())
+        assertTrue(store.cachedLessonLibrary().isEmpty())
+        assertEquals(1, store.pendingProgress().size)
+        assertTrue(store.isBookmarked("bookmark-a"))
+        assertEquals(1, store.pendingBookmarks().size)
+    }
+
     private fun lesson(slug: String, revision: Int, content: String) =
         com.jia.academy.app.catalogue.LessonDetail(
             id = "lesson-id-$slug", slug = slug, title = slug, summary = null,
