@@ -140,7 +140,10 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             if (status !in 200..299) continue
             val currentRevision = JSONObject(body).optInt("contentRevision", 0)
             if (currentRevision > 0 && snapshot.contentRevision > currentRevision) {
-                rebased = store.rebaseProgressSnapshot(snapshot, currentRevision) || rebased
+                // A concurrent local edit may make the exact timestamp guard return false. It is
+                // still safe to retry: the next pass reads and rebases the newer durable snapshot.
+                store.rebaseProgressSnapshot(snapshot, currentRevision)
+                rebased = true
             }
         }
         if (!rebased) {
