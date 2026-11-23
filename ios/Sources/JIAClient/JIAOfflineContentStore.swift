@@ -82,16 +82,46 @@ public final class JIAOfflineContentStore: @unchecked Sendable {
             }
 
             try encoder.encode(release).write(to: staging.appendingPathComponent("release.json"), options: .atomic)
-            if fileManager.fileExists(atPath: destination.path) {
-                try fileManager.removeItem(at: destination)
+            let backup = root.appendingPathComponent("backup-\(release.version)", isDirectory: true)
+            try? fileManager.removeItem(at: backup)
+            let hadDestination = fileManager.fileExists(atPath: destination.path)
+            if hadDestination { try fileManager.moveItem(at: destination, to: backup) }
+            do {
+                try fileManager.moveItem(at: staging, to: destination)
+                let pointer = try encoder.encode(ActiveRelease(version: release.version))
+                try pointer.write(to: root.appendingPathComponent("active-release.json"), options: .atomic)
+                try? fileManager.removeItem(at: backup)
+                _ = pruneRetiredReleases(maximumPrevious: 1)
+            } catch {
+                try? fileManager.removeItem(at: destination)
+                if hadDestination, fileManager.fileExists(atPath: backup.path) {
+                    try? fileManager.moveItem(at: backup, to: destination)
+                }
+                throw error
             }
-            try fileManager.moveItem(at: staging, to: destination)
-            let pointer = try encoder.encode(ActiveRelease(version: release.version))
-            try pointer.write(to: root.appendingPathComponent("active-release.json"), options: .atomic)
         } catch {
             try? fileManager.removeItem(at: staging)
             throw error
         }
+    }
+
+    /// Retain the active release and a bounded number of rollback releases.
+    /// Only release-version directories are considered; staging and backup folders are untouched.
+    @discardableResult
+    public func pruneRetiredReleases(maximumPrevious: Int = 1) -> [Int] {
+        guard let urls = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
+        let versions = urls.compactMap { url -> Int? in
+            let name = url.lastPathComponent
+            guard name.hasPrefix("release-") else { return nil }
+            return Int(name.dropFirst("release-".count))
+        }
+        let active = activeReleaseVersion
+        let remove = JIAOfflineReleaseRetention.releasesToRemove(versions: versions,
+            activeVersion: active, maximumPrevious: maximumPrevious)
+        for version in remove {
+            try? fileManager.removeItem(at: root.appendingPathComponent("release-\(version)", isDirectory: true))
+        }
+        return remove.sorted()
     }
 
     public func cachedLesson(slug: String) -> JIAOfflineCachedLesson? {
