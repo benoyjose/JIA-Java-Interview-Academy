@@ -62,15 +62,12 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
         val manifestResponse = request(baseUrl, "/content/releases/latest", null, "GET")
         if (manifestResponse.first == 404) return
         if (manifestResponse.first !in 200..299) throw IOException("Content manifest request failed")
-        val manifest = JSONObject(manifestResponse.second)
-        val version = manifest.getLong("version")
-        val items = manifest.getJSONArray("items")
-        for (index in 0 until items.length()) {
-            val item = items.getJSONObject(index)
-            val slug = item.getString("slug")
-            val checksum = item.getString("checksum")
+        val manifest = OfflineReleaseManifest.parse(JSONObject(manifestResponse.second))
+        for (item in manifest.items) {
+            val slug = item.slug
+            val checksum = item.checksum
             if (store.hasCachedLesson(slug, checksum)) continue
-            val path = "/content/releases/$version/lessons/" + URLEncoder.encode(slug, Charsets.UTF_8.name())
+            val path = "/content/releases/${manifest.version}/lessons/" + URLEncoder.encode(slug, Charsets.UTF_8.name())
             val (status, response) = request(baseUrl, path, null, "GET")
             if (status !in 200..299) throw IOException("Lesson download failed: HTTP $status")
             val json = JSONObject(response)
@@ -81,6 +78,9 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
                 json.optString("sourceType", "Unknown"),
                 json.optString("contentJson").takeIf(String::isNotBlank)
             )
+            require(lesson.contentRevision == item.contentRevision) {
+                "Downloaded lesson revision does not match release manifest"
+            }
             store.cacheLesson(lesson, checksum)
         }
     }
