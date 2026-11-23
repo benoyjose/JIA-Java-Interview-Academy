@@ -104,6 +104,10 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             when (ProgressBatchSyncResponsePolicy.classify(status)) {
                 BatchSyncResponseAction.RETRY -> throw IOException("Progress event batch should be retried (HTTP $status)")
                 BatchSyncResponseAction.REJECT -> throw IllegalStateException("Progress event batch rejected with HTTP $status")
+                BatchSyncResponseAction.REBASE -> {
+                    rebaseFutureRevisionSnapshots(baseUrl, store, batch)
+                    throw IOException("Progress revision rebased after server conflict; retrying batch")
+                }
                 BatchSyncResponseAction.ACKNOWLEDGE -> Unit
             }
 
@@ -123,6 +127,25 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             }
         }
         return syncedProgress to syncedBookmarks
+    }
+
+    private fun rebaseFutureRevisionSnapshots(baseUrl: String, store: OfflineLearningStore,
+                                               batch: List<BatchSyncEvent>) {
+        var rebased = false
+        for (event in batch) {
+            val snapshot = event.progressSnapshot ?: continue
+            val encodedSlug = URLEncoder.encode(snapshot.lessonSlug, Charsets.UTF_8.name())
+            val (status, body) = request(baseUrl, "/lessons/$encodedSlug", null, "GET")
+            if (status in 408..429 || status >= 500) throw IOException("Lesson revision lookup should be retried")
+            if (status !in 200..299) continue
+            val currentRevision = JSONObject(body).optInt("contentRevision", 0)
+            if (currentRevision > 0 && snapshot.contentRevision > currentRevision) {
+                rebased = store.rebaseProgressSnapshot(snapshot, currentRevision) || rebased
+            }
+        }
+        if (!rebased) {
+            throw IllegalStateException("Progress batch conflict was not a newer lesson revision; queued events were retained")
+        }
     }
 
     private suspend fun ensureAccessToken(baseUrl: String, store: SecureSessionStore): String {
