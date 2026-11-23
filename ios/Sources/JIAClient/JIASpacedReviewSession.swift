@@ -30,7 +30,7 @@ public struct JIASpacedReviewSessionView:View{
   if let card=session.current{Text(card.title).font(.headline);Text(card.prompt)
    if session.state.answerRevealed{Text(card.answer)}
    Button("Reveal answer"){session.reveal()}
-   if session.state.answerRevealed{HStack{ForEach(0...5,id:\\.self){rating in Button(String(rating)){_ = try? session.grade(rating)}}}}
+   if session.state.answerRevealed{HStack{ForEach(0...5,id:\.self){rating in Button(String(rating)){_ = try? session.grade(rating)}}}}
   }else{ContentUnavailableView("Session complete",systemImage:"checkmark.circle",description:Text("All queued cards reviewed."))}
  }}}
 }
