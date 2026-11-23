@@ -1,18 +1,22 @@
 package com.jia.academy.assessment.api;
 
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 
 /** Deterministic answer normalization and exact-match grading contract. */
 final class QuizAnswerEvaluator {
+    private static final Set<String> SELF_REVIEW_TYPES = Set.of("DEBUGGING", "CODING", "SQL", "SCENARIO");
+    private static final Set<String> OBJECTIVE_TYPES = Set.of("SINGLE_SELECT", "MULTI_SELECT", "TRUE_FALSE", "OUTPUT_PREDICTION");
+
     private QuizAnswerEvaluator() {}
 
     static boolean requiresSelfReview(String questionType) {
-        return List.of("DEBUGGING", "CODING", "SQL", "SCENARIO").contains(questionType);
+        return SELF_REVIEW_TYPES.contains(questionType);
     }
 
     static boolean isCorrect(String questionType, Map<String, Object> response, Map<String, Object> answer) {
-        if (requiresSelfReview(questionType)) return false;
+        if (requiresSelfReview(questionType) || !OBJECTIVE_TYPES.contains(questionType)) return false;
         Object expectedValue = answer.containsKey("correctValues")
                 ? answer.get("correctValues") : answer.get("correct_values");
         if (!(expectedValue instanceof List<?> expected) || expected.isEmpty()) return false;
