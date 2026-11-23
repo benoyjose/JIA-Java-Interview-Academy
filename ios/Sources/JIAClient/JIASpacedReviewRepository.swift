@@ -2,6 +2,7 @@ import Foundation
 public struct JIASpacedReviewQueueItem:Codable,Sendable,Equatable,Identifiable{
  public let slug:String;public let title:String;public let repetitions:Int;public let intervalDays:Int;public let dueDate:String
  public var id:String{slug}
+ private enum CodingKeys:String,CodingKey{case slug,title,repetitions;case intervalDays="interval_days";case dueDate="due_date"}
 }
 public struct JIASpacedReviewQueueResponse:Codable,Sendable,Equatable{public let dueCount:Int;public let items:[JIASpacedReviewQueueItem]}
 public struct JIASpacedReviewGradeResponse:Codable,Sendable,Equatable{
