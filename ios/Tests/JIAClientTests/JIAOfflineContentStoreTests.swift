@@ -72,6 +72,31 @@ final class JIAOfflineContentStoreTests: XCTestCase {
         XCTAssertNil(store.activeReleaseVersion)
     }
 
+    func testRetentionKeepsActiveAndNearestRollbackAndRemovesUnneededVersions() {
+        XCTAssertEqual(
+            JIAOfflineReleaseRetention.releasesToKeep(versions: [1, 2, 3, 4, 5], activeVersion: 4, maximumPrevious: 1),
+            Set([4, 3])
+        )
+        XCTAssertEqual(
+            JIAOfflineReleaseRetention.releasesToRemove(versions: [1, 2, 3, 4, 5], activeVersion: 4, maximumPrevious: 1),
+            Set([1, 2, 5])
+        )
+    }
+
+    func testActivationPrunesOldReleaseFoldersButPreservesRollbackRelease() throws {
+        let content = #"{"blocks":["content"]}"#
+        for version in 1...3 {
+            let lesson = JIAReleasedLesson(slug: "release-lesson", contentRevision: version, contentJson: content)
+            try store.activate(manifest(version: version, slug: lesson.slug, revision: version, content: content),
+                               lessons: [lesson.slug: lesson])
+        }
+        let releaseFolders = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("release-") }
+            .map { $0.lastPathComponent }.sorted()
+        XCTAssertEqual(releaseFolders, ["release-2", "release-3"])
+        XCTAssertEqual(store.activeReleaseVersion, 3)
+    }
+
     private func manifest(version: Int, slug: String, revision: Int, content: String) -> JIAContentRelease {
         JIAContentRelease(version: version, createdAt: "2026-11-22T00:00:00Z", items: [
             JIAContentReleaseItem(id: UUID(), slug: slug, title: slug, contentRevision: revision,
