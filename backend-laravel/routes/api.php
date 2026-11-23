@@ -27,7 +27,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware(AuthenticateJiaToken::class)->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
-        Route::get('/me/privacy/export', [LearnerPrivacyController::class, 'export']);
+        Route::get('/me/privacy/export', [LearnerPrivacyController::class, 'export']);\n        Route::post('/me/progress-sync/batch', [LearnerSyncController::class, 'ingest'])->middleware('throttle:60,1');
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/quiz-attempts', [QuizController::class, 'start']);
         Route::put('/apps/{appCode}/release-policy', [AppReleasePolicyController::class, 'update'])->middleware('jia.permission:releases.manage');
