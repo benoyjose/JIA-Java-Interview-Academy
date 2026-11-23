@@ -96,6 +96,39 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /me/review-schedule/due:
+    get:
+      summary: Read due spaced-review lessons for the authenticated learner
+      tags: [Learning]
+      operationId: getLearnerReviewScheduleDue
+      responses:
+        '200': { description: Due review schedule entries for the current learner }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/review-schedule/{lessonSlug}/grade:
+    post:
+      summary: Persist a spaced-review rating and calculate its next due date
+      tags: [Learning]
+      operationId: gradeLearnerReviewSchedule
+      parameters:
+        - { name: lessonSlug, in: path, required: true, schema: { type: string, maxLength: 180 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, repetitions, easeFactor, intervalDays]
+              properties:
+                rating: { type: integer, minimum: 0, maximum: 5 }
+                repetitions: { type: integer, minimum: 0 }
+                easeFactor: { type: number, minimum: 1.3, maximum: 3.0 }
+                intervalDays: { type: integer, minimum: 0, maximum: 365 }
+                reviewedOn: { type: [string, 'null'], format: date }
+      responses:
+        '200': { description: Persisted next review schedule }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /me/review-schedule/preview:
     post:
       summary: Preview deterministic spaced-review interval for a learner rating
