@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/me/progress-events")
@@ -15,6 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class ProgressEventController {
     private final ProgressEventService events;
     public ProgressEventController(ProgressEventService events) { this.events = events; }
+
+    @PostMapping("/batch")
+    public BatchReceipt appendBatch(@AuthenticationPrincipal CurrentUser user,
+                                    @RequestBody BatchEventRequest request) {
+        return events.appendBatch(user, request == null ? null : request.events());
+    }
 
     @PostMapping
     public EventReceipt append(@AuthenticationPrincipal CurrentUser user,
