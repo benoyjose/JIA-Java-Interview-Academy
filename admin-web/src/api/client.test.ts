@@ -9,6 +9,7 @@ beforeEach(() => {
     setItem: (key: string, value: string) => { sessionValues.set(key, value); },
     removeItem: (key: string) => { sessionValues.delete(key); },
   }, dispatchEvent: vi.fn() });
+
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -127,4 +128,12 @@ describe("admin API client", () => {
     expect(validateLessonContent("[]")).not.toBeNull();
     expect(validateLessonContent("{broken")).not.toBeNull();
   });
+  it("enforces the server lesson document schema and block limits", () => {
+    expect(validateLessonContent(JSON.stringify({ schemaVersion: 1, blocks: [{ type: "code", source: "x", language: "java" }] }))).toBeNull();
+    expect(validateLessonContent(JSON.stringify({ schemaVersion: 2, blocks: [] }))).toContain("schemaVersion 1");
+    expect(validateLessonContent(JSON.stringify({ schemaVersion: 1, blocks: ["invalid"] }))).toContain("must be an object");
+    expect(validateLessonContent(JSON.stringify({ schemaVersion: 1, blocks: Array.from({ length: 251 }, () => ({ type: "note" })) }))).toContain("250 blocks");
+    expect(validateLessonContent(JSON.stringify({ schemaVersion: 1, blocks: [{ type: "interviewAnswer", body: [] }] }))).toContain("answer points");
+  });
+
 });

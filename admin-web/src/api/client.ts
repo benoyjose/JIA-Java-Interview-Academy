@@ -142,12 +142,35 @@ export const api = {
 };
 
 export function validateLessonContent(raw: string): string | null {
+  const bytes = new TextEncoder().encode(raw).byteLength;
+  if (bytes > 1_048_576) return "Lesson content must not exceed 1 MiB.";
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "Lesson content must be a JSON object.";
     const document = parsed as { schemaVersion?: unknown; blocks?: unknown };
-    if (typeof document.schemaVersion !== "number" || !Array.isArray(document.blocks))
-      return "Content must include a numeric schemaVersion and a blocks array.";
+    if (document.schemaVersion !== 1 || !Array.isArray(document.blocks))
+      return "Content must include schemaVersion 1 and a blocks array.";
+    if (document.blocks.length > 250) return "Lesson content cannot contain more than 250 blocks.";
+    for (const [index, candidate] of document.blocks.entries()) {
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate))
+        return `Content block ${index} must be an object.`;
+      const block = candidate as Record<string, unknown>;
+      if (typeof block.type !== "string" || !block.type.trim())
+        return `Content block ${index} requires a non-empty type.`;
+      const requiredText = block.type === "markdown" || block.type === "callout"
+        ? ["body"] : block.type === "code" ? ["source", "language"] : [];
+      for (const field of requiredText) {
+        if (typeof block[field] !== "string" || !(block[field] as string).trim())
+          return `Content block ${index} requires a non-empty ${field}.`;
+        if ((block[field] as string).length > 200_000)
+          return `Content block ${index} field ${field} exceeds the maximum length.`;
+      }
+      if (block.type === "interviewAnswer") {
+        if (!Array.isArray(block.body) || block.body.length === 0
+          || block.body.some(point => typeof point !== "string" || !point.trim()))
+          return `Interview answer block ${index} must contain non-empty answer points.`;
+      }
+    }
     return null;
   } catch { return "Lesson content is not valid JSON."; }
 }
