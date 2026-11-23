@@ -1,0 +1,5 @@
+import { fireEvent,render,screen } from "@testing-library/react";import { beforeEach,describe,expect,it } from "vitest";import { SpacedReviewPolicyPanel } from "./SpacedReviewPolicyPanel";
+describe("spaced review policy",()=>{beforeEach(()=>localStorage.clear());
+ it("rejects invalid interval sequence and persists valid policy",()=>{render(<SpacedReviewPolicyPanel/>);fireEvent.change(screen.getByLabelText("Second interval (days)"),{target:{value:"1"}});expect(screen.getByRole("alert")).toBeTruthy();fireEvent.change(screen.getByLabelText("Second interval (days)"),{target:{value:"8"}});fireEvent.click(screen.getByRole("button",{name:"Save policy"}));expect(JSON.parse(localStorage.getItem("jia.admin.spaced-review-policy.v1")||"{}").secondIntervalDays).toBe(8);expect(screen.getByRole("status").textContent).toContain("browser");});
+ it("restores only valid persisted values",()=>{localStorage.setItem("jia.admin.spaced-review-policy.v1",JSON.stringify({firstIntervalDays:7,secondIntervalDays:2,maximumIntervalDays:20,minimumEase:1.5}));render(<SpacedReviewPolicyPanel/>);expect((screen.getByLabelText("First interval (days)") as HTMLInputElement).value).toBe("1");});
+});
