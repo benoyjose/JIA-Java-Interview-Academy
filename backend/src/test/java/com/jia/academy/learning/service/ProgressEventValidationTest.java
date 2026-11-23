@@ -37,4 +37,19 @@ class ProgressEventValidationTest {
         var payload = mapper.readTree("{\"section\":\"collections\",\"elapsedMs\":4500}");
         assertDoesNotThrow(() -> ProgressEventService.validatePayload(payload));
     }
+
+    @Test void validatesFieldsRequiredForLearnerProjectionEvents() throws Exception {
+        var progress = mapper.readTree("{\"contentRevision\":3,\"progressPercent\":67.5,\"lastPosition\":{\"scrollOffsetPx\":10}}");
+        assertDoesNotThrow(() -> ProgressEventService.validateProjectionEvent("LESSON_STARTED", "streams", progress));
+        var completed = mapper.readTree("{\"contentRevision\":3,\"progressPercent\":100}");
+        assertDoesNotThrow(() -> ProgressEventService.validateProjectionEvent("LESSON_COMPLETED", "streams", completed));
+        var bookmark = mapper.readTree("{\"bookmarked\":false}");
+        assertDoesNotThrow(() -> ProgressEventService.validateProjectionEvent("BOOKMARK_CHANGED", "streams", bookmark));
+        assertThrows(ResponseStatusException.class, () ->
+                ProgressEventService.validateProjectionEvent("LESSON_STARTED", null, progress));
+        assertThrows(ResponseStatusException.class, () ->
+                ProgressEventService.validateProjectionEvent("LESSON_COMPLETED", "streams", progress));
+        assertThrows(ResponseStatusException.class, () ->
+                ProgressEventService.validateProjectionEvent("BOOKMARK_CHANGED", "streams", mapper.readTree("{\"bookmarked\":\"false\"}")));
+    }
 }

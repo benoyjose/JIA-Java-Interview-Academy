@@ -3,6 +3,7 @@ package com.jia.academy.app.learning
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 class ProgressSyncTransportTest {
@@ -27,6 +28,42 @@ class ProgressSyncTransportTest {
     }
 
     @Test
+    fun progressSnapshotProducesStableUuidAndPreservesPayload() {
+        val snapshot = PendingLessonProgress("streams", 4, 82.0,
+            """{"scrollOffsetPx":92}""", 1_800_000_000_000L)
+        val event = ProgressBatchEventFactory.progress(snapshot)
+        val retry = ProgressBatchEventFactory.progress(snapshot)
+        assertEquals(event.eventId, retry.eventId)
+        assertEquals("LESSON_STARTED", event.json.getString("eventType"))
+        assertEquals("streams", event.json.getString("lessonSlug"))
+        assertEquals(82.0, event.json.getJSONObject("payload").getDouble("progressPercent"), 0.001)
+        assertEquals(92, event.json.getJSONObject("payload").getJSONObject("lastPosition").getInt("scrollOffsetPx"))
+        assertNotEquals(event.eventId, ProgressBatchEventFactory.progress(snapshot.copy(updatedAt = snapshot.updatedAt + 1)).eventId)
+    }
+
+    @Test
+    fun completionAndBookmarkAreRepresentedAsLedgerEvents() {
+        val completed = ProgressBatchEventFactory.progress(PendingLessonProgress("threads", 3, 100.0, null, 5L))
+        assertEquals("LESSON_COMPLETED", completed.json.getString("eventType"))
+        val bookmark = ProgressBatchEventFactory.bookmark(PendingBookmark("threads", false, 7L))
+        assertEquals("BOOKMARK_CHANGED", bookmark.json.getString("eventType"))
+        assertEquals(false, bookmark.json.getJSONObject("payload").getBoolean("bookmarked"))
+        assertEquals(7L, bookmark.bookmarkSnapshot?.updatedAt)
+    }
+
+    @Test
+    fun batchEnvelopeKeepsEventIdsAndCapsAtOneHundred() {
+        val one = ProgressBatchEventFactory.progress(PendingLessonProgress("java", 1, 10.0, null, 1L))
+        val body = ProgressBatchEventFactory.batchBody(listOf(one))
+        assertEquals(one.eventId, body.getJSONArray("events").getJSONObject(0).getString("eventId"))
+        assertEquals(BatchSyncResponseAction.ACKNOWLEDGE, ProgressBatchSyncResponsePolicy.classify(200))
+        assertEquals(BatchSyncResponseAction.RETRY, ProgressBatchSyncResponsePolicy.classify(429))
+        assertEquals(BatchSyncResponseAction.RETRY, ProgressBatchSyncResponsePolicy.classify(503))
+        assertEquals(BatchSyncResponseAction.REBASE, ProgressBatchSyncResponsePolicy.classify(409))
+        assertEquals(BatchSyncResponseAction.REJECT, ProgressBatchSyncResponsePolicy.classify(422))
+    }
+
+    @Test
     fun injectableTransportReceivesExactRequestAndReturnsDeterministicResponse() {
         var capturedUrl: String? = null
         var capturedMethod: String? = null
@@ -40,10 +77,10 @@ class ProgressSyncTransportTest {
             SyncHttpResponse(200, """{"saved":true}""")
         }
 
-        val response = fake.execute("https://api.example.test/api/v1/me/lesson-progress/streams",
-            "PUT", "test-access-token", """{"progressPercent":50}""")
-        assertEquals("https://api.example.test/api/v1/me/lesson-progress/streams", capturedUrl)
-        assertEquals("PUT", capturedMethod)
+        val response = fake.execute("https://api.example.test/api/v1/me/progress-events/batch",
+            "POST", "test-access-token", """{"events":[]}""")
+        assertEquals("https://api.example.test/api/v1/me/progress-events/batch", capturedUrl)
+        assertEquals("POST", capturedMethod)
         assertEquals("test-access-token", capturedToken)
         assertNotNull(capturedBody)
         assertEquals(200, response.status)
