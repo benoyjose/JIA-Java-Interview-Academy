@@ -13,6 +13,9 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -74,7 +77,7 @@ public class ContentReleaseService {
                 SELECT version,manifest_json::text,created_at
                 FROM content_releases WHERE academy_id=? ORDER BY version DESC LIMIT 1
                 """, (rs, row) -> response(rs.getLong("version"), rs.getString("manifest_json"),
-                rs.getTimestamp("created_at").toInstant()), academyId)
+                rs.getTimestamp("created_at").toInstant(), user, academyId), academyId)
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "No content release is available"));
     }
@@ -92,7 +95,7 @@ public class ContentReleaseService {
                 SELECT version,manifest_json::text,created_at
                 FROM content_releases WHERE academy_id=? AND version=?
                 """, (rs, row) -> response(rs.getLong("version"), rs.getString("manifest_json"),
-                rs.getTimestamp("created_at").toInstant()), academyId, version)
+                rs.getTimestamp("created_at").toInstant(), user, academyId), academyId, version)
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Content release not found"));
     }
@@ -105,7 +108,7 @@ public class ContentReleaseService {
     @Transactional(readOnly = true)
     public LessonDetailResponse lesson(long version, String slug, CurrentUser user) {
         UUID academyId = academyId(user);
-        return jdbc.query("""
+        LessonDetailResponse lesson = jdbc.query("""
                 SELECT l.id,l.slug,r.title,r.summary,r.difficulty,r.revision_number,
                        r.source_type,r.content_json::text AS content_json
                 FROM content_releases cr
@@ -122,6 +125,10 @@ public class ContentReleaseService {
                 rs.getString("source_type"), rs.getString("content_json")), academyId, academyId, version, slug)
                 .stream().findFirst().orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson is not part of this content release"));
+        if (!hasEntitlementForLesson(lesson.id(), user, academyId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "An active lesson entitlement is required");
+        }
+        return lesson;
     }
 
     private UUID academyId(CurrentUser user) {
@@ -138,13 +145,56 @@ public class ContentReleaseService {
                         new ResponseStatusException(HttpStatus.FORBIDDEN, "An active academy membership is required"));
     }
 
-    private ContentReleaseResponse response(long version, String json, Instant createdAt) {
+    private ContentReleaseResponse response(long version, String json, Instant createdAt,
+                                            CurrentUser user, UUID academyId) {
         try {
             Manifest manifest = mapper.readValue(json, Manifest.class);
-            return new ContentReleaseResponse(version, createdAt, manifest.items());
+            return new ContentReleaseResponse(version, createdAt,
+                    filterEntitledItems(manifest.items(), user, academyId));
         } catch (Exception ex) {
             throw new IllegalStateException("Stored content release manifest is invalid", ex);
         }
+    }
+
+    /**
+     * Public manifests omit premium lesson metadata. Authenticated manifests include only
+     * items for which every academy-scoped requirement is currently active and unexpired.
+     */
+    private List<Item> filterEntitledItems(List<Item> items, CurrentUser user, UUID academyId) {
+        if (items.isEmpty()) return items;
+        Map<UUID, Set<String>> requiredByLesson = new HashMap<>();
+        jdbc.query("""
+                SELECT req.lesson_id,req.entitlement_code
+                FROM lesson_entitlement_requirements req
+                JOIN lessons l ON l.id=req.lesson_id JOIN categories c ON c.id=l.category_id
+                JOIN technologies t ON t.id=c.technology_id
+                WHERE t.academy_id=?
+                """, (rs, row) -> {
+            requiredByLesson.computeIfAbsent(rs.getObject("lesson_id", UUID.class), ignored -> new HashSet<>())
+                    .add(rs.getString("entitlement_code"));
+            return null;
+        }, academyId);
+        Set<String> granted = activeEntitlements(user, academyId);
+        return items.stream().filter(item -> {
+            Set<String> required = requiredByLesson.getOrDefault(item.id(), Set.of());
+            return required.isEmpty() || (user != null && granted.containsAll(required));
+        }).toList();
+    }
+
+    private boolean hasEntitlementForLesson(UUID lessonId, CurrentUser user, UUID academyId) {
+        List<String> required = jdbc.query(
+                "SELECT entitlement_code FROM lesson_entitlement_requirements WHERE lesson_id=?",
+                (rs, row) -> rs.getString(1), lessonId);
+        return required.isEmpty() || (user != null && activeEntitlements(user, academyId).containsAll(required));
+    }
+
+    private Set<String> activeEntitlements(CurrentUser user, UUID academyId) {
+        if (user == null) return Set.of();
+        return new HashSet<>(jdbc.query("""
+                SELECT entitlement_code FROM academy_entitlements
+                WHERE user_id=? AND academy_id=? AND status IN ('ACTIVE','GRACE')
+                  AND (valid_until IS NULL OR valid_until>now())
+                """, (rs, row) -> rs.getString(1), user.id(), academyId));
     }
 
     private static String checksum(String content) {
