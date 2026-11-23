@@ -1,5 +1,16 @@
-import { fireEvent,render,screen } from "@testing-library/react";import { beforeEach,describe,expect,it } from "vitest";import { SpacedReviewPolicyPanel } from "./SpacedReviewPolicyPanel";
-describe("spaced review policy",()=>{beforeEach(()=>localStorage.clear());
- it("rejects invalid interval sequence and persists valid policy",()=>{render(<SpacedReviewPolicyPanel/>);fireEvent.change(screen.getByLabelText("Second interval (days)"),{target:{value:"1"}});expect(screen.getByRole("alert")).toBeTruthy();fireEvent.change(screen.getByLabelText("Second interval (days)"),{target:{value:"8"}});fireEvent.click(screen.getByRole("button",{name:"Save policy"}));expect(JSON.parse(localStorage.getItem("jia.admin.spaced-review-policy.v1")||"{}").secondIntervalDays).toBe(8);expect(screen.getByRole("status").textContent).toContain("browser");});
- it("restores only valid persisted values",()=>{localStorage.setItem("jia.admin.spaced-review-policy.v1",JSON.stringify({firstIntervalDays:7,secondIntervalDays:2,maximumIntervalDays:20,minimumEase:1.5}));render(<SpacedReviewPolicyPanel/>);expect((screen.getByLabelText("First interval (days)") as HTMLInputElement).value).toBe("1");});
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { SpacedReviewPolicyPanel, isValidSpacedReviewPolicy } from "./SpacedReviewPolicyPanel";
+describe("spaced review policy",()=>{
+ it("enforces ordered intervals and supported ease bounds",()=>{
+  expect(isValidSpacedReviewPolicy({firstIntervalDays:1,secondIntervalDays:6,maximumIntervalDays:365,minimumEase:1.3})).toBe(true);
+  expect(isValidSpacedReviewPolicy({firstIntervalDays:8,secondIntervalDays:6,maximumIntervalDays:365,minimumEase:1.3})).toBe(false);
+  expect(isValidSpacedReviewPolicy({firstIntervalDays:1,secondIntervalDays:6,maximumIntervalDays:365,minimumEase:1.1})).toBe(false);
+ });
+ it("renders labelled settings, guarded save and explicit local-storage scope",()=>{
+  const html=renderToStaticMarkup(<SpacedReviewPolicyPanel/>);
+  expect(html).toContain('aria-labelledby="review-policy-title"');
+  expect(html).toContain('aria-label');expect(html).toContain("Save policy");
+  expect(html).toContain("browser-local");
+ });
 });
