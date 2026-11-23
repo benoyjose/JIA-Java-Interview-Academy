@@ -147,6 +147,52 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     }
 
     @Test
+    void premiumReleaseMetadataAndLessonBodiesRequireCurrentEntitlement() {
+        String slug = "premium-release-" + UUID.randomUUID();
+        var draft = authoring.createDraft(editor, request(slug, "Premium lesson"));
+        UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
+        authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "Premium reviewed"));
+        authoring.publish(admin, draft.id());
+        UUID lessonId = jdbc.queryForObject("SELECT id FROM lessons WHERE slug=?", UUID.class, slug);
+        jdbc.update("INSERT INTO lesson_entitlement_requirements(lesson_id,entitlement_code) VALUES (?,?)",
+                lessonId, "PREMIUM");
+        var release = releases.create(admin);
+
+        assertThat(releases.latest().items()).extracting(item -> item.slug()).doesNotContain(slug);
+        assertThatThrownBy(() -> releases.lesson(release.version(), slug))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(403));
+
+        CurrentUser learner = user("Premium release learner", "LEARNER");
+        assertThat(releases.latest(learner).items()).extracting(item -> item.slug()).doesNotContain(slug);
+        assertThatThrownBy(() -> releases.lesson(release.version(), slug, learner))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(403));
+
+        UUID academy = UUID.fromString("50000000-0000-0000-0000-000000000001");
+        jdbc.update("""
+                INSERT INTO academy_entitlements(user_id,academy_id,entitlement_code,status,valid_until,updated_at)
+                VALUES (?,?,?,'ACTIVE',NULL,now())
+                """, learner.id(), academy, "PREMIUM");
+        assertThat(releases.latest(learner).items()).extracting(item -> item.slug()).contains(slug);
+        assertThat(releases.lesson(release.version(), slug, learner).title()).isEqualTo("Premium lesson");
+
+        jdbc.update("UPDATE academy_entitlements SET status='REVOKED' WHERE user_id=? AND academy_id=? AND entitlement_code=?",
+                learner.id(), academy, "PREMIUM");
+        assertThat(releases.latest(learner).items()).extracting(item -> item.slug()).doesNotContain(slug);
+        assertThatThrownBy(() -> releases.lesson(release.version(), slug, learner))
+                .isInstanceOf(ResponseStatusException.class);
+
+        jdbc.update("""
+                UPDATE academy_entitlements SET status='ACTIVE',valid_until=now()-interval '1 second'
+                WHERE user_id=? AND academy_id=? AND entitlement_code=?
+                """, learner.id(), academy, "PREMIUM");
+        assertThat(releases.latest(learner).items()).extracting(item -> item.slug()).doesNotContain(slug);
+        assertThatThrownBy(() -> releases.lesson(release.version(), slug, learner))
+                .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
     void contentReleaseManifestsAndVersionsAreIsolatedByAcademy() {
         releases.create(admin);
         var otherRelease = releases.create(otherAcademyAdmin);
