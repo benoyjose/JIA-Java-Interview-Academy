@@ -41,6 +41,7 @@ public class SecurityConfiguration {
                     "/api/v1/auth/password/**",
                 "/api/v1/auth/federated/**",
                     "/api/v1/auth/phone/**",
+                    "/api/v1/public/academies/*/search",
                     "/api/v1/technologies",
                     "/api/v1/technologies/**",
                     "/api/v1/categories/**",
