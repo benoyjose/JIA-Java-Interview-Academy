@@ -24,10 +24,7 @@ public class ProgressEventService {
 
     @Transactional
     public BatchReceipt appendBatch(CurrentUser user, java.util.List<EventRequest> requests) {
-        if (requests == null || requests.isEmpty() || requests.size() > 100) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Batch must contain between 1 and 100 progress events");
-        }
+        validateBatchSize(requests);
         java.util.List<EventReceipt> receipts = new java.util.ArrayList<>(requests.size());
         int accepted = 0;
         int duplicates = 0;
@@ -98,6 +95,13 @@ public class ProgressEventService {
                 request.occurredAt());
     }
 
+
+    static void validateBatchSize(java.util.List<EventRequest> requests) {
+        if (requests == null || requests.isEmpty() || requests.size() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Batch must contain between 1 and 100 progress events");
+        }
+    }
 
     static UUID requireAcademyId(java.util.List<UUID> academyIds) {
         if (academyIds == null || academyIds.isEmpty() || academyIds.getFirst() == null) {
