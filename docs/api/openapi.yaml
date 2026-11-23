@@ -28,6 +28,47 @@ tags:
   - name: Learner Notifications
     description: Learner revision schedules, preferences and in-app reminders.
 paths:
+  /health/live:
+    get:
+      summary: Report API process liveness
+      security: []
+      tags: [Operations]
+      operationId: getLaravelLiveness
+      responses:
+        '200':
+          description: API process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: UP }
+  /health/ready:
+    get:
+      summary: Report database readiness
+      security: []
+      tags: [Operations]
+      operationId: getLaravelReadiness
+      responses:
+        '200':
+          description: Database query succeeded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: READY }
+        '503':
+          description: Database is not ready; no diagnostic secrets are returned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: NOT_READY }
   /apps/{appCode}/release-policy:
     get:
       summary: Resolve registered application identity and public release compatibility policy

@@ -5,7 +5,9 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 final class RequestCorrelationId
 {
@@ -20,9 +22,27 @@ final class RequestCorrelationId
                 : (string) Str::uuid();
 
         $request->attributes->set('request_id', $requestId);
-        $response = $next($request);
-        $response->headers->set(self::HEADER, $requestId);
+        $startedAt = hrtime(true);
+        $status = 500;
 
-        return $response;
+        try {
+            $response = $next($request);
+            $status = $response->getStatusCode();
+            $response->headers->set(self::HEADER, $requestId);
+            return $response;
+        } catch (Throwable $exception) {
+            $status = method_exists($exception, 'getStatusCode')
+                ? (int) $exception->getStatusCode()
+                : 500;
+            throw $exception;
+        } finally {
+            Log::info('api.request.completed', [
+                'request_id' => $requestId,
+                'method' => $request->method(),
+                'route' => $request->route()?->uri() ?? 'unmatched',
+                'status' => $status,
+                'duration_ms' => round((hrtime(true) - $startedAt) / 1_000_000, 2),
+            ]);
+        }
     }
 }
