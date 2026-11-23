@@ -45,5 +45,6 @@ public class SpacedReviewScheduleController {
   return Map.of("algorithmVersion",1,"repetitions",state.repetitions(),"easeFactor",state.easeFactor(),"intervalDays",state.intervalDays(),"dueDate",state.dueDate());
  }
  private static void requireUser(CurrentUser user){if(user==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Unauthenticated");}
- public record GradeRequest(int rating,int repetitions,double easeFactor,int intervalDays,LocalDate reviewedOn){}\n public record ReviewRatingRequest(int rating){}
+ public record GradeRequest(int rating,int repetitions,double easeFactor,int intervalDays,LocalDate reviewedOn){}
+ public record ReviewRatingRequest(int rating){}
 }
