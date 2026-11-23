@@ -21,6 +21,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.debounce
@@ -83,13 +88,15 @@ fun LessonScreen(
     }
     Column(modifier.fillMaxSize().verticalScroll(scrollState).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
-            loading -> CircularProgressIndicator()
+            loading -> CircularProgressIndicator(
+                modifier = Modifier.semantics { contentDescription = "Loading lesson" }
+            )
             error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(error ?: "Unable to load lesson.", color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = { lessonViewModel.load(BuildConfig.JIA_API_BASE_URL, slug, force = true) }) { Text("Retry") }
             }
             lesson != null -> {
-                Text(lesson!!.title, style = MaterialTheme.typography.headlineSmall)
+                Text(lesson!!.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
                 Text("Difficulty: ${lesson!!.difficulty} · Source: ${lesson!!.sourceType}",
                     style = MaterialTheme.typography.labelMedium)
                 lesson!!.summary?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
@@ -106,7 +113,7 @@ fun LessonScreen(
                             progressMessage = if (bookmarked) "Bookmark saved offline; it will sync when connected."
                                 else "Bookmark removal queued for synchronization."
                         }
-                    }) { Text(if (bookmarked) "★ Saved offline" else "☆ Bookmark") }
+                    }) { Text(if (bookmarked) "★ Saved offline" else "☆ Bookmark", modifier = Modifier.semantics { contentDescription = if (bookmarked) "Remove lesson bookmark" else "Bookmark lesson" }) }
                     Button(onClick = {
 
                     val token = com.jia.academy.app.auth.SecureSessionStore(context).accessToken()
@@ -126,7 +133,7 @@ fun LessonScreen(
                     }
                 }) { Text("Mark lesson complete") }
                 }
-                progressMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                progressMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                 syncDiagnostics?.let { diagnostics ->
                     Text("Offline sync: " + (diagnostics.lastSuccessAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "not synchronized yet"),
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
