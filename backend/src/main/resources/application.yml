@@ -26,8 +26,16 @@ server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
 management:
-  endpoints.web.exposure.include: health,info
+  endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true
+  endpoint.health.show-details: never
+  metrics:
+    tags:
+      application: jia-api
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 jia:
   auth:
