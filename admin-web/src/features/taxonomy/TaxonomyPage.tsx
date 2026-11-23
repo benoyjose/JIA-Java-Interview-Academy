@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import type { CategoryItem, TechnologyItem } from "../../api/types";
+import { buildCategoryTree } from "./categoryTree";
 
 const empty = { technologySlug: "", parentId: "", slug: "", name: "", sortOrder: "0" };
 
@@ -8,6 +9,8 @@ export function TaxonomyPage() {
   const [technologies, setTechnologies] = useState<TechnologyItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [technology, setTechnology] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryStatus, setCategoryStatus] = useState("ALL");
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ export function TaxonomyPage() {
 
   useEffect(() => { void load(); }, []);
   const visible = categories.filter(item => item.technologySlug === technology);
+  const categoryRows = buildCategoryTree(visible, categorySearch, categoryStatus);
   const parents = visible.filter(item => item.id !== editingId && item.status !== "ARCHIVED");
 
   function edit(item: CategoryItem) {
@@ -120,14 +124,15 @@ export function TaxonomyPage() {
     </div>
     <div className="editor-layout">
       <div className="panel">
-        <div className="panel-heading"><h2>Categories</h2><span className="muted">{visible.length} in selected technology</span></div>
+        <div className="panel-heading"><h2>Categories</h2><span className="muted">{categoryRows.length} shown · {visible.length} total</span></div>
         <label className="field-label">Technology</label>
         <select value={technology} onChange={event => setTechnology(event.target.value)}>
           {technologies.map(item => <option key={item.id} value={item.slug}>{item.name}</option>)}
         </select>
+        <div className="taxonomy-filters"><label>Search categories<input type="search" value={categorySearch} onChange={event => setCategorySearch(event.target.value)} placeholder="Name, slug or status" /></label><label>Status<select value={categoryStatus} onChange={event => setCategoryStatus(event.target.value)}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label></div>
         {loading ? <p className="muted">Loading taxonomy…</p> : visible.length === 0 ?
           <p className="muted">No categories found for this technology.</p> :
-          <div className="table-wrap"><table className="data-table"><thead><tr>
+          {categoryRows.length === 0 ? <p className="muted">No categories match these filters.</p> : <div className="table-wrap"><table className="data-table"><thead><tr>
             <th>Category</th><th>Slug</th><th>Content</th><th>Status</th><th>Actions</th>
           </tr></thead><tbody>{visible.map(item => <tr key={item.id}>
             <td><strong>{item.parentSlug ? "↳ " : ""}{item.name}</strong></td><td><code>{item.slug}</code></td>
