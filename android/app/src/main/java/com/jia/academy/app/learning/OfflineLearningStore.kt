@@ -7,6 +7,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.withTransaction
 import com.jia.academy.app.catalogue.LessonDetail
 
+data class OfflineCachedLessonInfo(
+    val slug: String, val title: String, val contentRevision: Int,
+    val contentBytes: Long, val cachedAt: Long, val checksum: String
+)
+
 data class PendingBookmark(val lessonSlug: String, val bookmarked: Boolean, val updatedAt: Long)
 
 data class OfflineSyncDiagnostics(val lastAttemptAt: Long?, val lastSuccessAt: Long?, val lastError: String?, val syncedProgressCount: Int, val syncedBookmarkCount: Int)
@@ -110,6 +115,25 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
         } finally { db.endTransaction() }
         return removed
     }
+
+    /** Snapshot for the offline library UI; reports verified cache metadata only. */
+    fun cachedLessonLibrary(): List<OfflineCachedLessonInfo> =
+        readableDatabase.query("SELECT slug,title,content_revision,LENGTH(CAST(content_json AS BLOB)),cached_at,checksum FROM cached_lessons ORDER BY cached_at DESC,slug ASC", emptyArray()).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) add(OfflineCachedLessonInfo(
+                    cursor.getString(0), cursor.getString(1), cursor.getInt(2),
+                    cursor.getLong(3), cursor.getLong(4), cursor.getString(5)))
+            }
+        }
+
+    /** Delete exactly one cached lesson. Queued progress/bookmarks are intentionally retained. */
+    fun removeCachedLesson(slug: String): Boolean {
+        require(slug.isNotBlank())
+        return writableDatabase.delete("cached_lessons", "slug=?", arrayOf(slug)) > 0
+    }
+
+    /** Clear lesson content only; learner activity queues and preferences are preserved. */
+    fun clearCachedLessons(): Int = writableDatabase.delete("cached_lessons", null, null)
 
     fun cachedLesson(slug: String): LessonDetail? {
         val row = database.cachedLessonDao().find(slug) ?: return null
