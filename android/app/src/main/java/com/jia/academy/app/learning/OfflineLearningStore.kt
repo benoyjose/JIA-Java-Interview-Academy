@@ -52,6 +52,9 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
     fun cacheLesson(lesson: LessonDetail, expectedChecksum: String? = null) {
         val content = lesson.contentJson ?: return
         require(content.length <= MAX_CONTENT_CHARS) { "Lesson content exceeds the offline cache limit" }
+        require(content.toByteArray(Charsets.UTF_8).size.toLong() <= cacheLimitBytes()) {
+            "Lesson content exceeds the configured offline cache quota"
+        }
         val checksum = OfflineContentChecksum.sha256(content)
         if (expectedChecksum != null) {
             require(checksum.equals(expectedChecksum, ignoreCase = true)) {
