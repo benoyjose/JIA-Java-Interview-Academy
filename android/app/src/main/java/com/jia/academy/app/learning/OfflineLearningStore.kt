@@ -299,6 +299,22 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             }
         }
 
+    /**
+     * Rebase only the exact queued snapshot after the server rejects a future content revision.
+     * This intentionally permits lowering the revision while preserving progress and reading
+     * position; the timestamp guard prevents overwriting a newer learner edit.
+     */
+    fun rebaseProgressSnapshot(item: PendingLessonProgress, currentRevision: Int): Boolean {
+        require(currentRevision > 0)
+        val updatedAt = maxOf(System.currentTimeMillis(), item.updatedAt + 1L)
+        val values = ContentValues().apply {
+            put("content_revision", currentRevision)
+            put("updated_at", updatedAt)
+        }
+        return writableDatabase.update("pending_progress", SQLiteDatabase.CONFLICT_NONE, values,
+            "lesson_slug=? AND updated_at=?", arrayOf(item.lessonSlug, item.updatedAt.toString())) == 1
+    }
+
     fun markProgressSynced(item: PendingLessonProgress) {
         writableDatabase.delete(
             "pending_progress",

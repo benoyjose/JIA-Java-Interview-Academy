@@ -59,17 +59,22 @@ public class ProgressEventService {
         }
         UUID academyId = requireAcademyId(user.academyIds());
         UUID lessonId = null;
+        int publishedRevision = 0;
         if (request.lessonSlug() != null && !request.lessonSlug().isBlank()) {
-            lessonId = jdbc.query("""
-                    SELECT l.id FROM lessons l JOIN categories c ON c.id=l.category_id
-                    JOIN technologies t ON t.id=c.technology_id
+            var published = jdbc.query("""
+                    SELECT l.id,r.revision_number FROM lessons l
+                    JOIN lesson_revisions r ON r.id=l.published_revision_id
+                    JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id
                     WHERE l.slug=? AND l.status='PUBLISHED' AND t.academy_id=?
-                    """, (rs, row) -> rs.getObject(1, UUID.class), request.lessonSlug(), academyId)
-                    .stream().findFirst().orElseThrow(() ->
+                    """, (rs, row) -> new PublishedLessonRef(rs.getObject("id", UUID.class), rs.getInt("revision_number")),
+                    request.lessonSlug(), academyId).stream().findFirst().orElseThrow(() ->
                     new ResponseStatusException(HttpStatus.NOT_FOUND, "Published lesson not found"));
+            lessonId = published.id();
+            publishedRevision = published.revision();
         }
         JsonNode payload = request.payload() == null ? mapper.createObjectNode() : request.payload();
         validatePayload(payload);
+        validateProjectionEvent(type, request.lessonSlug(), payload);
         String json;
         try { json = mapper.writeValueAsString(payload); }
         catch (Exception ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid event payload"); }
@@ -93,11 +98,87 @@ public class ProgressEventService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Event ID was already used with a different event body");
             }
+        } else {
+            // Ledger insertion and learner-facing projection share this transaction.
+            projectAcceptedEvent(user, lessonId, publishedRevision, type, payload);
         }
         return new EventReceipt(request.eventId(), inserted == 1 ? "ACCEPTED" : "DUPLICATE",
                 request.occurredAt());
     }
 
+
+    /** Validate event fields before accepting a ledger record that drives a learner projection. */
+    static void validateProjectionEvent(String type, String lessonSlug, JsonNode payload) {
+        if (!java.util.Set.of("LESSON_STARTED", "LESSON_COMPLETED", "BOOKMARK_CHANGED").contains(type)) return;
+        if (lessonSlug == null || lessonSlug.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Projected events require a lessonSlug");
+        }
+        if ("BOOKMARK_CHANGED".equals(type)) {
+            if (!payload.path("bookmarked").isBoolean()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bookmark events require a boolean bookmarked value");
+            }
+            return;
+        }
+        JsonNode revision = payload.get("contentRevision");
+        JsonNode percent = payload.get("progressPercent");
+        JsonNode position = payload.get("lastPosition");
+        if (revision == null || !revision.canConvertToInt() || revision.asInt() < 1
+                || percent == null || !percent.isNumber()
+                || percent.decimalValue().compareTo(java.math.BigDecimal.ZERO) < 0
+                || percent.decimalValue().compareTo(java.math.BigDecimal.valueOf(100)) > 0
+                || (position != null && !position.isNull() && !position.isObject())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Progress events contain an invalid projection payload");
+        }
+        if ("LESSON_COMPLETED".equals(type) && percent.decimalValue().compareTo(java.math.BigDecimal.valueOf(100)) != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Completion events must report 100 percent");
+        }
+    }
+
+    private void projectAcceptedEvent(CurrentUser user, UUID lessonId, int publishedRevision,
+                                     String type, JsonNode payload) {
+        if (lessonId == null) return;
+        if ("BOOKMARK_CHANGED".equals(type)) {
+            if (payload.path("bookmarked").asBoolean()) {
+                jdbc.update("""
+                        INSERT INTO learner_bookmarks(user_id,lesson_id,created_at)
+                        VALUES (?,?,now()) ON CONFLICT (user_id,lesson_id) DO NOTHING
+                        """, user.id(), lessonId);
+            } else {
+                jdbc.update("DELETE FROM learner_bookmarks WHERE user_id=? AND lesson_id=?", user.id(), lessonId);
+            }
+            return;
+        }
+        if (!"LESSON_STARTED".equals(type) && !"LESSON_COMPLETED".equals(type)) return;
+        int eventRevision = payload.path("contentRevision").asInt();
+        if (eventRevision > publishedRevision) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Progress event refers to a newer lesson revision; rebase and retry");
+        }
+        java.math.BigDecimal percent = payload.path("progressPercent").decimalValue();
+        String position = null;
+        JsonNode positionNode = payload.get("lastPosition");
+        if (positionNode != null && !positionNode.isNull()) {
+            try { position = mapper.writeValueAsString(positionNode); }
+            catch (Exception ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid progress position"); }
+        }
+        jdbc.update("""
+                INSERT INTO learner_lesson_progress(user_id,lesson_id,content_revision,status,progress_percent,
+                    last_position_json,started_at,completed_at,updated_at)
+                VALUES (?,?,?,CASE WHEN ? >= 100 THEN 'COMPLETED' ELSE 'IN_PROGRESS' END,?,?::jsonb,
+                    now(),CASE WHEN ? >= 100 THEN now() ELSE NULL END,now())
+                ON CONFLICT (user_id,lesson_id) DO UPDATE SET
+                    content_revision=GREATEST(learner_lesson_progress.content_revision,EXCLUDED.content_revision),
+                    progress_percent=GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent),
+                    status=CASE WHEN GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)>=100
+                        THEN 'COMPLETED' ELSE learner_lesson_progress.status END,
+                    last_position_json=CASE WHEN EXCLUDED.progress_percent>=learner_lesson_progress.progress_percent
+                        THEN EXCLUDED.last_position_json ELSE learner_lesson_progress.last_position_json END,
+                    completed_at=COALESCE(learner_lesson_progress.completed_at,EXCLUDED.completed_at),
+                    updated_at=GREATEST(now(),learner_lesson_progress.updated_at + interval '1 microsecond')
+                """, user.id(), lessonId, publishedRevision, percent, percent, position, percent);
+    }
+
+    private record PublishedLessonRef(UUID id, int revision) {}
 
     static void validateBatchSize(java.util.List<EventRequest> requests) {
         if (requests == null || requests.isEmpty() || requests.size() > 100) {
