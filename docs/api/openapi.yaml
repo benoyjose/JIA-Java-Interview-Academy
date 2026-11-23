@@ -67,6 +67,42 @@ paths:
                   totalPages: { type: integer }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /me/study-plan:
+    get:
+      summary: Generate an authenticated learner's personalized daily study plan
+      tags: [Learning]
+      operationId: getLearnerStudyPlan
+      parameters:
+        - name: dailyMinutes
+          in: query
+          required: false
+          schema: { type: integer, minimum: 10, maximum: 180, default: 30 }
+      responses:
+        '200':
+          description: Ordered lesson and weak-topic tasks within the requested daily time budget
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dailyMinutes, tasks]
+                properties:
+                  dailyMinutes: { type: integer, minimum: 10, maximum: 180 }
+                  generatedAt: { type: [string, 'null'], format: date-time }
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                      required: [kind, title, minutes, reason]
+                      properties:
+                        kind: { type: string, enum: [CONTINUE_LESSON, PRACTICE_TOPIC] }
+                        title: { type: string }
+                        lessonSlug: { type: [string, 'null'] }
+                        topicSlug: { type: [string, 'null'] }
+                        minutes: { type: integer, minimum: 1 }
+                        reason: { type: string }
+                        priority: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me/privacy/export:
     get:
       summary: Export learner-owned personal data for portability
@@ -2080,6 +2116,88 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+
+  /coding-submissions:
+    post:
+      summary: Queue a Java coding exercise submission without executing untrusted code
+      tags: [Learning]
+      operationId: createCodingSubmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exerciseId, idempotencyKey, language, sourceCode]
+              properties:
+                exerciseId: { type: string, format: uuid }
+                idempotencyKey: { type: string, format: uuid }
+                language: { type: string, const: JAVA }
+                sourceCode: { type: string, minLength: 1, maxLength: 65536 }
+      responses:
+        '202':
+          description: Submission queued; sandbox execution remains disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [submissionId, status, executionEnabled, idempotentReplay]
+                properties:
+                  submissionId: { type: string, format: uuid }
+                  status: { type: string, enum: [QUEUED, RUNNING, CANCELLED, COMPLETED, FAILED] }
+                  createdAt: { type: string, format: date-time }
+                  executionEnabled: { type: boolean, const: false }
+                  idempotentReplay: { type: boolean }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { description: Source exceeds the 64 KiB limit }
+  /coding-submissions/{submissionId}:
+    get:
+      summary: Read status of the authenticated learner's coding submission
+      tags: [Learning]
+      operationId: getCodingSubmissionStatus
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Learner-scoped submission status; source code is not returned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [submissionId, status, executionEnabled, cancelRequested]
+                properties:
+                  submissionId: { type: string, format: uuid }
+                  status: { type: string }
+                  createdAt: { type: string, format: date-time }
+                  updatedAt: { type: string, format: date-time }
+                  cancelRequested: { type: boolean }
+                  executionEnabled: { type: boolean, const: false }
+                  message: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /coding-submissions/{submissionId}/cancel:
+    post:
+      summary: Cancel a queued submission or request cancellation of a running submission
+      tags: [Learning]
+      operationId: cancelCodingSubmission
+      parameters:
+        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Cancellation state updated for the authenticated learner's submission
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [submissionId, status, cancelRequested]
+                properties:
+                  submissionId: { type: string, format: uuid }
+                  status: { type: string }
+                  cancelRequested: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
 components:
   securitySchemes:
