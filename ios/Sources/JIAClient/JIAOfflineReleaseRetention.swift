@@ -4,10 +4,13 @@ import Foundation
 public enum JIAOfflineReleaseRetention {
     public static func releasesToKeep(versions: [Int], activeVersion: Int?, maximumPrevious: Int = 1) -> Set<Int> {
         let cap = max(0, maximumPrevious)
-        let ordered = Array(Set(versions)).sorted(by: >)
-        var keep = Set(ordered.prefix(cap + (activeVersion == nil ? 0 : 1)))
-        if let activeVersion { keep.insert(activeVersion) }
-        return keep
+        let unique = Set(versions)
+        guard let activeVersion, unique.contains(activeVersion) else {
+            return Set(unique.sorted(by: >).prefix(cap + 1))
+        }
+        let rollbackVersions = unique.filter { $0 != activeVersion && $0 < activeVersion }
+            .sorted(by: >).prefix(cap)
+        return Set([activeVersion]).union(rollbackVersions)
     }
 
     public static func releasesToRemove(versions: [Int], activeVersion: Int?, maximumPrevious: Int = 1) -> Set<Int> {
