@@ -67,6 +67,35 @@ paths:
                   totalPages: { type: integer }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /me/reviews/due:
+    get:
+      summary: Get the authenticated learner's due spaced-review lessons
+      tags: [Learning]
+      operationId: getLearnerDueSpacedReviews
+      responses:
+        '200': { description: Due review items scoped to the current learner }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/reviews/{lessonSlug}/grade:
+    post:
+      summary: Grade a learner's spaced review for a published lesson
+      tags: [Learning]
+      operationId: gradeLearnerSpacedReview
+      parameters:
+        - { name: lessonSlug, in: path, required: true, schema: { type: string, maxLength: 180 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 0, maximum: 5 }
+      responses:
+        '200': { description: Review rating and next due interval }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /me/review-schedule/preview:
     post:
       summary: Preview deterministic spaced-review interval for a learner rating
@@ -2211,3 +2240,132 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Bad Request response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    NotFound:
+      description: Not Found response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    Unauthorized:
+      description: Unauthorized response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    Forbidden:
+      description: Forbidden response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    Conflict:
+      description: Conflict response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    RateLimited:
+      description: Rate Limited response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    ValidationError:
+      description: Validation Error response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+    InternalError:
+      description: Internal Error response
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+  schemas:
+    LearnerNotificationPreferences:
+      type: object
+      additionalProperties: true
+    RevisionDue:
+      type: object
+      additionalProperties: true
+    LearnerNotification:
+      type: object
+      additionalProperties: true
+    TokenResponse:
+      type: object
+      additionalProperties: true
+    User:
+      type: object
+      additionalProperties: true
+    Technology:
+      type: object
+      additionalProperties: true
+    Category:
+      type: object
+      additionalProperties: true
+    LessonSummary:
+      type: object
+      additionalProperties: true
+    Lesson:
+      type: object
+      additionalProperties: true
+    QuizDifficulty:
+      type: object
+      additionalProperties: true
+    ContentRelease:
+      type: object
+      additionalProperties: true
+    QuizAvailability:
+      type: object
+      additionalProperties: true
+    QuizAttemptStart:
+      type: object
+      additionalProperties: true
+    QuizQuestion:
+      type: object
+      additionalProperties: true
+    QuizAttemptResult:
+      type: object
+      additionalProperties: true
+    QuizPerformance:
+      type: object
+      additionalProperties: true
+    QuizAttemptSummary:
+      type: object
+      additionalProperties: true
+    AdminLessonPage:
+      type: object
+      additionalProperties: true
+    LessonDraftRequest:
+      type: object
+      additionalProperties: true
+    LessonDraft:
+      type: object
+      additionalProperties: true
+    LessonAuthoringDetail:
+      type: object
+      additionalProperties: true
+    ReviewQueuePage:
+      type: object
+      additionalProperties: true
+    ReviewDetail:
+      type: object
+      additionalProperties: true
+    LearnerProgressEvent:
+      type: object
+      additionalProperties: true
+    LearnerProgressEventReceipt:
+      type: object
+      additionalProperties: true
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 180 }
