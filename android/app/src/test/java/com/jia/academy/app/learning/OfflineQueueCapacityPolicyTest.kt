@@ -7,19 +7,19 @@ import org.junit.Test
 
 class OfflineQueueCapacityPolicyTest {
     @Test fun permitsNewItemBelowLimit() {
-        assertFalse(OfflineQueueCapacityPolicy.shouldReject(false, 9, 10))
+        assertFalse(OfflineQueueCapacityPolicy.shouldReject(false, 99, 100))
     }
 
     @Test fun rejectsNewItemAtLimit() {
-        assertTrue(OfflineQueueCapacityPolicy.shouldReject(false, 10, 10))
+        assertTrue(OfflineQueueCapacityPolicy.shouldReject(false, 100, 100))
     }
 
     @Test fun permitsCoalescingExistingItemAtLimit() {
-        assertFalse(OfflineQueueCapacityPolicy.shouldReject(true, 10, 10))
+        assertFalse(OfflineQueueCapacityPolicy.shouldReject(true, 100, 100))
     }
 
     @Test fun permitsExistingItemEvenIfQueueAlreadyOverLimit() {
-        assertFalse(OfflineQueueCapacityPolicy.shouldReject(true, 12, 10))
+        assertFalse(OfflineQueueCapacityPolicy.shouldReject(true, 102, 100))
     }
 
     @Test fun exposesActionableNonDestructiveMessage() {
