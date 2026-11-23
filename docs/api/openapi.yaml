@@ -1959,56 +1959,41 @@ paths:
 
   /me/progress-events:
     post:
-      summary: Submit an idempotent batch of learner activity events
+      summary: Append one learner activity event
       tags: [Learning]
-      operationId: submitLearnerProgressEvents
-      description: Authenticated identity supplies learner ID; client mastery is never accepted. Inspect each item outcome.
+      operationId: appendLearnerProgressEvent
+      description: Authenticated identity and academy membership are server-derived. schemaVersion is currently fixed to 1. A repeated event ID with an identical body returns DUPLICATE; reusing it with a different body returns 409. Client mastery and authoritative scores are never accepted.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [events]
+              required: [eventId, eventType, occurredAt]
               properties:
-                events:
-                  type: array
-                  minItems: 1
-                  maxItems: 100
-                  items:
-                    type: object
-                    required: [eventId, eventType, schemaVersion, academyCode, occurredAt]
-                    properties:
-                      eventId: { type: string, format: uuid }
-                      eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
-                      schemaVersion: { type: integer, const: 1 }
-                      academyCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
-                      occurredAt: { type: string, format: date-time }
-                      lessonId: { type: [string, 'null'], format: uuid }
-                      payload: { type: object, maxProperties: 30, description: 'Bounded event metadata; no credentials, answer keys or mastery scores.' }
+                eventId: { type: string, format: uuid, description: Client-generated stable idempotency key }
+                eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+                occurredAt: { type: string, format: date-time }
+                lessonSlug: { type: [string, 'null'], maxLength: 160 }
+                payload: { type: object, maxProperties: 30, description: 'Optional bounded metadata object; server rejects sensitive or authoritative fields and payloads over 8 KiB.' }
       responses:
         '200':
-          description: Batch processed; inspect individual outcomes
+          description: Event accepted or identical duplicate
           content:
             application/json:
               schema:
                 type: object
-                required: [results]
+                required: [eventId, status, occurredAt]
                 properties:
-                  results:
-                    type: array
-                    items:
-                      type: object
-                      required: [eventId, outcome]
-                      properties:
-                        eventId: { type: string, format: uuid }
-                        outcome: { type: string, enum: [ACCEPTED, DUPLICATE, REJECTED] }
-                        code: { type: [string, 'null'] }
-                        retryable: { type: boolean, default: false }
+                  eventId: { type: string, format: uuid }
+                  status: { type: string, enum: [ACCEPTED, DUPLICATE] }
+                  occurredAt: { type: string, format: date-time }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '413': { description: Batch or payload exceeds configured limit }
+        '404': { $ref: '#/components/responses/NotFound', description: Published lesson slug was not found in the authenticated academy }
+        '409': { description: Event ID was already used with a different event body }
+        '413': { description: Event payload exceeds configured limit }
         '429': { description: Rate limit exceeded; retry with backoff }
         '500': { $ref: '#/components/responses/InternalError' }
 
