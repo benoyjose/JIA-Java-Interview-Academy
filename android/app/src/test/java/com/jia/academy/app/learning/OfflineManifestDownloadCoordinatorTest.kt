@@ -3,7 +3,8 @@ package com.jia.academy.app.learning
 import android.content.Context
 import com.jia.academy.app.catalogue.LessonDetail
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -68,14 +69,16 @@ class OfflineManifestDownloadCoordinatorTest {
             put("items", org.json.JSONArray().put(item("lesson-a", content)).put(item("lesson-b", content)))
         })
         var calls = 0
+        val firstFetchStarted = CompletableDeferred<Unit>()
+        val holdFetch = CompletableDeferred<LessonDetail>()
         val coordinator = OfflineManifestDownloadCoordinator(store) {
             calls++
-            if (calls == 1) coroutineContext.cancel()
-            lesson(it, 1, content)
+            firstFetchStarted.complete(Unit)
+            holdFetch.await()
         }
-        try {
-            coordinator.download(manifest)
-        } catch (_: CancellationException) { }
+        val downloadJob = launch { coordinator.download(manifest) }
+        firstFetchStarted.await()
+        downloadJob.cancelAndJoin()
         assertEquals(1, calls)
     }
 
