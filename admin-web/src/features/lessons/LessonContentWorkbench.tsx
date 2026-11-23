@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";\nimport "./lesson-content-workbench.css";
 
 export type LessonBlockRecord = Record<string, unknown> & { type: string; title?: string };
 
