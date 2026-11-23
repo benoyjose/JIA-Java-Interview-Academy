@@ -25,6 +25,9 @@ public class ProgressEventService {
     @Transactional
     public BatchReceipt appendBatch(CurrentUser user, java.util.List<EventRequest> requests) {
         validateBatchSize(requests);
+        if (requests.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Batch cannot contain null events");
+        }
         java.util.List<EventReceipt> receipts = new java.util.ArrayList<>(requests.size());
         int accepted = 0;
         int duplicates = 0;
