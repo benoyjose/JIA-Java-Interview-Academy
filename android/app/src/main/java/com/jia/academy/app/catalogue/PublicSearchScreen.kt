@@ -6,6 +6,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +72,7 @@ fun PublicSearchScreen(apiBaseUrl:String,modifier:Modifier=Modifier) {
         }
     }
     Column(modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-        Text("Search academy content",style=MaterialTheme.typography.headlineSmall)
+        Text("Search academy content",style=MaterialTheme.typography.headlineSmall,modifier=Modifier.semantics { heading() })
         Text("Browse published lessons and question prompts without signing in.",style=MaterialTheme.typography.bodyMedium)
         OutlinedTextField(value=query,onValueChange={query=it},modifier=Modifier.fillMaxWidth(),label={Text("Search Java, Spring, SQL…")},singleLine=true)
         Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -80,11 +85,11 @@ fun PublicSearchScreen(apiBaseUrl:String,modifier:Modifier=Modifier) {
             Text("Recent searches",style=MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){recent.take(4).forEach{TextButton(onClick={search(it)}){Text(it)}}}
         }
-        if(loading) CircularProgressIndicator()
-        error?.let{Text(it,color=MaterialTheme.colorScheme.error)}
+        if(loading) CircularProgressIndicator(modifier=Modifier.semantics { contentDescription="Searching academy content"; liveRegion=LiveRegionMode.Polite })
+        error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.semantics { liveRegion=LiveRegionMode.Assertive })}
         result?.let { data ->
-            Text("${data.totalItems} results",style=MaterialTheme.typography.titleMedium)
-            if(data.hits.isEmpty()) Text("No matches. Try another keyword or content type.")
+            Text("${data.totalItems} results",style=MaterialTheme.typography.titleMedium,modifier=Modifier.semantics { heading() })
+            if(data.hits.isEmpty()) Text("No matches. Try another keyword or content type.",modifier=Modifier.semantics { liveRegion=LiveRegionMode.Polite })
             LazyColumn(modifier=Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 items(data.hits,key={it.type+":"+it.slug}){hit->
                     Card(Modifier.fillMaxWidth()) {
