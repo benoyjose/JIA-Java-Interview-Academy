@@ -15,10 +15,10 @@ The currently implemented endpoint accepts one event per request: client-generat
 - Bookmark ordering must use server sequence/version, not client wall-clock alone.
 
 ## Request and retry behavior
-The current API is single-event, not batch: `POST /me/progress-events` returns one receipt with `ACCEPTED` or `DUPLICATE`. Batch ingestion (1–100 events) is a planned extension and is not implemented yet. Validation and authorization failures are permanent; network, 408, 429 and 5xx are retryable with exponential backoff and jitter. Clients should retain the same event ID and body for retries.
+Both single-event and batch ingestion are implemented. `POST /me/progress-events` returns one receipt; `POST /me/progress-events/batch` accepts 1–100 events and returns `events`, `acceptedCount`, and `duplicateCount`. Each receipt contains the original `eventId`, `ACCEPTED` or `DUPLICATE`, and `occurredAt`. The batch is processed in one Spring transaction: an invalid event or conflicting reuse of an event ID fails the request rather than returning a partial per-item rejection list. Identical retries retain their original IDs and bodies. Validation and authorization failures are permanent; network, 408, 429 and 5xx are retryable with exponential backoff and jitter.
 
 ## Privacy and tenant isolation
 Scope all access by authenticated user and academy. Never accept client mastery, answer keys, credentials, raw device identifiers, or unnecessary personal data. The service rejects payloads above 8 KiB; the database also applies a 16 KiB storage constraint.
 
 ## Delivery boundary
-The ledger and single-event Spring Boot ingestion service are implemented. Batch ingestion, transactional derived projections, paginated summaries, full sync reconciliation, integration/concurrency coverage and maintained Laravel compatibility remain follow-up work; issue #189 is not complete until these are implemented.
+The ledger and single-event Spring Boot ingestion service are implemented. Batch ingestion and paginated event history are implemented. Remaining work includes durable Android outbox integration with the batch receipt contract, transactional derived projections where required, end-to-end reconciliation/conflict recovery, integration/concurrency coverage and maintained Laravel compatibility. The mobile worker still uses legacy progress/bookmark endpoints; do not claim offline event reconciliation is complete.
