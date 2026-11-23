@@ -23,6 +23,24 @@ public class ProgressEventService {
     }
 
     @Transactional
+    public BatchReceipt appendBatch(CurrentUser user, java.util.List<EventRequest> requests) {
+        if (requests == null || requests.isEmpty() || requests.size() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Batch must contain between 1 and 100 progress events");
+        }
+        java.util.List<EventReceipt> receipts = new java.util.ArrayList<>(requests.size());
+        int accepted = 0;
+        int duplicates = 0;
+        for (EventRequest request : requests) {
+            EventReceipt receipt = append(user, request);
+            receipts.add(receipt);
+            if ("ACCEPTED".equals(receipt.status())) accepted++;
+            else duplicates++;
+        }
+        return new BatchReceipt(receipts, accepted, duplicates);
+    }
+
+    @Transactional
     public EventReceipt append(CurrentUser user, EventRequest request) {
         if (request.eventId() == null || request.occurredAt() == null || request.eventType() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "eventId, eventType and occurredAt are required");
@@ -115,5 +133,5 @@ public class ProgressEventService {
 
     public record EventRequest(UUID eventId, String eventType, Instant occurredAt,
                                String lessonSlug, JsonNode payload) {}
-    public record EventReceipt(UUID eventId, String status, Instant occurredAt) {}
+    public record EventReceipt(UUID eventId, String status, Instant occurredAt) {}\n    public record BatchReceipt(java.util.List<EventReceipt> events, int acceptedCount, int duplicateCount) {}
 }
