@@ -59,7 +59,7 @@ class ProgressSyncTransportTest {
         assertEquals(BatchSyncResponseAction.ACKNOWLEDGE, ProgressBatchSyncResponsePolicy.classify(200))
         assertEquals(BatchSyncResponseAction.RETRY, ProgressBatchSyncResponsePolicy.classify(429))
         assertEquals(BatchSyncResponseAction.RETRY, ProgressBatchSyncResponsePolicy.classify(503))
-        assertEquals(BatchSyncResponseAction.REJECT, ProgressBatchSyncResponsePolicy.classify(409))
+        assertEquals(BatchSyncResponseAction.REBASE, ProgressBatchSyncResponsePolicy.classify(409))
         assertEquals(BatchSyncResponseAction.REJECT, ProgressBatchSyncResponsePolicy.classify(422))
     }
 
