@@ -191,7 +191,7 @@ test("lesson editor blocks malformed content before issuing a save request", asy
   await page.getByRole("button", { name: "Edit raw JSON" }).click();
   await page.getByLabel("Raw lesson JSON").fill("{invalid");
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("alert")).toContainText("not valid JSON");
+  await expect(page.getByText("Lesson content is not valid JSON.")).toBeVisible();
   expect(saveRequests).toBe(0);
 });
 
