@@ -1847,6 +1847,61 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /me/progress-events:
+    post:
+      summary: Submit an idempotent batch of learner activity events
+      tags: [Learning]
+      operationId: submitLearnerProgressEvents
+      description: Authenticated identity supplies learner ID; client mastery is never accepted. Inspect each item outcome.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [eventId, eventType, schemaVersion, academyCode, occurredAt]
+                    properties:
+                      eventId: { type: string, format: uuid }
+                      eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+                      schemaVersion: { type: integer, const: 1 }
+                      academyCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,39}$' }
+                      occurredAt: { type: string, format: date-time }
+                      lessonId: { type: [string, 'null'], format: uuid }
+                      payload: { type: object, maxProperties: 30, description: 'Bounded event metadata; no credentials, answer keys or mastery scores.' }
+      responses:
+        '200':
+          description: Batch processed; inspect individual outcomes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventId, outcome]
+                      properties:
+                        eventId: { type: string, format: uuid }
+                        outcome: { type: string, enum: [ACCEPTED, DUPLICATE, REJECTED] }
+                        code: { type: [string, 'null'] }
+                        retryable: { type: boolean, default: false }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { description: Batch or payload exceeds configured limit }
+        '429': { description: Rate limit exceeded; retry with backoff }
+        '500': { $ref: '#/components/responses/InternalError' }
+
 components:
   securitySchemes:
     bearerAuth:
