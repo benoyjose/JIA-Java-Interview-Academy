@@ -28,3 +28,5 @@ jobs:
           node-version: "22"
       - name: Validate advanced lesson completeness
         run: node scripts/validate-curriculum-depth.mjs
+      - name: Validate curriculum coverage and prerequisite graph
+        run: node scripts/validate-curriculum-coverage.mjs
