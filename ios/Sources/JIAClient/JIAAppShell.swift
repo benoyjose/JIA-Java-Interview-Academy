@@ -53,6 +53,11 @@ public struct JIAAppShell: View {
                     }
                 }
                 ToolbarItem(placement: .automatic) {
+                    NavigationLink { JIAStudyPlanView(client: client, session: authSession) } label: {
+                        Label("Study plan", systemImage: "calendar.badge.clock")
+                    }
+                }
+                ToolbarItem(placement: .automatic) {
                     NavigationLink { JIAQuizView(client: client, session: authSession) } label: {
                         Label("Quiz", systemImage: "checklist")
                     }
