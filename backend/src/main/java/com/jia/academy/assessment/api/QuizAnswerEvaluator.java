@@ -16,7 +16,7 @@ final class QuizAnswerEvaluator {
     }
 
     static boolean isCorrect(String questionType, Map<String, Object> response, Map<String, Object> answer) {
-        if (requiresSelfReview(questionType) || !OBJECTIVE_TYPES.contains(questionType)) return false;
+        if (questionType == null || requiresSelfReview(questionType) || !OBJECTIVE_TYPES.contains(questionType)) return false;
         Object expectedValue = answer.containsKey("correctValues")
                 ? answer.get("correctValues") : answer.get("correct_values");
         if (!(expectedValue instanceof List<?> expected) || expected.isEmpty()) return false;
