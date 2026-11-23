@@ -153,6 +153,24 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
             }
         }
 
+    /**
+     * Remove release content no longer present in the fully downloaded, validated manifest.
+     * This method touches only cached_lessons: pending_progress, pending_bookmarks and
+     * local bookmark state are deliberately retained for later reconciliation.
+     */
+    fun reconcileCachedLessons(publishedSlugs: Set<String>): Int {
+        val stale = cachedLessonLibrary().map { it.slug }.filterNot { it in publishedSlugs }
+        if (stale.isEmpty()) return 0
+        val db = writableDatabase
+        db.beginTransaction()
+        var removed = 0
+        try {
+            stale.forEach { slug -> removed += db.delete("cached_lessons", "slug=?", arrayOf(slug)) }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        return removed
+    }
+
     /** Delete exactly one cached lesson. Queued progress/bookmarks are intentionally retained. */
     fun removeCachedLesson(slug: String): Boolean {
         require(slug.isNotBlank())
