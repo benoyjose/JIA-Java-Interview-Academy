@@ -2039,6 +2039,48 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { description: Conflicting event ID; entire batch rolled back }
 
+  /me/progress-events/history:
+    get:
+      summary: Read learner progress history and derived event counts
+      tags: [Learning]
+      operationId: getLearnerProgressHistory
+      parameters:
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 256 } }
+        - { name: eventType, in: query, schema: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] } }
+      responses:
+        '200':
+          description: Learner-scoped page with server-derived event totals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor, pageSize, summary]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventId, eventType, occurredAt]
+                      properties:
+                        eventId: { type: string, format: uuid }
+                        eventType: { type: string }
+                        occurredAt: { type: string, format: date-time }
+                        lessonSlug: { type: [string, 'null'] }
+                  nextCursor: { type: [string, 'null'] }
+                  pageSize: { type: integer }
+                  summary:
+                    type: array
+                    items:
+                      type: object
+                      required: [eventType, count]
+                      properties:
+                        eventType: { type: string }
+                        count: { type: integer, format: int64 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
 components:
   securitySchemes:
     bearerAuth:
