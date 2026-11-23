@@ -78,7 +78,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
 
     /** Learner-selected limit; enforce immediately while preserving the most recently saved lesson. */
     fun setCacheLimitBytes(limitBytes: Long) {
-        require(limitBytes >= MIN_CACHE_LIMIT_BYTES) { "Offline cache limit must be at least 16 MiB" }
+        require(limitBytes >= MIN_CACHE_LIMIT_BYTES) { "Offline cache limit must be at least 1 MiB" }
         appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
             .edit().putLong(KEY_CACHE_LIMIT_BYTES, limitBytes).apply()
         evictToCacheLimit()
@@ -283,7 +283,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
     companion object {
         private const val MAX_CONTENT_CHARS = 2_000_000
         private const val KEY_CACHE_LIMIT_BYTES = "offline_cache_limit_bytes"
-        const val MIN_CACHE_LIMIT_BYTES = 16L * 1024L * 1024L
+        const val MIN_CACHE_LIMIT_BYTES = 1L * 1024L * 1024L
         const val DEFAULT_CACHE_LIMIT_BYTES = 64L * 1024L * 1024L
     }
 }
