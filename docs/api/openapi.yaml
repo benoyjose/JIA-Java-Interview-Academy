@@ -28,6 +28,36 @@ tags:
   - name: Learner Notifications
     description: Learner revision schedules, preferences and in-app reminders.
 paths:
+  /me/privacy/export:
+    get:
+      summary: Export learner-owned personal data for portability
+      tags: [Learning]
+      operationId: exportLearnerPersonalData
+      description: >-
+        Returns the authenticated learner's profile, learning progress, bookmarks,
+        quiz attempts and responses, revision schedule, notification preferences
+        and in-app notifications. Excludes credentials, password hashes, provider
+        secrets, global question answer keys and other learners' records.
+      responses:
+        '200':
+          description: Versioned JSON data export
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [formatVersion, generatedAt, profile, lessonProgress, bookmarks, quizAttempts, quizResponses, revisionSchedule, notificationPreferences, notifications]
+                properties:
+                  formatVersion: { type: integer, const: 1 }
+                  generatedAt: { type: string, format: date-time }
+                  profile: { type: array, items: { type: object } }
+                  lessonProgress: { type: array, items: { type: object } }
+                  bookmarks: { type: array, items: { type: object } }
+                  quizAttempts: { type: array, items: { type: object } }
+                  quizResponses: { type: array, items: { type: object } }
+                  revisionSchedule: { type: array, items: { type: object } }
+                  notificationPreferences: { type: array, items: { type: object } }
+                  notifications: { type: array, items: { type: object } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /health/live:
     get:
       summary: Report API process liveness
