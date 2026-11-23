@@ -28,7 +28,7 @@ class AcademyAppContextInterceptorTest {
     }
 
     @Test
-    void rejectsHeaderlessAdminMutationWithActionableBadRequest() {
+    void rejectsHeaderlessAdminRequestsWithActionableBadRequest() {
         AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
         when(resolver.resolve(null, null, null)).thenReturn(null);
         HttpServletRequest request = mock(HttpServletRequest.class);
@@ -40,19 +40,23 @@ class AcademyAppContextInterceptorTest {
                         .preHandle(request, mock(HttpServletResponse.class), new Object()));
 
         assertEquals(400, exception.getStatusCode().value());
-        assertTrue(exception.getReason().contains("registered academy-app identity"));
+        assertTrue(exception.getReason().contains("Admin requests require registered academy-app identity"));
     }
 
     @Test
-    void keepsHeaderlessAdminReadsCompatibleDuringRollout() {
+    void rejectsHeaderlessAdminReadToPreventUnscopedTenantContext() {
         AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
         when(resolver.resolve(null, null, null)).thenReturn(null);
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getRequestURI()).thenReturn("/api/v1/admin/questions");
         when(request.getMethod()).thenReturn("GET");
 
-        assertTrue(new AcademyAppContextInterceptor(resolver)
-                .preHandle(request, mock(HttpServletResponse.class), new Object()));
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> new AcademyAppContextInterceptor(resolver)
+                        .preHandle(request, mock(HttpServletResponse.class), new Object()));
+
+        assertEquals(400, exception.getStatusCode().value());
+        assertTrue(exception.getReason().contains("registered academy-app identity"));
     }
 
     @Test
