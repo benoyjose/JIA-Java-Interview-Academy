@@ -62,6 +62,20 @@ public class ProgressEventService {
                 ON CONFLICT (user_id,academy_code,event_id) DO NOTHING
                 """, request.eventId(), user.id(), academyId.toString(), type,
                 java.sql.Timestamp.from(request.occurredAt()), lessonId, json);
+        if (inserted == 0) {
+            Integer identical = jdbc.query("""
+                    SELECT 1 FROM learner_progress_events
+                    WHERE user_id=? AND academy_code=? AND event_id=? AND event_type=?
+                      AND schema_version=1 AND occurred_at=? AND lesson_id IS NOT DISTINCT FROM ?
+                      AND payload=?::jsonb
+                    """, (rs, row) -> rs.getInt(1), user.id(), academyId.toString(),
+                    request.eventId(), type, java.sql.Timestamp.from(request.occurredAt()), lessonId, json)
+                    .stream().findFirst().orElse(null);
+            if (identical == null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Event ID was already used with a different event body");
+            }
+        }
         return new EventReceipt(request.eventId(), inserted == 1 ? "ACCEPTED" : "DUPLICATE",
                 request.occurredAt());
     }
