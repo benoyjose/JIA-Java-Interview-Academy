@@ -1,11 +1,11 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Http\\Middleware\\RequestCorrelationId;
-use Illuminate\\Http\\Request;
-use Symfony\\Component\\HttpFoundation\\Response;
-use Tests\\TestCase;
+use App\Http\Middleware\RequestCorrelationId;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Tests\TestCase;
 
 class RequestCorrelationIdTest extends TestCase
 {
@@ -26,7 +26,7 @@ class RequestCorrelationIdTest extends TestCase
     public function test_invalid_client_id_is_replaced(): void
     {
         $request = Request::create('/api/ping');
-        $request->headers->set('X-Request-Id', "bad id\\r\\nInjected: yes");
+        $request->headers->set('X-Request-Id', "bad id\r\nInjected: yes");
 
         $response = (new RequestCorrelationId())->handle(
             $request,
