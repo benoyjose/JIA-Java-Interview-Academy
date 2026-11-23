@@ -97,11 +97,12 @@ internal object ProgressBatchEventFactory {
         UUID.nameUUIDFromBytes("jia-progress-v1:$kind:$slug:$updatedAt".toByteArray(StandardCharsets.UTF_8)).toString()
 }
 
-internal enum class BatchSyncResponseAction { ACKNOWLEDGE, RETRY, REJECT }
+internal enum class BatchSyncResponseAction { ACKNOWLEDGE, REBASE, RETRY, REJECT }
 
 internal object ProgressBatchSyncResponsePolicy {
     fun classify(status: Int): BatchSyncResponseAction = when {
         status in 200..299 -> BatchSyncResponseAction.ACKNOWLEDGE
+        status == 409 -> BatchSyncResponseAction.REBASE
         status == 408 || status == 429 || status >= 500 -> BatchSyncResponseAction.RETRY
         else -> BatchSyncResponseAction.REJECT
     }
