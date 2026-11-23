@@ -17,14 +17,14 @@ class ProgressEventValidationTest {
     }
 
     @Test void rejectsSensitiveFieldsRecursivelyAndCaseInsensitively() throws Exception {
-        var nested = mapper.readTree("{\\"metadata\\":{\\"Answer_Key\\":\\"secret\\"}}");
+        var nested = mapper.readTree("{\"metadata\":{\"Answer_Key\":\"secret\"}}");
         assertThrows(ResponseStatusException.class, () -> ProgressEventService.validatePayload(nested));
-        var token = mapper.readTree("{\\"accessToken\\":\\"x\\"}");
+        var token = mapper.readTree("{\"accessToken\":\"x\"}");
         assertThrows(ResponseStatusException.class, () -> ProgressEventService.validatePayload(token));
     }
 
     @Test void acceptsSmallNonSensitiveEventMetadata() throws Exception {
-        var payload = mapper.readTree("{\\"section\\":\\"collections\\",\\"elapsedMs\\":4500}");
+        var payload = mapper.readTree("{\"section\":\"collections\",\"elapsedMs\":4500}");
         assertDoesNotThrow(() -> ProgressEventService.validatePayload(payload));
     }
 }
