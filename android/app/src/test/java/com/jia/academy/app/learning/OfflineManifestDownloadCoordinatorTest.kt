@@ -82,6 +82,34 @@ class OfflineManifestDownloadCoordinatorTest {
         assertEquals(1, calls)
     }
 
+    @Test fun successfulManifestPrunesStaleContentButPreservesQueuedActivity() = runBlocking {
+        val retained = """{"revision":"current"}"""
+        val stale = """{"revision":"removed"}"""
+        store.cacheLesson(lesson("published", 2, retained))
+        store.cacheLesson(lesson("unpublished", 1, stale))
+        store.enqueueProgress("unpublished", 1, 40.0, """{"block":2}""")
+        val manifest = manifest("published", 2, retained)
+        val coordinator = OfflineManifestDownloadCoordinator(store) { error("Current lesson must not be fetched") }
+
+        coordinator.download(manifest)
+
+        assertEquals(listOf("published"), store.cachedLessonLibrary().map { it.slug })
+        assertEquals(1, store.pendingProgress().size)
+        assertEquals("unpublished", store.pendingProgress().single().lessonSlug)
+    }
+
+    @Test fun failedManifestDownloadDoesNotPrunePreviouslyCachedContent() = runBlocking {
+        val old = """{"revision":"old"}"""
+        store.cacheLesson(lesson("old-cached", 1, old))
+        val manifest = manifest("new-item", 2, """{"revision":"expected"}""")
+        val coordinator = OfflineManifestDownloadCoordinator(store) {
+            throw java.io.IOException("network interruption")
+        }
+
+        assertThrows(java.io.IOException::class.java) { runBlocking { coordinator.download(manifest) } }
+        assertEquals(listOf("old-cached"), store.cachedLessonLibrary().map { it.slug })
+    }
+
     private fun manifest(slug: String, revision: Int, expectedContent: String) =
         OfflineReleaseManifest.parse(JSONObject().apply {
             put("version", 1)
