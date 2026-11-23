@@ -203,8 +203,11 @@ public struct JIALessonDetailView: View {
 
     private func saveProgress() async {
         guard session.canUseLearnerFeatures else { errorMessage = "Sign in once to enable offline progress."; return }
-        offlineActivityQueue.enqueueProgress(slug: lesson.slug, revision: lesson.contentRevision,
-            percent: progressToSave, lastPosition: ["source": .string("ios-reader-slider")])
+        guard offlineActivityQueue.enqueueProgress(slug: lesson.slug, revision: lesson.contentRevision,
+            percent: progressToSave, lastPosition: ["source": .string("ios-reader-slider")]) else {
+            errorMessage = "Offline activity queue is full. Sync pending activity before saving more progress; queued data has been preserved."
+            return
+        }
         savedProgress = progressToSave
         await session.ensureAccessToken()
         guard let token = session.accessToken else {
@@ -221,7 +224,10 @@ public struct JIALessonDetailView: View {
     private func toggleBookmark() async {
         guard session.canUseLearnerFeatures else { errorMessage = "Sign in once to enable offline bookmarks."; return }
         let desired = !isBookmarked
-        offlineActivityQueue.enqueueBookmark(slug: lesson.slug, bookmarked: desired)
+        guard offlineActivityQueue.enqueueBookmark(slug: lesson.slug, bookmarked: desired) else {
+            errorMessage = "Offline activity queue is full. Sync pending activity before changing more bookmarks; queued data has been preserved."
+            return
+        }
         isBookmarked = desired
         await session.ensureAccessToken()
         guard let token = session.accessToken else {
