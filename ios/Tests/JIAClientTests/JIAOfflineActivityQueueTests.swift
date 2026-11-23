@@ -57,4 +57,23 @@ final class JIAOfflineActivityQueueTests: XCTestCase {
 
         XCTAssertEqual(queue.pendingBookmarks().first?.bookmarked, false)
     }
+
+    func testQueueRejectsNewDistinctRecordsAtCapacityButAllowsCoalescing() {
+        queue = JIAOfflineActivityQueue(fileURL: fileURL, maximumPendingItems: 100)
+        for index in 0..<100 {
+            XCTAssertTrue(queue.enqueueBookmark(slug: "lesson-\(index)", bookmarked: true))
+        }
+        XCTAssertFalse(queue.enqueueProgress(slug: "new-lesson", revision: 1, percent: 5, lastPosition: [:]))
+        XCTAssertTrue(queue.enqueueBookmark(slug: "lesson-0", bookmarked: false))
+        XCTAssertEqual(queue.pendingCount, 100)
+        XCTAssertTrue(queue.isAtCapacity)
+    }
+
+    func testCapacityIsClampedToSupportedSafeRange() {
+        let tiny = JIAOfflineActivityQueue(fileURL: fileURL, maximumPendingItems: 1)
+        XCTAssertEqual(tiny.maximumPendingItems, 100)
+        let huge = JIAOfflineActivityQueue(fileURL: fileURL, maximumPendingItems: 1_000_000)
+        XCTAssertEqual(huge.maximumPendingItems, 100_000)
+    }
+
 }

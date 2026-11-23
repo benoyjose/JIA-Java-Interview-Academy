@@ -22,16 +22,24 @@ public final class JIAOfflineActivityQueue: @unchecked Sendable {
     private let fileURL: URL
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    public let maximumPendingItems: Int
 
-    public init(fileURL: URL? = nil) {
+    public init(fileURL: URL? = nil, maximumPendingItems: Int = 2_000) {
+        self.maximumPendingItems = min(max(maximumPendingItems, 100), 100_000)
         self.fileURL = fileURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("JIAOfflineActivityQueue.json")
     }
 
+    /// Pending coalesced records across progress and bookmark queues.
+    public var pendingCount: Int { let state = load(); return state.progress.count + state.bookmarks.count }
+    public var isAtCapacity: Bool { pendingCount >= maximumPendingItems }
+
+    @discardableResult
     public func enqueueProgress(slug: String, revision: Int, percent: Double,
-                               lastPosition: [String: JIAJSONValue]) {
+                               lastPosition: [String: JIAJSONValue]) -> Bool {
         var state = load()
         let current = state.progress[slug]
+        guard current != nil || state.progress.count + state.bookmarks.count < maximumPendingItems else { return false }
         let isNewerRevision = current.map { revision >= $0.contentRevision } ?? true
         state.progress[slug] = JIAQueuedProgress(
             lessonSlug: slug,
@@ -40,15 +48,17 @@ public final class JIAOfflineActivityQueue: @unchecked Sendable {
             lastPosition: isNewerRevision ? lastPosition : (current?.lastPosition ?? lastPosition),
             updatedAt: max(now(), (current?.updatedAt ?? 0) + 1)
         )
-        save(state)
+        return save(state)
     }
 
-    public func enqueueBookmark(slug: String, bookmarked: Bool) {
+    @discardableResult
+    public func enqueueBookmark(slug: String, bookmarked: Bool) -> Bool {
         var state = load()
         let current = state.bookmarks[slug]
+        guard current != nil || state.progress.count + state.bookmarks.count < maximumPendingItems else { return false }
         state.bookmarks[slug] = JIAQueuedBookmark(lessonSlug: slug, bookmarked: bookmarked,
             updatedAt: max(now(), (current?.updatedAt ?? 0) + 1))
-        save(state)
+        return save(state)
     }
 
     public func pendingProgress() -> [JIAQueuedProgress] {
@@ -83,11 +93,14 @@ public final class JIAOfflineActivityQueue: @unchecked Sendable {
         return state
     }
 
-    private func save(_ state: QueueState) {
-        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
-                                                withIntermediateDirectories: true)
-        guard let data = try? encoder.encode(state) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+    private func save(_ state: QueueState) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
+                                                   withIntermediateDirectories: true)
+            let data = try encoder.encode(state)
+            try data.write(to: fileURL, options: .atomic)
+            return true
+        } catch { return false }
     }
 
     private struct QueueState: Codable {
