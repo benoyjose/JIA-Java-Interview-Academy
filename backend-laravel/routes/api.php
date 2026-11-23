@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AuthController;\nuse App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\FederatedAuthController;
 use App\Http\Controllers\Api\V1\PhoneOtpController;
 use App\Http\Controllers\Api\V1\CatalogueController;
@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\V1\AppReleasePolicyController;
 use App\Http\Middleware\AuthenticateJiaToken;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->group(function (): void {
+Route::prefix('v1')->group(function (): void {\n    Route::get('/health/live', [HealthController::class, 'live']);\n    Route::get('/health/ready', [HealthController::class, 'ready']);
     Route::get('/apps/{appCode}/release-policy', [AppReleasePolicyController::class, 'show']);
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
