@@ -63,6 +63,8 @@ public class QuizController {
             validateMode(mode);
         }
         UUID academyId = primaryAcademyId(user);
+        if ("TOPIC_ASSESSMENT".equals(mode) && technologySlug == null && categorySlug == null)
+            throw badRequest("TOPIC_ASSESSMENT requires technologySlug or categorySlug");
         Filters filters = filters(difficulty, technologySlug, categorySlug, academyId);
         if ("DAILY_CHALLENGE".equals(mode)) {
             jdbc.query("SELECT pg_advisory_xact_lock(hashtextextended(? || ':' || (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date::text, 0))",
@@ -91,6 +93,9 @@ public class QuizController {
             JOIN question_revisions qr ON qr.question_id = q.id AND qr.revision_number = q.current_revision
             WHERE q.academy_id = ? AND q.status = 'PUBLISHED' AND q.difficulty = ?
             """ + filterSql(filters);
+        if ("RETRY_INCORRECT".equals(mode)) {
+            sql += " AND q.id IN (SELECT pq.question_id FROM quiz_attempt_questions pq JOIN quiz_attempt_answers pa ON pa.attempt_id=pq.attempt_id AND pa.position=pq.position JOIN quiz_attempts prior ON prior.id=pq.attempt_id WHERE prior.user_id=? AND prior.academy_id=q.academy_id AND prior.status='SUBMITTED' AND pa.is_correct=FALSE)";
+        }
         if ("WEAK_AREA".equals(mode)) {
             sql += """
                  ORDER BY COALESCE((
@@ -551,7 +556,7 @@ public class QuizController {
     }
 
     static void validateMode(String mode) {
-        if (!"PRACTICE".equals(mode) && !"DAILY_CHALLENGE".equals(mode) && !"WEAK_AREA".equals(mode)) {
+        if (mode == null || !Set.of("PRACTICE","DAILY_CHALLENGE","WEAK_AREA","TOPIC_ASSESSMENT","MIXED_CHALLENGE","RETRY_INCORRECT").contains(mode)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Quiz mode is not available yet: " + mode);
         }
@@ -618,7 +623,7 @@ public class QuizController {
         List<Object> args = new ArrayList<>(List.of(academyId, academyId, f.difficulty()));
         if (f.technologyId() != null) args.add(f.technologyId());
         if (f.categoryId() != null) args.add(f.categoryId());
-        if ("WEAK_AREA".equals(mode)) args.add(userId);
+        if ("WEAK_AREA".equals(mode) || "RETRY_INCORRECT".equals(mode)) args.add(userId);
         args.add(count);
         return args.toArray();
     }

@@ -14,7 +14,10 @@ enum class JiaQuizMode(val apiValue: String, val displayName: String, val availa
     PRACTICE("PRACTICE", "Practice", true),
     TIMED_MOCK("TIMED_MOCK", "Timed mock interview", true),
     DAILY_CHALLENGE("DAILY_CHALLENGE", "Daily challenge", true),
-    WEAK_AREA("WEAK_AREA", "Weak-area practice", true);
+    WEAK_AREA("WEAK_AREA", "Weak-area practice", true),
+    TOPIC_ASSESSMENT("TOPIC_ASSESSMENT", "Topic assessment", true),
+    MIXED_CHALLENGE("MIXED_CHALLENGE", "Mixed challenge", true),
+    RETRY_INCORRECT("RETRY_INCORRECT", "Retry incorrect answers", true);
 
     companion object {
         val learnerOptions: List<JiaQuizMode> = values().filter { it.availableToLearners }

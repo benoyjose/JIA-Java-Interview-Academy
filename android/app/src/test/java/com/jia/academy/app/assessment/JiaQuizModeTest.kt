@@ -20,7 +20,7 @@ class JiaQuizModeTest {
 
     @Test
     fun allImplementedModesAreAvailableToLearners() {
-        assertEquals(listOf(JiaQuizMode.PRACTICE, JiaQuizMode.TIMED_MOCK, JiaQuizMode.DAILY_CHALLENGE, JiaQuizMode.WEAK_AREA), JiaQuizMode.learnerOptions)
+        assertEquals(listOf(JiaQuizMode.PRACTICE, JiaQuizMode.TIMED_MOCK, JiaQuizMode.DAILY_CHALLENGE, JiaQuizMode.WEAK_AREA, JiaQuizMode.TOPIC_ASSESSMENT, JiaQuizMode.MIXED_CHALLENGE, JiaQuizMode.RETRY_INCORRECT), JiaQuizMode.learnerOptions)
     }
 
     @Test

@@ -1337,7 +1337,7 @@ paths:
                 questionCount: { type: integer, minimum: 1, maximum: 100, default: 10 }
                 mode:
                   type: string
-                  enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA]
+                  enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA, TOPIC_ASSESSMENT, MIXED_CHALLENGE, RETRY_INCORRECT]
                   description: WEAK_AREA prioritizes categories with the learner's lowest historical answer accuracy; categories without history are ranked after measured categories.
                   default: PRACTICE
                 durationSeconds:
