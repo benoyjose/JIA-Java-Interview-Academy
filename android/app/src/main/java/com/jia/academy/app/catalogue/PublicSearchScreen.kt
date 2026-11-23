@@ -82,13 +82,13 @@ fun PublicSearchScreen(apiBaseUrl:String,modifier:Modifier=Modifier) {
         }
         Button(onClick={search()},enabled=!loading&&query.trim().length>=2,modifier=Modifier.fillMaxWidth()){Text("Search")}
         if(recent.isNotEmpty()&&result==null) {
-            Text("Recent searches",style=MaterialTheme.typography.titleSmall)
+            Text("Recent searches",style=MaterialTheme.typography.titleSmall,modifier=Modifier.semantics { heading() })
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){recent.take(4).forEach{TextButton(onClick={search(it)}){Text(it)}}}
         }
         if(loading) CircularProgressIndicator(modifier=Modifier.semantics { contentDescription="Searching academy content"; liveRegion=LiveRegionMode.Polite })
         error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.semantics { liveRegion=LiveRegionMode.Assertive })}
         result?.let { data ->
-            Text("${data.totalItems} results",style=MaterialTheme.typography.titleMedium,modifier=Modifier.semantics { heading() })
+            Text("${data.totalItems} results",style=MaterialTheme.typography.titleMedium,modifier=Modifier.semantics { heading(); liveRegion=LiveRegionMode.Polite })
             if(data.hits.isEmpty()) Text("No matches. Try another keyword or content type.",modifier=Modifier.semantics { liveRegion=LiveRegionMode.Polite })
             LazyColumn(modifier=Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 items(data.hits,key={it.type+":"+it.slug}){hit->
@@ -97,14 +97,14 @@ fun PublicSearchScreen(apiBaseUrl:String,modifier:Modifier=Modifier) {
                             Text(hit.type.lowercase().replaceFirstChar(Char::uppercase),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
                             Text(hit.title,style=MaterialTheme.typography.titleMedium)
                             if(hit.summary.isNotBlank())Text(hit.summary,style=MaterialTheme.typography.bodyMedium)
-                            Text("Open from catalogue · ${hit.slug}",style=MaterialTheme.typography.bodySmall)
+                            Text("Content identifier: ${hit.slug}",style=MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                 TextButton(onClick={search(query,(data.page-1).coerceAtLeast(0))},enabled=data.page>0&&!loading){Text("Previous")}
-                Text("Page ${data.page+1} of ${maxOf(1,data.totalPages)}")
+                Text("Page ${data.page+1} of ${maxOf(1,data.totalPages)}",modifier=Modifier.semantics { contentDescription="Search results page ${data.page+1} of ${maxOf(1,data.totalPages)}" })
                 TextButton(onClick={search(query,data.page+1)},enabled=data.page+1<data.totalPages&&!loading){Text("Next")}
             }
         }
