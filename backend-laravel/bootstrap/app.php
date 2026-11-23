@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RequestCorrelationId;
 use App\Http\Middleware\RequireJiaPermission;
 use App\Support\ApiErrorResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'jia.permission' => RequireJiaPermission::class,
         ]);
+        $middleware->append(RequestCorrelationId::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $isApi = static fn (Request $request): bool => $request->is('api/*');
