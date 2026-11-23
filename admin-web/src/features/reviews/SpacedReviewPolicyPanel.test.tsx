@@ -10,7 +10,7 @@ describe("spaced review policy",()=>{
  it("renders labelled settings, guarded save and explicit local-storage scope",()=>{
   const html=renderToStaticMarkup(<SpacedReviewPolicyPanel/>);
   expect(html).toContain('aria-labelledby="review-policy-title"');
-  expect(html).toContain('aria-label');expect(html).toContain("Save policy");
+  expect(html).toContain("First interval (days)");expect(html).toContain("Save policy");
   expect(html).toContain("browser-local");
  });
 });
