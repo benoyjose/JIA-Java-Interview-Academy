@@ -101,6 +101,19 @@ class OfflineLearningStoreTest {
     }
 
     @Test
+    fun futureRevisionRebaseUpdatesOnlyExactSnapshotAndPreservesProgress() {
+        store.enqueueProgress("revision-rebase", 12, 74.0, """{"offset":740}""")
+        val original = store.pendingProgress().single()
+        assertTrue(store.rebaseProgressSnapshot(original, 9))
+        val rebased = store.pendingProgress().single()
+        assertEquals(9, rebased.contentRevision)
+        assertEquals(74.0, rebased.progressPercent, 0.0)
+        assertEquals("""{"offset":740}""", rebased.lastPositionJson)
+        assertTrue(rebased.updatedAt > original.updatedAt)
+        assertFalse(store.rebaseProgressSnapshot(original, 8))
+    }
+
+    @Test
     fun acknowledgementForOldSnapshotCannotDeleteNewerQueuedProgress() {
         store.enqueueProgress("lesson-b", 1, 20.0, """{"offset":1}""")
         val sent = store.pendingProgress().single()
