@@ -58,4 +58,24 @@ class QuizAnswerEvaluatorTest {
                 Map.of("value", "42"), Map.of("correctValues", java.util.List.of("42")))).isTrue();
     }
 
+
+    @Test
+    void unknownAndNullQuestionTypesFailClosed() {
+        Map<String, Object> response = Map.of("value", "42");
+        Map<String, Object> answer = Map.of("correctValues", java.util.List.of("42"));
+        assertThat(QuizAnswerEvaluator.isCorrect("FUTURE_UNKNOWN_TYPE", response, answer)).isFalse();
+        assertThat(QuizAnswerEvaluator.isCorrect("SINGLE_SELECT_V2", response, answer)).isFalse();
+        assertThat(QuizAnswerEvaluator.isCorrect(null, response, answer)).isFalse();
+    }
+
+    @Test
+    void trueFalseUsesObjectiveExactMatchAndSelfReviewRemainsUnscoredAutomatically() {
+        Map<String, Object> answer = Map.of("correctValues", java.util.List.of(true));
+        assertThat(QuizAnswerEvaluator.isCorrect("TRUE_FALSE", Map.of("value", true), answer)).isTrue();
+        assertThat(QuizAnswerEvaluator.isCorrect("TRUE_FALSE", Map.of("value", false), answer)).isFalse();
+        for (String type : java.util.List.of("CODING", "SQL", "DEBUGGING", "SCENARIO")) {
+            assertThat(QuizAnswerEvaluator.isCorrect(type, Map.of("value", "anything"), answer)).isFalse();
+        }
+    }
+
 }
