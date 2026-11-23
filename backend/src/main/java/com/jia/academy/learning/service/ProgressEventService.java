@@ -28,6 +28,7 @@ public class ProgressEventService {
         if (requests.stream().anyMatch(java.util.Objects::isNull)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Batch cannot contain null events");
         }
+        validateBatchEventIdentity(requests);
         java.util.List<EventReceipt> receipts = new java.util.ArrayList<>(requests.size());
         int accepted = 0;
         int duplicates = 0;
@@ -179,6 +180,31 @@ public class ProgressEventService {
     }
 
     private record PublishedLessonRef(UUID id, int revision) {}
+
+
+    /**
+     * Fail fast when one client batch reuses an event UUID for different content.
+     * The database constraint still protects cross-request identity; this check
+     * prevents partially processing a contradictory batch before the transaction
+     * eventually encounters the conflict.
+     */
+    static void validateBatchEventIdentity(java.util.List<EventRequest> requests) {
+        java.util.Map<UUID, EventRequest> seen = new java.util.HashMap<>();
+        for (EventRequest request : requests) {
+            EventRequest prior = seen.putIfAbsent(request.eventId(), request);
+            if (prior != null && !sameEventBody(prior, request)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "A batch reused an event ID with different event content");
+            }
+        }
+    }
+
+    private static boolean sameEventBody(EventRequest first, EventRequest second) {
+        return java.util.Objects.equals(first.eventType(), second.eventType())
+                && java.util.Objects.equals(first.occurredAt(), second.occurredAt())
+                && java.util.Objects.equals(first.lessonSlug(), second.lessonSlug())
+                && java.util.Objects.equals(first.payload(), second.payload());
+    }
 
     static void validateBatchSize(java.util.List<EventRequest> requests) {
         if (requests == null || requests.isEmpty() || requests.size() > 100) {
