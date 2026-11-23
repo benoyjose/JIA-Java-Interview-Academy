@@ -182,6 +182,14 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
         assertThat(releases.latest(learner).items()).extracting(item -> item.slug()).doesNotContain(slug);
         assertThatThrownBy(() -> releases.lesson(release.version(), slug, learner))
                 .isInstanceOf(ResponseStatusException.class);
+
+        jdbc.update("""
+                UPDATE academy_entitlements SET status='ACTIVE',valid_until=now()-interval '1 second'
+                WHERE user_id=? AND academy_id=? AND entitlement_code=?
+                """, learner.id(), academy, "PREMIUM");
+        assertThat(releases.latest(learner).items()).extracting(item -> item.slug()).doesNotContain(slug);
+        assertThatThrownBy(() -> releases.lesson(release.version(), slug, learner))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
