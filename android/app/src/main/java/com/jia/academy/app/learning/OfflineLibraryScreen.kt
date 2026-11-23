@@ -43,6 +43,7 @@ fun OfflineLibraryScreen(
     downloadProgressLabel: String? = null,
     errorMessage: String? = null,
     onRefresh: () -> Unit,
+    onDownload: () -> Unit,
     onCancelDownload: () -> Unit,
     onOpenLesson: (String) -> Unit,
     onRemoveLesson: (String) -> Unit,
@@ -61,6 +62,10 @@ fun OfflineLibraryScreen(
         Text("${lessons.size} downloaded lessons",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        OutlinedButton(onClick = onDownload, enabled = !downloadActive,
+            modifier = Modifier.fillMaxWidth()) {
+            Text(if (lessons.isEmpty()) "Download available lessons" else "Download / update offline library")
+        }
         if (downloadActive) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
