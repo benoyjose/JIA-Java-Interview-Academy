@@ -2,6 +2,7 @@ package com.jia.academy.content.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -10,6 +11,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class LessonContentValidator {
     static final int SUPPORTED_SCHEMA_VERSION = 1;
     static final int MAX_BLOCKS = 250;
+    static final int MAX_CONTENT_BYTES = 1_048_576;
+    static final int MAX_TEXT_FIELD_CHARS = 200_000;
     private final ObjectMapper mapper;
 
     public LessonContentValidator(ObjectMapper mapper) {
@@ -17,6 +20,9 @@ public class LessonContentValidator {
     }
 
     public void validate(String contentJson) {
+        if (contentJson == null || contentJson.getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
+            badRequest("Lesson content must not exceed 1 MiB");
+        }
         try {
             JsonNode root = mapper.readTree(contentJson);
             if (root == null || !root.isObject()) {
@@ -49,6 +55,9 @@ public class LessonContentValidator {
 
     private void validateBlock(JsonNode block, int index) {
         String type = block.path("type").asText("");
+        if (type.isBlank()) {
+            badRequest("Content block " + index + " requires a non-empty type");
+        }
         switch (type) {
             case "markdown", "callout" -> requireText(block, "body", index);
             case "code" -> {
@@ -75,6 +84,9 @@ public class LessonContentValidator {
     private void requireText(JsonNode block, String field, int index) {
         if (!block.path(field).isTextual() || block.path(field).asText().isBlank()) {
             badRequest("Content block " + index + " requires a non-empty " + field);
+        }
+        if (block.path(field).asText().length() > MAX_TEXT_FIELD_CHARS) {
+            badRequest("Content block " + index + " field " + field + " exceeds the maximum length");
         }
     }
 
