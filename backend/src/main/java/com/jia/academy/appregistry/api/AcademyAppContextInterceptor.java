@@ -5,14 +5,15 @@ import com.jia.academy.appregistry.service.AcademyRequestContextResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Staged identity enforcement: validates academy-app headers whenever supplied.
- * Routes retain headerless JIA compatibility during registered app rollout.
+ * Validates registered academy identity whenever supplied. Existing JIA
+ * headerless reads remain compatible during rollout; admin mutations require
+ * an explicit registered app context so privileged writes are auditable.
  */
 @Component
 public class AcademyAppContextInterceptor implements HandlerInterceptor {
@@ -31,7 +32,14 @@ public class AcademyAppContextInterceptor implements HandlerInterceptor {
                 request.getHeader(AcademyRequestContextResolver.APP_CODE_HEADER),
                 request.getHeader(AcademyRequestContextResolver.PLATFORM_HEADER),
                 request.getHeader(AcademyRequestContextResolver.APPLICATION_ID_HEADER));
-        if (context == null) return true;
+
+        if (context == null) {
+            if (requiresRegisteredContext(request)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Admin mutations require registered academy-app identity headers");
+            }
+            return true;
+        }
 
         String suppliedAcademy = request.getHeader("X-Academy-Id");
         if (suppliedAcademy != null && !suppliedAcademy.isBlank()) {
@@ -48,5 +56,15 @@ public class AcademyAppContextInterceptor implements HandlerInterceptor {
         }
         request.setAttribute(REQUEST_CONTEXT_ATTRIBUTE, context);
         return true;
+    }
+
+    private static boolean requiresRegisteredContext(HttpServletRequest request) {
+        if (request.getRequestURI() == null
+                || !request.getRequestURI().startsWith("/api/v1/admin/")) {
+            return false;
+        }
+        String method = request.getMethod();
+        return "POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method)
+                || "PATCH".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method);
     }
 }

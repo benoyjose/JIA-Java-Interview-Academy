@@ -15,14 +15,44 @@ class AcademyAppContextInterceptorTest {
     private static final UUID ACADEMY = UUID.fromString("50000000-0000-0000-0000-000000000001");
 
     @Test
-    void leavesLegacyHeaderlessRequestsUnchanged() {
+    void leavesLegacyHeaderlessReadRequestsUnchanged() {
         AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
         when(resolver.resolve(null, null, null)).thenReturn(null);
-        AcademyAppContextInterceptor interceptor = new AcademyAppContextInterceptor(resolver);
         HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/api/v1/technologies");
+        when(request.getMethod()).thenReturn("GET");
 
-        assertTrue(interceptor.preHandle(request, mock(HttpServletResponse.class), new Object()));
+        assertTrue(new AcademyAppContextInterceptor(resolver)
+                .preHandle(request, mock(HttpServletResponse.class), new Object()));
         verify(request, never()).setAttribute(anyString(), any());
+    }
+
+    @Test
+    void rejectsHeaderlessAdminMutationWithActionableBadRequest() {
+        AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
+        when(resolver.resolve(null, null, null)).thenReturn(null);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/api/v1/admin/questions/123/status");
+        when(request.getMethod()).thenReturn("PATCH");
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> new AcademyAppContextInterceptor(resolver)
+                        .preHandle(request, mock(HttpServletResponse.class), new Object()));
+
+        assertEquals(400, exception.getStatusCode().value());
+        assertTrue(exception.getReason().contains("registered academy-app identity"));
+    }
+
+    @Test
+    void keepsHeaderlessAdminReadsCompatibleDuringRollout() {
+        AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
+        when(resolver.resolve(null, null, null)).thenReturn(null);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/api/v1/admin/questions");
+        when(request.getMethod()).thenReturn("GET");
+
+        assertTrue(new AcademyAppContextInterceptor(resolver)
+                .preHandle(request, mock(HttpServletResponse.class), new Object()));
     }
 
     @Test
@@ -30,15 +60,12 @@ class AcademyAppContextInterceptorTest {
         AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
         when(resolver.resolve("JIA", "ANDROID", "com.example.jia"))
                 .thenReturn(new AcademyRequestContext("JIA", ACADEMY, "ANDROID", "com.example.jia"));
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getHeader(AcademyRequestContextResolver.APP_CODE_HEADER)).thenReturn("JIA");
-        when(request.getHeader(AcademyRequestContextResolver.PLATFORM_HEADER)).thenReturn("ANDROID");
-        when(request.getHeader(AcademyRequestContextResolver.APPLICATION_ID_HEADER)).thenReturn("com.example.jia");
+        HttpServletRequest request = registeredRequest("PATCH", "/api/v1/admin/questions/1/status");
         when(request.getHeader("X-Academy-Id")).thenReturn("50000000-0000-0000-0000-000000000099");
 
-        AcademyAppContextInterceptor interceptor = new AcademyAppContextInterceptor(resolver);
         ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> interceptor.preHandle(request, mock(HttpServletResponse.class), new Object()));
+                () -> new AcademyAppContextInterceptor(resolver)
+                        .preHandle(request, mock(HttpServletResponse.class), new Object()));
 
         assertEquals(403, exception.getStatusCode().value());
         verify(request, never()).setAttribute(anyString(), any());
@@ -50,13 +77,33 @@ class AcademyAppContextInterceptorTest {
         AcademyRequestContext context =
                 new AcademyRequestContext("JIA", ACADEMY, "ANDROID", "com.example.jia");
         when(resolver.resolve("JIA", "ANDROID", "com.example.jia")).thenReturn(context);
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getHeader(AcademyRequestContextResolver.APP_CODE_HEADER)).thenReturn("JIA");
-        when(request.getHeader(AcademyRequestContextResolver.PLATFORM_HEADER)).thenReturn("ANDROID");
-        when(request.getHeader(AcademyRequestContextResolver.APPLICATION_ID_HEADER)).thenReturn("com.example.jia");
+        HttpServletRequest request = registeredRequest("POST", "/api/v1/admin/questions");
 
         assertTrue(new AcademyAppContextInterceptor(resolver)
                 .preHandle(request, mock(HttpServletResponse.class), new Object()));
         verify(request).setAttribute(AcademyAppContextInterceptor.REQUEST_CONTEXT_ATTRIBUTE, context);
+    }
+
+    @Test
+    void doesNotRequireAppContextForNonAdminWritesYet() {
+        AcademyRequestContextResolver resolver = mock(AcademyRequestContextResolver.class);
+        when(resolver.resolve(null, null, null)).thenReturn(null);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/password/reset");
+        when(request.getMethod()).thenReturn("POST");
+
+        assertTrue(new AcademyAppContextInterceptor(resolver)
+                .preHandle(request, mock(HttpServletResponse.class), new Object()));
+    }
+
+    private static HttpServletRequest registeredRequest(String method, String uri) {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getHeader(AcademyRequestContextResolver.APP_CODE_HEADER)).thenReturn("JIA");
+        when(request.getHeader(AcademyRequestContextResolver.PLATFORM_HEADER)).thenReturn("ANDROID");
+        when(request.getHeader(AcademyRequestContextResolver.APPLICATION_ID_HEADER))
+                .thenReturn("com.example.jia");
+        when(request.getRequestURI()).thenReturn(uri);
+        when(request.getMethod()).thenReturn(method);
+        return request;
     }
 }
