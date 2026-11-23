@@ -58,7 +58,7 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
     private fun downloadReleaseLessons(baseUrl: String, token: String, store: OfflineLearningStore) {
         val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         if (connectivity.isActiveNetworkMetered && !store.downloadsOnMeteredNetwork()) return
-        val manifestResponse = request(baseUrl, "/content/releases/latest", null, "GET")
+        val manifestResponse = request(baseUrl, "/content/releases/latest", token, "GET")
         if (manifestResponse.first == 404) return
         if (manifestResponse.first !in 200..299) throw IOException("Content manifest request failed")
         val manifest = OfflineReleaseManifest.parse(JSONObject(manifestResponse.second))
@@ -67,7 +67,7 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             val checksum = item.checksum
             if (store.hasCachedLesson(slug, checksum)) continue
             val path = "/content/releases/${manifest.version}/lessons/" + URLEncoder.encode(slug, Charsets.UTF_8.name())
-            val (status, response) = request(baseUrl, path, null, "GET")
+            val (status, response) = request(baseUrl, path, token, "GET")
             if (status !in 200..299) throw IOException("Lesson download failed: HTTP $status")
             val json = JSONObject(response)
             val lesson = com.jia.academy.app.catalogue.LessonDetail(
