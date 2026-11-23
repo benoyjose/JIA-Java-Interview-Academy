@@ -10,6 +10,16 @@ import org.springframework.web.server.ResponseStatusException;
 class ProgressEventValidationTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Test void batchSizeIsBoundedAndRejectsEmptyInput() {
+        assertThrows(ResponseStatusException.class, () -> ProgressEventService.validateBatchSize(null));
+        assertThrows(ResponseStatusException.class, () -> ProgressEventService.validateBatchSize(List.of()));
+        var request = new ProgressEventService.EventRequest(UUID.randomUUID(),
+                "LESSON_STARTED", java.time.Instant.now(), null, null);
+        assertThrows(ResponseStatusException.class, () -> ProgressEventService.validateBatchSize(
+                java.util.Collections.nCopies(101, request)));
+        assertDoesNotThrow(() -> ProgressEventService.validateBatchSize(List.of(request)));
+    }
+
     @Test void academyMembershipMustExistInsteadOfThrowingUnexpectedIndexException() {
         assertThrows(ResponseStatusException.class, () -> ProgressEventService.requireAcademyId(List.of()));
         UUID academy = UUID.randomUUID();
