@@ -1,5 +1,6 @@
 import Foundation
-import SwiftUI\nimport Observation
+import SwiftUI
+import Observation
 public struct JIAPrompt: Identifiable, Sendable, Equatable {
  public let id:String;public let question:String;public let options:[String];public let correctOption:Int;public let explanation:String
  public init(id:String,question:String,options:[String],correctOption:Int,explanation:String){self.id=id;self.question=question;self.options=options;self.correctOption=correctOption;self.explanation=explanation}
