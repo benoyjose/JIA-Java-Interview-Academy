@@ -5,14 +5,36 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collectLatest
+
 @Composable fun PracticeSessionScreen(controller:PracticeSessionController,onExit:()->Unit){
  val state by controller.state.collectAsState()
  LaunchedEffect(controller){controller.state.collectLatest{}}
- if(state.completed){Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.Center){Text("Session complete",style=MaterialTheme.typography.headlineMedium);Text("Score ${state.score} / ${state.prompts.size}");Button(onClick=onExit){Text("Return to learning")}};return}
+ if(state.completed){
+  Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   Text(if(state.reviewingMistakes)"Review missed questions" else "Session complete",style=MaterialTheme.typography.headlineMedium)
+   if(!state.reviewingMistakes){
+    Text("Score ${state.score} / ${state.prompts.size}")
+    Text("Accuracy ${state.accuracyPercent}% · ${state.answeredCount} answered")
+    if(state.missedPrompts.isNotEmpty())Button(onClick=controller::showMistakeReview){Text("Review ${state.missedPrompts.size} missed")}
+    Button(onClick=onExit){Text("Return to learning")}
+   }else{
+    state.missedPrompts.forEach{prompt->
+     Text(prompt.question,style=MaterialTheme.typography.titleMedium)
+     Text("Your answer: ${prompt.options.getOrNull(state.answers[prompt.id]?:-1)?: "Not answered"}")
+     Text("Correct answer: ${prompt.options.getOrNull(prompt.correctOption)?: "Unavailable"}")
+     Text(prompt.explanation)
+     HorizontalDivider()
+    }
+    Button(onClick=controller::returnToSummary){Text("Back to results")}
+   }
+  };return
+ }
  val prompt=state.current?:run{Column(Modifier.padding(24.dp)){Text("No questions available");Button(onClick=onExit){Text("Back")}};return}
- Column(Modifier.fillMaxSize().padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("Question ${state.index+1} of ${state.prompts.size}",style=MaterialTheme.typography.labelLarge);Text(prompt.question,style=MaterialTheme.typography.headlineSmall)
+ Column(Modifier.fillMaxSize().padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Text("Question ${state.index+1} of ${state.prompts.size}",style=MaterialTheme.typography.labelLarge)
+  Text(prompt.question,style=MaterialTheme.typography.headlineSmall)
   prompt.options.forEachIndexed{index,option->OutlinedButton(onClick={controller.answer(index)},enabled=!state.submitted,modifier=Modifier.fillMaxWidth()){Text(option)}}
-  if(state.submitted)Text(prompt.explanation)
+  if(state.submitted){Text(if(state.answers[prompt.id]==prompt.correctOption)"Correct" else "Not quite",style=MaterialTheme.typography.titleMedium);Text(prompt.explanation)}
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button(onClick={controller.submit()},enabled=!state.submitted){Text("Check answer")};Button(onClick={controller.next()},enabled=state.submitted){Text(if(state.index==state.prompts.lastIndex)"Finish" else "Next")}}
  }
 }
