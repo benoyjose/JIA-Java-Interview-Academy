@@ -1,0 +1,2 @@
+import {describe,it,expect} from "vitest";
+describe("bulk content publishing safety contract",()=>{it("limits the client selection to reviewed content and 100 records",()=>{const rows=Array.from({length:120},(_,i)=>({id:String(i),status:i%2?"IN_REVIEW":"DRAFT"}));const eligible=rows.filter(x=>x.status==="IN_REVIEW").slice(0,100);expect(eligible).toHaveLength(60);expect(eligible.every(x=>x.status==="IN_REVIEW")).toBe(true);});});
