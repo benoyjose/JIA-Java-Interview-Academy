@@ -5,6 +5,7 @@ import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, Les
 import { useAuth } from "../../auth/AuthContext";
 import { LessonContentWorkbench } from "./LessonContentWorkbench";
 import { BulkContentPublishing } from "../content/BulkContentPublishing";
+import { parseLessonDraftRecovery, serializeLessonDraftRecovery } from "./lessonDraftRecovery";
 
 const PAGE_SIZE = 25;
 const statuses: Array<LessonStatus | "ALL"> = ["ALL", "DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"];
@@ -108,8 +109,8 @@ export function LessonsPage() {
           refresh={() => setRefreshKey(value => value + 1)}
         />}
       </div>
-      <div className="panel editor-panel">{creating ? <LessonEditor onSaved={onSaved} onCancel={() => setCreating(false)} /> :
-        selected ? <LessonEditor key={selected.id + selected.revisionNumber + String(selected.editingDraft)} lesson={selected} onSaved={onSaved} onCancel={() => { setSelected(null); setSelectedId(null); }} onPublish={publish} /> :
+      <div className="panel editor-panel">{creating ? <LessonEditor recoveryScope={user?.id ?? "unknown"} onSaved={onSaved} onCancel={() => setCreating(false)} /> :
+        selected ? <LessonEditor key={selected.id + selected.revisionNumber + String(selected.editingDraft)} lesson={selected} recoveryScope={user?.id ?? "unknown"} onSaved={onSaved} onCancel={() => { setSelected(null); setSelectedId(null); }} onPublish={publish} /> :
         <div className="empty-editor"><div className="empty-icon">✎</div><h2>Select a lesson</h2><p>Choose a lesson to inspect its current revision or start a new draft.</p></div>}</div>
     </div>
   </section>;
@@ -127,8 +128,8 @@ function PageControls({ page, totalPages, loading, onChange }: {
     <span>Page {page + 1} of {totalPages}</span><button className="button button-secondary" disabled={loading || page + 1 >= totalPages} onClick={() => onChange(page + 1)}>Next</button></div>;
 }
 
-function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
-  lesson?: LessonDetail; onSaved: (id: string, message: string) => Promise<void>;
+function LessonEditor({ lesson, recoveryScope, onSaved, onCancel, onPublish }: {
+  lesson?: LessonDetail; recoveryScope: string; onSaved: (id: string, message: string) => Promise<void>;
   onCancel: () => void; onPublish?: (id: string) => Promise<void>;
 }) {
   const [categorySlug, setCategorySlug] = useState(lesson?.categorySlug ?? "");
@@ -145,6 +146,44 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [rollbackBusy, setRollbackBusy] = useState<number | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [recoveryLoaded, setRecoveryLoaded] = useState(false);
+  const [recoveredDraft, setRecoveredDraft] = useState(false);
+  const recoveryKey = `jia-lesson-draft:${recoveryScope}:${lesson?.id ?? "new"}:${lesson?.revisionNumber ?? 0}`;
+
+  useEffect(() => {
+    try {
+      const saved = parseLessonDraftRecovery(window.sessionStorage.getItem(recoveryKey));
+      if (saved) {
+        setCategorySlug(saved.fields.categorySlug);
+        setSlug(saved.fields.slug);
+        setTitle(saved.fields.title);
+        setSummary(saved.fields.summary);
+        setDifficulty(saved.fields.difficulty);
+        setSourceType(saved.fields.sourceType);
+        setContentJson(saved.fields.contentJson);
+        setChangeNote(saved.fields.changeNote);
+        setRecoveredDraft(true);
+      }
+    } catch {
+      // Session storage may be unavailable in private browsing or restricted contexts.
+    } finally {
+      setRecoveryLoaded(true);
+    }
+  }, [recoveryKey]);
+
+  useEffect(() => {
+    if (!recoveryLoaded) return;
+    const timer = window.setTimeout(() => {
+      try {
+        window.sessionStorage.setItem(recoveryKey, serializeLessonDraftRecovery({
+          categorySlug, slug, title, summary, difficulty, sourceType, contentJson, changeNote
+        }));
+      } catch {
+        // Storage quota/privacy restrictions must not block authoring or saving.
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [recoveryLoaded, recoveryKey, categorySlug, slug, title, summary, difficulty, sourceType, contentJson, changeNote]);
 
   useEffect(() => {
     if (!lesson) return;
@@ -182,6 +221,8 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
         await api.submitLesson(result.id);
         await onSaved(result.id, "Draft saved and submitted for review.");
       } else await onSaved(result.id, "Draft saved as revision " + result.revisionNumber + ".");
+      try { window.sessionStorage.removeItem(recoveryKey); } catch { /* Storage may be disabled. */ }
+      setRecoveredDraft(false);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save lesson."); }
     finally { setBusy(false); }
   }
@@ -190,6 +231,7 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
 
   return <div className="editor-content">
     <div className="panel-heading"><div><p className="eyebrow">{lesson ? "LESSON REVISION" : "NEW CONTENT"}</p><h2>{lesson ? lesson.title : "Create lesson"}</h2><span className="muted small-copy">{lesson ? `Revision ${lesson.revisionNumber} · ${lesson.status}` : "Unpublished draft"}</span></div><button className="icon-button" onClick={onCancel} aria-label="Close editor">×</button></div>
+    {recoveredDraft && <div className="notice info" role="status">Recovered an unsaved draft from this browser session. Save it to keep the revision, or continue editing.</div>}
     {lesson?.status === "PUBLISHED" && <div className="notice info">Live revision {lesson.publishedRevision ?? "—"} remains visible while you prepare this draft.</div>}
     {lesson && <div className="revision-history">
       <div className="panel-heading"><h3>Revision & review history</h3><span className="muted small-copy">{history.length} revision(s)</span></div>
