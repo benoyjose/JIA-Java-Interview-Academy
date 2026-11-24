@@ -1,0 +1,2 @@
+# Adaptive review policy v1
+Evidence must be scoped to the authenticated learner before scheduling. Wrong answers, confidence below 50%, or no correct streak use a one-day interval; moderate confidence uses two days; sustained high-confidence evidence expands intervals up to 30 days. Due results sort by priority, earliest due time and stable item ID. This is an explainable product heuristic, not a validated cognitive-science guarantee.
