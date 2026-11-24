@@ -13,7 +13,6 @@ CREATE TABLE learner_reminder_preferences (
         (quiet_start IS NOT NULL AND quiet_end IS NOT NULL)
     )
 );
-
 CREATE INDEX learner_reminder_preferences_enabled_idx
     ON learner_reminder_preferences (timezone, reminder_time)
     WHERE enabled = true;
