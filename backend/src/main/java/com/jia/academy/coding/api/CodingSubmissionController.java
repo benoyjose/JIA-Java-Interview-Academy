@@ -1,4 +1,4 @@
-package com.jia.academy.coding.api;
+import com.jia.academy.coding.service.CodingSubmissionLifecyclePolicy;\npackage com.jia.academy.coding.api;
 import com.jia.academy.security.CurrentUser;
 import java.nio.charset.StandardCharsets;import java.security.MessageDigest;import java.time.Instant;import java.util.*;
 import org.springframework.http.HttpStatus;import org.springframework.security.core.annotation.AuthenticationPrincipal;import org.springframework.transaction.annotation.Transactional;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,9 +28,10 @@ public class CodingSubmissionController {
  @PostMapping("/{submissionId}/cancel") @Transactional public Map<String,Object> cancel(@AuthenticationPrincipal CurrentUser user,@PathVariable UUID submissionId){
   requireUser(user);List<String> states=jdbc.query("SELECT status FROM coding_submissions WHERE id=? AND user_id=? AND academy_id=? FOR UPDATE",(rs,n)->rs.getString(1),submissionId,user.id(),academyId(user));
   if(states.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Submission not found");String status=states.getFirst();
-  if("QUEUED".equals(status)){jdbc.update("UPDATE coding_submissions SET status='CANCELLED',updated_at=now() WHERE id=? AND status='QUEUED'",submissionId);status="CANCELLED";}
-  else if("RUNNING".equals(status))jdbc.update("UPDATE coding_submissions SET cancel_requested=TRUE,updated_at=now() WHERE id=?",submissionId);
-  return Map.of("submissionId",submissionId,"status",status,"cancelRequested","RUNNING".equals(status));
+  var decision=lifecycle.cancellation(status);
+  if(decision.action()==CodingSubmissionLifecyclePolicy.Action.CANCEL_QUEUED)jdbc.update("UPDATE coding_submissions SET status='CANCELLED',updated_at=now() WHERE id=? AND status='QUEUED'",submissionId);
+  else if(decision.action()==CodingSubmissionLifecyclePolicy.Action.REQUEST_RUNNING_CANCELLATION)jdbc.update("UPDATE coding_submissions SET cancel_requested=TRUE,updated_at=now() WHERE id=?",submissionId);
+  return Map.of("submissionId",submissionId,"status",decision.responseStatus(),"cancelRequested",decision.cancelRequested(),"cancellationAction",decision.action().name());
  }
  private static UUID academyId(CurrentUser u){return u.academyIds()==null||u.academyIds().isEmpty()?DEFAULT_ACADEMY:u.academyIds().getFirst();}
  private static void requireUser(CurrentUser u){if(u==null||u.id()==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Authentication required");}
