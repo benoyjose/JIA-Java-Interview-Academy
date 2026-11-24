@@ -133,7 +133,8 @@ test("admin can create, submit, review, approve and publish a lesson", async ({ 
   await page.getByLabel("Lesson title").fill("Java Streams");
   await page.getByLabel("Category slug").fill("java");
   await page.getByLabel("Lesson slug").fill("java-streams");
-  await page.getByLabel("Content document (JSON)").fill(lessonDetail.contentJson);
+  await page.getByRole("button", { name: "Edit raw JSON" }).click();
+  await page.getByLabel("Raw lesson JSON").fill(lessonDetail.contentJson);
   await page.getByRole("button", { name: "Save & submit" }).click();
 
   await expect(page.getByRole("status")).toContainText("submitted for review");
@@ -187,9 +188,10 @@ test("lesson editor blocks malformed content before issuing a save request", asy
   await page.getByLabel("Lesson title").fill("Invalid content test");
   await page.getByLabel("Category slug").fill("java");
   await page.getByLabel("Lesson slug").fill("invalid-content-test");
-  await page.getByLabel("Content document (JSON)").fill("{invalid");
+  await page.getByRole("button", { name: "Edit raw JSON" }).click();
+  await page.getByLabel("Raw lesson JSON").fill("{invalid");
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("alert")).toContainText("not valid JSON");
+  await expect(page.getByText("Lesson content is not valid JSON.")).toBeVisible();
   expect(saveRequests).toBe(0);
 });
 
@@ -212,7 +214,8 @@ test("editor previews valid draft blocks locally without publishing or saving", 
   await page.getByLabel("Lesson title").fill("Preview-only draft");
   await page.getByLabel("Category slug").fill("java");
   await page.getByLabel("Lesson slug").fill("preview-only-draft");
-  await page.getByLabel("Content document (JSON)").fill(JSON.stringify({ schemaVersion: 1, blocks: [{ type: "markdown", title: "Preview heading", body: "Preview body content" }] }));
+  await page.getByRole("button", { name: "Edit raw JSON" }).click();
+  await page.getByLabel("Raw lesson JSON").fill(JSON.stringify({ schemaVersion: 1, blocks: [{ type: "markdown", title: "Preview heading", body: "Preview body content" }] }));
   await page.getByRole("button", { name: "Preview as learner" }).click();
   await expect(page.getByRole("region", { name: "Private learner preview" })).toContainText("Preview body content");
   await expect(page.getByText("Draft only · not publicly visible")).toBeVisible();

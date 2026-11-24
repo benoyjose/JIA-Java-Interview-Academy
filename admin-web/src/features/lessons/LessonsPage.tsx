@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { api, validateLessonContent } from "../../api/client";
 import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, LessonStatus, PageResult, RevisionHistoryItem } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
+import { LessonContentWorkbench } from "./LessonContentWorkbench";
 
 const PAGE_SIZE = 25;
 const statuses: Array<LessonStatus | "ALL"> = ["ALL", "DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"];
@@ -203,7 +204,7 @@ function LessonEditor({ lesson, onSaved, onCancel, onPublish }: {
       <div className="field-row"><label>Category slug<input required maxLength={100} placeholder="java-language-fundamentals" value={categorySlug} onChange={event => setCategorySlug(event.target.value)} /></label><label>Lesson slug<input required maxLength={120} value={slug} onChange={event => setSlug(event.target.value)} /></label></div>
       <label>Summary<textarea rows={2} maxLength={700} value={summary} onChange={event => setSummary(event.target.value)} /></label>
       <div className="field-row"><label>Difficulty<select value={difficulty} onChange={event => setDifficulty(event.target.value as LessonDraftRequest["difficulty"])}>{["BEGINNER", "NOVICE", "PROFESSIONAL", "EXPERT"].map(value => <option key={value}>{value}</option>)}</select></label><label>Source type<select value={sourceType} onChange={event => setSourceType(event.target.value as LessonDraftRequest["sourceType"])}>{["ADMIN_AUTHORED", "USER_ORIGINAL", "EXTERNAL_REFERENCE"].map(value => <option key={value}>{value}</option>)}</select></label></div>
-      <label>Content document (JSON)<textarea className="code-input" rows={11} spellCheck={false} value={contentJson} onChange={event => setContentJson(event.target.value)} /></label>
+      <div className="field-label">Content document</div><LessonContentWorkbench value={contentJson} onChange={setContentJson} />
       <button type="button" className="text-button" aria-expanded={previewOpen}
         onClick={() => setPreviewOpen(value => !value)}>
         {previewOpen ? "Hide learner preview" : "Preview as learner"}
