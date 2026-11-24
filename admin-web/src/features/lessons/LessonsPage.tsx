@@ -157,11 +157,11 @@ function LessonEditor({ lesson, recoveryScope, onSaved, onCancel, onPublish }: {
         setCategorySlug(saved.fields.categorySlug);
         setSlug(saved.fields.slug);
         setTitle(saved.fields.title);
-        setSummary(saved.fields.summary);
+        setSummary(saved.fields.summary ?? "");
         setDifficulty(saved.fields.difficulty);
         setSourceType(saved.fields.sourceType);
         setContentJson(saved.fields.contentJson);
-        setChangeNote(saved.fields.changeNote);
+        setChangeNote(saved.fields.changeNote ?? "");
         setRecoveredDraft(true);
       }
     } catch {
