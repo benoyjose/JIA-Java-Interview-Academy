@@ -2,7 +2,7 @@
 namespace App\Services;
 use InvalidArgumentException;
 final class LearnerMasteryProfile {
- public function evaluate(int $correct,int $answered,int $completed,int $available,?DateTimeImmutable $last,DateTimeImmutable $now):array {
+ public function evaluate(int $correct,int $answered,int $completed,int $available,?\DateTimeImmutable $last,\DateTimeImmutable $now):array {
   if($answered<0||$correct<0||$correct>$answered||$completed<0||$available<0||$completed>$available) throw new InvalidArgumentException('Invalid mastery evidence');
   if($answered===0)return ['score'=>0,'band'=>'NOT_ASSESSED','reviewDue'=>false,'modelVersion'=>1];
   $score=(int)round(75*$correct/$answered+($available===0?0:25*$completed/$available));
