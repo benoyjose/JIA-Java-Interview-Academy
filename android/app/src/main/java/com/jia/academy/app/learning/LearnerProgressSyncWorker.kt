@@ -16,6 +16,7 @@ import com.jia.academy.app.auth.AuthRepository
 import com.jia.academy.app.auth.AuthHttpException
 import com.jia.academy.app.auth.SessionValidationPolicy
 import com.jia.academy.app.auth.SessionValidationAction
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -43,6 +44,9 @@ class LearnerProgressSyncWorker(context: Context, parameters: WorkerParameters) 
             val (progressCount, bookmarkCount) = syncPendingEvents(baseUrl, token, store)
             store.recordSyncSuccess(progressCount, bookmarkCount)
             Result.success()
+        } catch (cancelled: CancellationException) {
+            // WorkManager cancellation is control flow, not a failed sync attempt.
+            throw cancelled
         } catch (error: IOException) {
             store.recordSyncFailure(error.message ?: "Network synchronization failed")
             Result.retry()
