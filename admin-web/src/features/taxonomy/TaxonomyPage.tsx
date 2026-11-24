@@ -98,8 +98,8 @@ export function TaxonomyPage() {
     catch (reason) { setError(reason instanceof Error ? reason.message : "Could not archive technology."); }
   }
 
-  return <section>
-    <div className="page-heading"><div><p className="eyebrow">CONTENT GOVERNANCE</p><h1>Taxonomy</h1>
+  return <section aria-labelledby="taxonomy-page-title">
+    <div className="page-heading"><div><p className="eyebrow">CONTENT GOVERNANCE</p><h1 id="taxonomy-page-title">Taxonomy</h1>
       <p className="muted">Manage technologies and the category hierarchy used by lessons and assessments.</p></div></div>
     {error && <div className="notice error" role="alert">{error}</div>}
     {notice && <div className="notice success" role="status">{notice}</div>}
@@ -107,8 +107,8 @@ export function TaxonomyPage() {
       <div className="panel-heading"><h2>Technologies</h2><span className="muted">{technologies.length} records</span></div>
       <div className="technology-list">{technologies.map(item => <div className="technology-item" key={item.id}>
         <div><strong>{item.name}</strong><small>{item.slug} · {item.status}</small></div>
-        <div><button className="text-button" onClick={() => editTechnology(item)} disabled={item.status === "ARCHIVED"}>Edit</button>
-          <button className="text-button danger-text" onClick={() => void archiveTechnology(item)} disabled={item.status === "ARCHIVED"}>Archive</button></div>
+        <div><button className="text-button" aria-label={`Edit technology ${item.name}`} onClick={() => editTechnology(item)} disabled={item.status === "ARCHIVED"}>Edit</button>
+          <button className="text-button danger-text" aria-label={`Archive technology ${item.name}`} onClick={() => void archiveTechnology(item)} disabled={item.status === "ARCHIVED"}>Archive</button></div>
       </div>)}</div>
       <form className="technology-form" onSubmit={event => void saveTechnology(event)}>
         <h3>{editingTechnologyId ? "Edit technology" : "Add technology"}</h3>
@@ -123,14 +123,14 @@ export function TaxonomyPage() {
       </form>
     </div>
     <div className="editor-layout">
-      <div className="panel">
-        <div className="panel-heading"><h2>Categories</h2><span className="muted">{categoryRows.length} shown · {visible.length} total</span></div>
-        <label className="field-label">Technology</label>
-        <select value={technology} onChange={event => setTechnology(event.target.value)}>
+      <div className="panel" aria-busy={loading}>
+        <div className="panel-heading"><h2 id="taxonomy-categories-heading">Categories</h2><span className="muted">{categoryRows.length} shown · {visible.length} total</span></div>
+        <label className="field-label" htmlFor="taxonomy-technology">Technology</label>
+        <select id="taxonomy-technology" aria-labelledby="taxonomy-categories-heading" value={technology} onChange={event => setTechnology(event.target.value)}>
           {technologies.map(item => <option key={item.id} value={item.slug}>{item.name}</option>)}
         </select>
         <div className="taxonomy-filters"><label>Search categories<input type="search" value={categorySearch} onChange={event => setCategorySearch(event.target.value)} placeholder="Name, slug or status" /></label><label>Status<select value={categoryStatus} onChange={event => setCategoryStatus(event.target.value)}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label></div>
-        {loading ? <p className="muted">Loading taxonomy…</p> : visible.length === 0 ?
+        {loading ? <p className="muted" role="status" aria-live="polite">Loading taxonomy…</p> : visible.length === 0 ?
           <p className="muted">No categories found for this technology.</p> :
           categoryRows.length === 0 ? <p className="muted">No categories match these filters.</p> :
           <div className="table-wrap"><table className="data-table"><thead><tr>
@@ -138,8 +138,8 @@ export function TaxonomyPage() {
           </tr></thead><tbody>{categoryRows.map(({ item, depth }) => <tr key={item.id}>
             <td><strong style={{ paddingInlineStart: `${depth * 1.25}rem` }}>{depth > 0 ? "↳ " : ""}{item.name}</strong></td><td><code>{item.slug}</code></td>
             <td>{item.lessonCount} lessons · {item.questionCount} questions</td><td>{item.status}</td>
-            <td><button className="text-button" onClick={() => edit(item)} disabled={item.status === "ARCHIVED"}>Edit</button>
-              <button className="text-button danger-text" onClick={() => void archive(item)} disabled={item.status === "ARCHIVED"}>Archive</button></td>
+            <td><button className="text-button" aria-label={`Edit category ${item.name}`} onClick={() => edit(item)} disabled={item.status === "ARCHIVED"}>Edit</button>
+              <button className="text-button danger-text" aria-label={`Archive category ${item.name}`} onClick={() => void archive(item)} disabled={item.status === "ARCHIVED"}>Archive</button></td>
           </tr>)}</tbody></table></div>}
       </div>
       <form className="panel editor-form" onSubmit={event => void save(event)}>
