@@ -98,6 +98,23 @@ class OfflineManifestDownloadCoordinatorTest {
         assertEquals("unpublished", store.pendingProgress().single().lessonSlug)
     }
 
+    @Test fun olderManifestIsRejectedBeforeFetchingAndPreservesCachedRelease() = runBlocking {
+        val content = """{"version":"current"}"""
+        store.cacheLesson(lesson("current", 2, content))
+        store.recordValidatedManifestVersion(5)
+        var fetched = false
+        val oldManifest = manifest("old", 1, """{"version":"old"}""", version = 4)
+        val coordinator = OfflineManifestDownloadCoordinator(store) {
+            fetched = true
+            lesson(it, 1, """{"version":"old"}""")
+        }
+
+        assertThrows(IllegalStateException::class.java) { runBlocking { coordinator.download(oldManifest) } }
+        assertFalse(fetched)
+        assertEquals(5L, store.lastValidatedManifestVersion())
+        assertEquals(listOf("current"), store.cachedLessonLibrary().map { it.slug })
+    }
+
     @Test fun failedManifestDownloadDoesNotPrunePreviouslyCachedContent() = runBlocking {
         val old = """{"revision":"old"}"""
         store.cacheLesson(lesson("old-cached", 1, old))
@@ -110,9 +127,9 @@ class OfflineManifestDownloadCoordinatorTest {
         assertEquals(listOf("old-cached"), store.cachedLessonLibrary().map { it.slug })
     }
 
-    private fun manifest(slug: String, revision: Int, expectedContent: String) =
+    private fun manifest(slug: String, revision: Int, expectedContent: String, version: Long = 1) =
         OfflineReleaseManifest.parse(JSONObject().apply {
-            put("version", 1)
+            put("version", version)
             put("items", org.json.JSONArray().put(item(slug, expectedContent, revision)))
         })
 

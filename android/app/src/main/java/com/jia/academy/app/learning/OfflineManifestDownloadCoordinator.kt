@@ -33,6 +33,7 @@ internal class OfflineManifestDownloadCoordinator(
         manifest: OfflineReleaseManifest,
         onProgress: (OfflineDownloadProgress) -> Unit = {}
     ): OfflineDownloadSummary {
+        store.requireManifestVersionNotOlder(manifest.version)
         var downloaded = 0
         var current = 0
         manifest.items.forEachIndexed { index, item ->
@@ -59,6 +60,8 @@ internal class OfflineManifestDownloadCoordinator(
             }
             onProgress(OfflineDownloadProgress(manifest.version, index + 1, manifest.items.size, null))
         }
+        // Advance the rollback watermark only after every item has passed integrity validation.
+        store.recordValidatedManifestVersion(manifest.version)
         // Prune only after every manifest item was fetched and integrity-checked. A failed or
         // cancelled download keeps the last known-good library intact.
         if (OfflineReleaseReconciliation.shouldPruneAfterDownload(true, true)) {
