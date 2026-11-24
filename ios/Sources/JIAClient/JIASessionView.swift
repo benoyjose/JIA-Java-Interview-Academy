@@ -10,9 +10,9 @@ public struct JIASessionView: View {
     else {resultSummary}
    } else if let prompt=runner.current {
     ScrollView{VStack(alignment:.leading,spacing:16){
-     Text("Question \\(runner.index+1) of \\(runner.prompts.count)").font(.caption)
+     Text("Question \(runner.index+1) of \(runner.prompts.count)").font(.caption)
      Text(prompt.question).font(.title2.bold())
-     ForEach(prompt.options.indices,id:\\.self){i in Button(prompt.options[i]){runner.answer(i)}.buttonStyle(.borderedProminent).disabled(runner.submitted)}
+     ForEach(prompt.options.indices,id:\.self){i in Button(prompt.options[i]){runner.answer(i)}.buttonStyle(.borderedProminent).disabled(runner.submitted)}
      if runner.submitted {Text(runner.answers[prompt.id]==prompt.correctOption ? "Correct" : "Not quite").font(.headline);Text(prompt.explanation).font(.body).accessibilityIdentifier("answer-explanation")}
      HStack{Button("Check answer"){runner.submit()}.disabled(runner.submitted);Button(runner.index==runner.prompts.count-1 ? "Finish":"Next"){runner.next()}.disabled(!runner.submitted)}
     }.padding()}
@@ -22,9 +22,9 @@ public struct JIASessionView: View {
  private var resultSummary:some View{
   VStack(alignment:.leading,spacing:14){
    Text("Session complete").font(.largeTitle)
-   Text("Score \\(runner.score) / \\(runner.prompts.count)")
-   Text("Accuracy \\(runner.accuracyPercent)% · \\(runner.answeredCount) answered")
-   if !runner.missedPrompts.isEmpty {Button("Review \\(runner.missedPrompts.count) missed"){runner.showMistakeReview()}.buttonStyle(.borderedProminent)}
+   Text("Score \(runner.score) / \(runner.prompts.count)")
+   Text("Accuracy \(runner.accuracyPercent)% · \(runner.answeredCount) answered")
+   if !runner.missedPrompts.isEmpty {Button("Review \(runner.missedPrompts.count) missed"){runner.showMistakeReview()}.buttonStyle(.borderedProminent)}
    Button("Return to learning",action:onExit)
   }.padding()
  }
@@ -33,8 +33,8 @@ public struct JIASessionView: View {
    Text("Review missed questions").font(.largeTitle)
    ForEach(runner.missedPrompts){prompt in
     Text(prompt.question).font(.headline)
-    Text("Your answer: \\(prompt.options.indices.contains(runner.answers[prompt.id] ?? -1) ? prompt.options[runner.answers[prompt.id]!] : "Not answered")")
-    Text("Correct answer: \\(prompt.options.indices.contains(prompt.correctOption) ? prompt.options[prompt.correctOption] : "Unavailable")")
+    Text("Your answer: \(prompt.options.indices.contains(runner.answers[prompt.id] ?? -1) ? prompt.options[runner.answers[prompt.id]!] : "Not answered")")
+    Text("Correct answer: \(prompt.options.indices.contains(prompt.correctOption) ? prompt.options[prompt.correctOption] : "Unavailable")")
     Text(prompt.explanation)
     Divider()
    }
