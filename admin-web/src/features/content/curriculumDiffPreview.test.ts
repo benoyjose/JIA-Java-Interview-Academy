@@ -1,0 +1,3 @@
+import {expect,it} from "vitest";import {previewCurriculumDiff} from "./curriculumDiffPreview";
+it("reports additions, removals, changes and unchanged rows",()=>{const a=[{id:"a",title:"A",version:1,prerequisiteIds:[]}];const b=[{...a[0],version:2},{id:"b",title:"B",version:1,prerequisiteIds:[]}];const d=previewCurriculumDiff(a,b);expect(d.map(x=>x.kind)).toEqual(["changed","added"]);});
+it("rejects duplicate identifiers before preview",()=>{expect(()=>previewCurriculumDiff([],[{id:"x",title:"x",version:1,prerequisiteIds:[]},{id:"x",title:"y",version:1,prerequisiteIds:[]}])).toThrow();});
