@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets;import java.security.MessageDigest;impo
 import org.springframework.http.HttpStatus;import org.springframework.security.core.annotation.AuthenticationPrincipal;import org.springframework.transaction.annotation.Transactional;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;import org.springframework.jdbc.core.JdbcTemplate;
 @RestController @RequestMapping("/api/v1/coding-submissions")
 public class CodingSubmissionController {
- private static final UUID DEFAULT_ACADEMY=UUID.fromString("50000000-0000-0000-0000-000000000001");private final JdbcTemplate jdbc;
+ private static final UUID DEFAULT_ACADEMY=UUID.fromString("50000000-0000-0000-0000-000000000001");private final JdbcTemplate jdbc; private final CodingSubmissionLifecyclePolicy lifecycle=new CodingSubmissionLifecyclePolicy();
  public CodingSubmissionController(JdbcTemplate jdbc){this.jdbc=jdbc;}
  @PostMapping @ResponseStatus(HttpStatus.ACCEPTED) @Transactional
  public Map<String,Object> submit(@AuthenticationPrincipal CurrentUser user,@RequestBody Map<String,Object> request){
