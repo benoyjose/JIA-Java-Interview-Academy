@@ -124,6 +124,36 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
     }
 
     @Test
+    void externalLessonCannotPublishWithInvalidSourceUrlOrAccessDate() {
+        String slug = "external-invalid-source-" + UUID.randomUUID();
+        String content = """
+                {"schemaVersion":1,"blocks":[{"type":"markdown","key":"overview","body":"Sourced lesson"}],
+                 "sources":[{"url":"javascript:alert(1)","title":"Reference","accessedAt":"not-a-date","licenseNotes":"Reviewed"}]}
+                """;
+        var draft = authoring.createDraft(editor, externalRequest(slug, content));
+        UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
+        authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "Editorial review complete"));
+        assertThatThrownBy(() -> authoring.publish(admin, draft.id()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("valid absolute HTTP(S) url");
+    }
+
+    @Test
+    void externalLessonPublishesOnlyWithValidTraceableSourceMetadata() {
+        String slug = "external-valid-source-" + UUID.randomUUID();
+        String content = """
+                {"schemaVersion":1,"blocks":[{"type":"markdown","key":"overview","body":"Sourced lesson"}],
+                 "sources":[{"url":"https://docs.example.org/java","title":"Java documentation",
+                 "author":"Documentation team","publisher":"Example Foundation",
+                 "accessedAt":"2026-11-24","licenseNotes":"Official documentation; attribution retained."}]}
+                """;
+        var draft = authoring.createDraft(editor, externalRequest(slug, content));
+        UUID task = (UUID) authoring.submitForReview(editor, draft.id()).get("taskId");
+        authoring.decideReview(reviewer, task, new ReviewDecisionRequest("APPROVE", "Verified source and attribution"));
+        assertThat(authoring.publish(admin, draft.id()).get("status")).isEqualTo("PUBLISHED");
+    }
+
+    @Test
     void contentReleaseKeepsExactPublishedRevisionAvailableAfterNewerPublication() {
         String slug = "release-snapshot-" + UUID.randomUUID();
         var draft = authoring.createDraft(editor, request(slug, "Version one"));
@@ -408,6 +438,12 @@ class ContentReleaseAndAuthRateLimitPostgresTest {
                 id, name, email);
         jdbc.update("INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles WHERE code=?", id, role);
         return new CurrentUser(id, name, email, List.of(role), List.of(), List.of(UUID.fromString("50000000-0000-0000-0000-000000000001")));
+    }
+
+    private static LessonDraftRequest externalRequest(String slug, String content) {
+        return new LessonDraftRequest(
+                "java-language-fundamentals", slug, "External source lesson", "Provenance gate test",
+                "BEGINNER", "EXTERNAL_REFERENCE", content, "Editorial gate integration test");
     }
 
     private static LessonDraftRequest request(String slug, String title) {
