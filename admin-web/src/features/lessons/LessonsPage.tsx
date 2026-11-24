@@ -4,6 +4,7 @@ import { api, validateLessonContent } from "../../api/client";
 import type { AdminLesson, ContentRelease, LessonDetail, LessonDraftRequest, LessonStatus, PageResult, RevisionHistoryItem } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { LessonContentWorkbench } from "./LessonContentWorkbench";
+import { BulkContentPublishing } from "../content/BulkContentPublishing";
 
 const PAGE_SIZE = 25;
 const statuses: Array<LessonStatus | "ALL"> = ["ALL", "DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"];
@@ -101,6 +102,11 @@ export function LessonsPage() {
             <span className="lesson-row-main"><strong>{item.title}</strong><small>{item.categorySlug} / {item.slug}</small></span><span className={`status-badge status-${item.status.toLowerCase()}`}>{item.status.replace("_", " ")}</span><span className="row-chevron">›</span>
           </button>)}</div>}
         <PageControls page={page} totalPages={result.totalPages} loading={loading} onChange={next => { setPage(next); setSelectedId(null); setSelected(null); }} />
+        {user?.roles.includes("ADMIN") && <BulkContentPublishing
+          items={result.items.map(item => ({ id: item.id, title: item.title, status: item.status, version: item.contentRevision }))}
+          publish={(id, _expectedVersion) => api.publishLesson(id).then(() => undefined)}
+          refresh={() => setRefreshKey(value => value + 1)}
+        />}
       </div>
       <div className="panel editor-panel">{creating ? <LessonEditor onSaved={onSaved} onCancel={() => setCreating(false)} /> :
         selected ? <LessonEditor key={selected.id + selected.revisionNumber + String(selected.editingDraft)} lesson={selected} onSaved={onSaved} onCancel={() => { setSelected(null); setSelectedId(null); }} onPublish={publish} /> :
