@@ -101,7 +101,7 @@ public class ProgressEventService {
             }
         } else {
             // Ledger insertion and learner-facing projection share this transaction.
-            projectAcceptedEvent(user, lessonId, publishedRevision, type, payload);
+            projectAcceptedEvent(user, lessonId, publishedRevision, type, payload, request.occurredAt(), request.eventId());
         }
         return new EventReceipt(request.eventId(), inserted == 1 ? "ACCEPTED" : "DUPLICATE",
                 request.occurredAt());
@@ -136,7 +136,7 @@ public class ProgressEventService {
     }
 
     private void projectAcceptedEvent(CurrentUser user, UUID lessonId, int publishedRevision,
-                                     String type, JsonNode payload) {
+                                     String type, JsonNode payload, Instant occurredAt, UUID eventId) {
         if (lessonId == null) return;
         if ("BOOKMARK_CHANGED".equals(type)) {
             if (payload.path("bookmarked").asBoolean()) {
@@ -164,19 +164,41 @@ public class ProgressEventService {
         }
         jdbc.update("""
                 INSERT INTO learner_lesson_progress(user_id,lesson_id,content_revision,status,progress_percent,
-                    last_position_json,started_at,completed_at,updated_at)
+                    last_position_json,started_at,completed_at,updated_at,projection_event_at,projection_event_id)
                 VALUES (?,?,?,CASE WHEN ? >= 100 THEN 'COMPLETED' ELSE 'IN_PROGRESS' END,?,?::jsonb,
-                    now(),CASE WHEN ? >= 100 THEN now() ELSE NULL END,now())
+                    now(),CASE WHEN ? >= 100 THEN now() ELSE NULL END,now(),?,?)
                 ON CONFLICT (user_id,lesson_id) DO UPDATE SET
                     content_revision=GREATEST(learner_lesson_progress.content_revision,EXCLUDED.content_revision),
                     progress_percent=GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent),
                     status=CASE WHEN GREATEST(learner_lesson_progress.progress_percent,EXCLUDED.progress_percent)>=100
                         THEN 'COMPLETED' ELSE learner_lesson_progress.status END,
-                    last_position_json=CASE WHEN EXCLUDED.progress_percent>=learner_lesson_progress.progress_percent
+                    last_position_json=CASE WHEN EXCLUDED.content_revision>learner_lesson_progress.content_revision
+                        OR (EXCLUDED.content_revision=learner_lesson_progress.content_revision AND
+                            (EXCLUDED.projection_event_at>learner_lesson_progress.projection_event_at OR
+                             (EXCLUDED.projection_event_at=learner_lesson_progress.projection_event_at AND
+                              EXCLUDED.projection_event_id>learner_lesson_progress.projection_event_id)))
                         THEN EXCLUDED.last_position_json ELSE learner_lesson_progress.last_position_json END,
+                    projection_event_at=CASE WHEN EXCLUDED.content_revision>learner_lesson_progress.content_revision
+                        OR (EXCLUDED.content_revision=learner_lesson_progress.content_revision AND
+                            (EXCLUDED.projection_event_at>learner_lesson_progress.projection_event_at OR
+                             (EXCLUDED.projection_event_at=learner_lesson_progress.projection_event_at AND
+                              EXCLUDED.projection_event_id>learner_lesson_progress.projection_event_id)))
+                        THEN EXCLUDED.projection_event_at ELSE learner_lesson_progress.projection_event_at END,
+                    projection_event_id=CASE WHEN EXCLUDED.content_revision>learner_lesson_progress.content_revision
+                        OR (EXCLUDED.content_revision=learner_lesson_progress.content_revision AND
+                            (EXCLUDED.projection_event_at>learner_lesson_progress.projection_event_at OR
+                             (EXCLUDED.projection_event_at=learner_lesson_progress.projection_event_at AND
+                              EXCLUDED.projection_event_id>learner_lesson_progress.projection_event_id)))
+                        THEN EXCLUDED.projection_event_id ELSE learner_lesson_progress.projection_event_id END,
                     completed_at=COALESCE(learner_lesson_progress.completed_at,EXCLUDED.completed_at),
                     updated_at=GREATEST(now(),learner_lesson_progress.updated_at + interval '1 microsecond')
-                """, user.id(), lessonId, publishedRevision, percent, percent, position, percent);
+                """, user.id(), lessonId, publishedRevision, percent, percent, position, percent,
+                java.sql.Timestamp.from(occurredAt), eventId);
+    }
+
+    static boolean isProjectionEventNewer(Instant incomingAt, UUID incomingId, Instant existingAt, UUID existingId) {
+        int timeOrder = incomingAt.compareTo(existingAt);
+        return timeOrder > 0 || (timeOrder == 0 && incomingId.compareTo(existingId) > 0);
     }
 
     private record PublishedLessonRef(UUID id, int revision) {}
