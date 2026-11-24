@@ -1,4 +1,5 @@
-package com.jia.academy.coding.api;\nimport com.jia.academy.coding.service.CodingSubmissionLifecyclePolicy;
+package com.jia.academy.coding.api;
+import com.jia.academy.coding.service.CodingSubmissionLifecyclePolicy;
 import com.jia.academy.security.CurrentUser;
 import java.nio.charset.StandardCharsets;import java.security.MessageDigest;import java.time.Instant;import java.util.*;
 import org.springframework.http.HttpStatus;import org.springframework.security.core.annotation.AuthenticationPrincipal;import org.springframework.transaction.annotation.Transactional;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;import org.springframework.jdbc.core.JdbcTemplate;
