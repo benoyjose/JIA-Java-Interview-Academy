@@ -94,6 +94,51 @@ paths:
                         correct: { type: integer, minimum: 0 }
                         completedLessons: { type: integer, minimum: 0 }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/commitment:
+    get:
+      summary: Read the authenticated learner's daily goal and streak
+      tags: [Learning]
+      operationId: getLearnerCommitment
+      parameters:
+        - { name: timezone, in: query, required: true, schema: { type: string, format: timezone } }
+      responses:
+        '200':
+          description: Current local-day commitment and consecutive completed-goal streak
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [date, timezone, goalMinutes, completedMinutes, goalMet, streakDays]
+                properties:
+                  date: { type: string, format: date }
+                  timezone: { type: string }
+                  goalMinutes: { type: integer, minimum: 5, maximum: 240 }
+                  completedMinutes: { type: integer, minimum: 0 }
+                  goalMet: { type: boolean }
+                  streakDays: { type: integer, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /me/commitment/sessions:
+    post:
+      summary: Record a completed learning session toward the daily commitment
+      tags: [Learning]
+      operationId: recordLearnerCommitmentSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [timezone, minutes, sessionId]
+              properties:
+                timezone: { type: string }
+                minutes: { type: integer, minimum: 1, maximum: 240 }
+                sessionId: { type: string, format: uuid }
+                goalMinutes: { type: integer, minimum: 5, maximum: 240 }
+      responses:
+        '200': { description: Updated daily commitment }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /me/study-plan:
     get:
       summary: Generate an authenticated learner's personalized daily study plan
