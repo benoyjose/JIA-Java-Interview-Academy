@@ -1,9 +1,12 @@
-export type DependencyIssue = { lessonId: string; dependencyId: string; reason: "missing" | "self" | "cycle" };
+export type DependencyIssue = { lessonId: string; dependencyId: string; reason: "missing" | "self" | "duplicate" | "cycle" };
 
 export function validateCurriculumDependencies(graph: Record<string, string[]>): DependencyIssue[] {
   const issues: DependencyIssue[] = [];
   for (const [lessonId, dependencies] of Object.entries(graph)) {
+    const seen = new Set<string>();
     for (const dependencyId of dependencies) {
+      if (seen.has(dependencyId)) { issues.push({ lessonId, dependencyId, reason: "duplicate" }); continue; }
+      seen.add(dependencyId);
       if (dependencyId === lessonId) issues.push({ lessonId, dependencyId, reason: "self" });
       else if (!(dependencyId in graph)) issues.push({ lessonId, dependencyId, reason: "missing" });
     }
