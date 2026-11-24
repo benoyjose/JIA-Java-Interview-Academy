@@ -205,26 +205,6 @@ paths:
         '200': { description: Current status and cancellation state }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
-  /me/study-plan:
-    get:
-      summary: Get a personalized study plan within a daily time budget
-      tags: [Learner Discovery]
-      operationId: getPersonalizedStudyPlan
-      parameters:
-        - { name: dailyMinutes, in: query, schema: { type: integer, minimum: 10, maximum: 180, default: 30 } }
-      responses:
-        '200':
-          description: Server-derived prioritized study tasks
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [dailyMinutes, tasks]
-                properties:
-                  dailyMinutes: { type: integer }
-                  tasks: { type: array, items: { type: object } }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
   /health/live:
     get:
       summary: Report API process liveness
