@@ -11,7 +11,7 @@ data class PracticeSessionState(val prompts:List<PracticePrompt>,val index:Int=0
 class PracticeSessionController(prompts:List<PracticePrompt>){
  private val mutable=MutableStateFlow(PracticeSessionState(prompts=prompts.distinctBy{it.id}))
  val state:StateFlow<PracticeSessionState> = mutable.asStateFlow()
- fun answer(option:Int){val s=mutable.value;val p=s.current?:return;if(s.submitted||option !in p.options.indices)return;mutable.value=s.copy(answers=s.answers+p.id to option)}
+ fun answer(option:Int){val s=mutable.value;val p=s.current?:return;if(s.submitted||option !in p.options.indices)return;mutable.value=s.copy(answers=s.answers + (p.id to option))}
  fun submit(){val s=mutable.value;if(s.current==null||s.submitted)return;mutable.value=s.copy(submitted=true)}
  fun next(){val s=mutable.value;if(!s.submitted)return;if(s.index+1>=s.prompts.size)mutable.value=s.copy(completed=true)else mutable.value=s.copy(index=s.index+1,submitted=false)}
  fun reset(){mutable.value=PracticeSessionState(prompts=mutable.value.prompts)}
