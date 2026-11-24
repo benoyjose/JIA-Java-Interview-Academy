@@ -1,0 +1,2 @@
+# Learning commitment progress
+Deterministic daily-goal and streak domain primitive. Goal range is 5–240 minutes; negative completion is invalid. Display progress is floored and capped at 100 while goal completion uses actual minutes. Activity dates are learner-local ISO calendar dates and use an IANA timezone. Current-day inactivity may preserve yesterday's streak. Persistence, reminders and API integration are deliberately separate responsibilities.
