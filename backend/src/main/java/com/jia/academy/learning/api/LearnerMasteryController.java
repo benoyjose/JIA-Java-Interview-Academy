@@ -1,5 +1,8 @@
 package com.jia.academy.learning.api;
 import com.jia.academy.security.CurrentUser;
+import com.jia.academy.appregistry.api.AcademyAppContextInterceptor;
+import com.jia.academy.appregistry.service.AcademyRequestContext;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -16,9 +19,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class LearnerMasteryController {
  private final JdbcTemplate jdbc;
  public LearnerMasteryController(JdbcTemplate jdbc){this.jdbc=jdbc;}
- @GetMapping public Map<String,Object> summary(@AuthenticationPrincipal CurrentUser user){
+ @GetMapping public Map<String,Object> summary(@AuthenticationPrincipal CurrentUser user, HttpServletRequest request){
   if(user==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Sign in required");
-  var academy=UUID.fromString("50000000-0000-0000-0000-000000000001");
+  AcademyRequestContext context = (AcademyRequestContext) request.getAttribute(AcademyAppContextInterceptor.REQUEST_CONTEXT_ATTRIBUTE);
+  UUID academy;
+  if (context != null) {
+   academy = context.academyId();
+   if (user.academyIds() == null || !user.academyIds().contains(academy)) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Learner is not a member of the requested academy");
+  } else if (user.academyIds() != null && user.academyIds().size() == 1) academy = user.academyIds().getFirst();
+  else throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Registered academy-app context is required for multi-academy mastery");
   var topics=jdbc.query("""
    SELECT c.slug,c.name,
     (SELECT COUNT(*) FROM quiz_attempt_answers aa
