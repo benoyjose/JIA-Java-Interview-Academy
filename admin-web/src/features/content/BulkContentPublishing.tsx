@@ -1,5 +1,5 @@
 import {useState} from "react";
-export type DraftLesson={id:string;title:string;status:"DRAFT"|"IN_REVIEW"|"PUBLISHED";version:number};
+export type DraftLesson={id:string;title:string;status:"DRAFT"|"IN_REVIEW"|"APPROVED"|"PUBLISHED"|"ARCHIVED";version:number};
 export type PublishResult={published:string[];failed:{id:string;message:string}[]};
 type Props={items:DraftLesson[];publish:(id:string,expectedVersion:number)=>Promise<void>;refresh:()=>void};
 /** Safe bulk publisher: only reviewed drafts, capped selection, sequential optimistic version checks. */
