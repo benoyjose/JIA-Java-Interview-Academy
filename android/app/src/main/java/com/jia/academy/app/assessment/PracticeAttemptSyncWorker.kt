@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 
 /**
  * Uploads durable attempt events. A row is acknowledged only after upload returns;
@@ -22,6 +23,10 @@ class PracticeAttemptSyncWorker(context: Context, params: WorkerParameters) :
             try {
                 uploader.upload(event)
                 dao.markSynced(event.eventId)
+            } catch (cancelled: CancellationException) {
+                // WorkManager cancellation is control flow, not a failed upload.
+                // Preserve the queue row without incrementing its retry budget.
+                throw cancelled
             } catch (failure: Exception) {
                 dao.recordRetry(event.eventId)
                 // Do not continue past a failed event: preserve ordering and avoid

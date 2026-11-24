@@ -1,6 +1,7 @@
 package com.jia.academy.app.assessment
 
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 
 /**
  * WorkManager retries are exponential by scheduler configuration. Keep batch
@@ -12,5 +13,9 @@ object PracticeAttemptSyncPolicy {
     const val maximumEventRetries: Int = 8
 
     fun shouldRetry(retryCount: Int, failure: Throwable): Boolean =
-        failure is IOException && retryCount < maximumEventRetries
+        failure is IOException && failure !is CancellationException &&
+            retryCount < maximumEventRetries
+
+    /** Cancellation must leave retry counters untouched and propagate to WorkManager. */
+    fun isCancellation(failure: Throwable): Boolean = failure is CancellationException
 }
