@@ -7,7 +7,7 @@ public struct JIASessionView: View {
   Group {
    if runner.completed {ContentView(title:"Session complete",score:runner.score,total:runner.prompts.count,onExit:onExit)}
    else if let prompt=runner.current {ScrollView{VStack(alignment:.leading,spacing:16){Text("Question \(runner.index+1) of \(runner.prompts.count)").font(.caption);Text(prompt.question).font(.title2.bold())
-    ForEach(prompt.options.indices,id:\\.self){i in Button(prompt.options[i]){runner.answer(i)}.buttonStyle(.borderedProminent).disabled(runner.submitted)}
+    ForEach(prompt.options.indices,id:\.self){i in Button(prompt.options[i]){runner.answer(i)}.buttonStyle(.borderedProminent).disabled(runner.submitted)}
     if runner.submitted{Text(prompt.explanation).font(.body).accessibilityIdentifier("answer-explanation")}
     HStack{Button("Check answer"){runner.submit()}.disabled(runner.submitted);Button(runner.index==runner.prompts.count-1 ? "Finish":"Next"){runner.next()}.disabled(!runner.submitted)}
    }.padding()}}
