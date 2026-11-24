@@ -8,7 +8,7 @@ final class JIASessionRunnerTests:XCTestCase{
  func testResultMetricsIncludeUnansweredInMistakeReview(){
   let second=JIAPrompt(id:"2",question:"Q2",options:["X","Y"],correctOption:0,explanation:"Correct")
   let runner=JIASessionRunner(prompts:[prompt,second]);runner.answer(0);runner.submit();runner.next();runner.submit();runner.next()
-  XCTAssertEqual(runner.score,0);XCTAssertEqual(runner.accuracyPercent,0);XCTAssertEqual(runner.answeredCount,1);XCTAssertEqual(runner.missedPrompts.map(\\.id),["1","2"])
+  XCTAssertEqual(runner.score,0);XCTAssertEqual(runner.accuracyPercent,0);XCTAssertEqual(runner.answeredCount,1);XCTAssertEqual(runner.missedPrompts.map(\.id),["1","2"])
  }
  func testMistakeReviewRequiresCompletionAndCanReturnToSummary(){
   let runner=JIASessionRunner(prompts:[prompt]);runner.showMistakeReview();XCTAssertFalse(runner.reviewingMistakes)
