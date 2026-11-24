@@ -3,6 +3,7 @@ import { ApiError, api } from "../../api/client";
 import type { AcademyAnalyticsSummary } from "../../api/analytics";
 import { StudyPlanInsights } from "./StudyPlanInsights";
 import { MasteryRiskPanel } from "./MasteryRiskPanel";
+import { SpacedReviewPolicyPanel } from "../reviews/SpacedReviewPolicyPanel";
 
 const WINDOWS = [7, 30, 90] as const;
 type WindowDays = typeof WINDOWS[number];
@@ -63,6 +64,7 @@ export function DashboardPage() {
         <article className="stat-card score-card"><span>Average quiz score</span><strong>{formatScore(summary.averageScorePercent)}</strong><small>Across {formatCount(summary.scoredAttempts)} scored attempts</small></article>
       </div>
       <StudyPlanInsights summary={summary} />
+      <SpacedReviewPolicyPanel />
       <MasteryRiskPanel summary={summary} />
       <div className="panel analytics-topics">
         <div className="panel-heading"><div><h2>Most active topics</h2><p className="muted small-copy">Ranked by submitted quiz attempts in the selected period</p></div><span className="count-pill">{summary.topTopics.length} topics</span></div>
