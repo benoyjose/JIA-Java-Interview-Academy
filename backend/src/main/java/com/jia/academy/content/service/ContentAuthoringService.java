@@ -643,27 +643,49 @@ public class ContentAuthoringService {
     private void validatePublicationEditorialGate(String contentJson, String sourceType) {
         try {
             var root = mapper.readTree(contentJson);
-            var blocks = root.path("blocks");
-            // schema v1 legacy lessons remain publishable; provenance is a hard
-            // requirement for external-source material. Rich editorial checklist
-            // enforcement is versioned into the next content schema rather than
-            // retroactively invalidating already-reviewed v1 content.
+            // Schema v1 authored lessons remain backward-compatible. External
+            // reference material must carry verifiable provenance before release.
             if ("EXTERNAL_REFERENCE".equalsIgnoreCase(sourceType)) {
                 var sources = root.path("sources");
-                if (!sources.isArray() || sources.isEmpty())
+                if (!sources.isArray() || sources.isEmpty()) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                             "External content requires sources[] provenance");
+                }
                 for (var source : sources) {
-                    if (source.path("url").asText("").isBlank()
-                            || source.path("title").asText("").isBlank()
-                            || source.path("accessedAt").asText("").isBlank()
-                            || source.path("licenseNotes").asText("").isBlank())
+                    String url = source.path("url").asText("");
+                    String title = source.path("title").asText("");
+                    String accessedAt = source.path("accessedAt").asText("");
+                    String licenseNotes = source.path("licenseNotes").asText("");
+                    try {
+                        var parsed = java.net.URI.create(url);
+                        if (!("https".equalsIgnoreCase(parsed.getScheme())
+                                || "http".equalsIgnoreCase(parsed.getScheme()))
+                                || parsed.getHost() == null) {
+                            throw new IllegalArgumentException("Source URL must be absolute HTTP(S)");
+                        }
+                        java.time.LocalDate.parse(accessedAt);
+                    } catch (RuntimeException invalidMetadata) {
                         throw new ResponseStatusException(HttpStatus.CONFLICT,
-                                "Each source needs url, title, accessedAt and licenseNotes");
+                                "Each source needs a valid absolute HTTP(S) url and ISO accessedAt date");
+                    }
+                    if (title.isBlank() || licenseNotes.isBlank() || licenseNotes.length() > 2000) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Each source needs a title and concise licenseNotes (max 2000 characters)");
+                    }
+                    // Author and publisher are captured when supplied by the source;
+                    // they are not fabricated or mandatory when unknown.
+                    for (String optional : List.of("author", "publisher")) {
+                        var value = source.path(optional);
+                        if (!value.isMissingNode() && (!value.isTextual() || value.asText().isBlank())) {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                    "Optional source " + optional + " must be a non-empty string when present");
+                        }
+                    }
                 }
             }
-        } catch (ResponseStatusException ex) { throw ex; }
-        catch (Exception ex) {
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Editorial metadata is invalid");
         }
     }
