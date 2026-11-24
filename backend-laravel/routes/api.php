@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\V1\StudyPlanController;
 use App\Http\Controllers\Api\V1\LearnerCommitmentController;
 use App\Http\Controllers\Api\V1\LearnerLibraryController;
 use App\Http\Controllers\Api\V1\LearnerPrivacyController;
+use App\Http\Controllers\Api\V1\LearnerSyncController;
+use App\Http\Controllers\Api\V1\SpacedReviewController;
 use App\Http\Controllers\Api\V1\LessonImportController;
 use App\Http\Controllers\Api\V1\QuestionImportController;
 use App\Http\Controllers\Api\V1\AppReleasePolicyController;
@@ -32,6 +34,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/me/commitment', [LearnerCommitmentController::class, 'show']);
         Route::post('/me/commitment/sessions', [LearnerCommitmentController::class, 'record']);
         Route::get('/me/privacy/export', [LearnerPrivacyController::class, 'export']);
+        Route::post('/me/progress-sync/batch', [LearnerSyncController::class, 'ingest'])->middleware('throttle:60,1');
+        Route::get('/me/reviews/due', [SpacedReviewController::class, 'queue']);
+        Route::post('/me/reviews/{lessonSlug}/grade', [SpacedReviewController::class, 'grade']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/quiz-attempts', [QuizController::class, 'start']);
         Route::put('/apps/{appCode}/release-policy', [AppReleasePolicyController::class, 'update'])->middleware('jia.permission:releases.manage');
