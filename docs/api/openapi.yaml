@@ -2281,6 +2281,17 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { description: Event identity or revision conflict }
         '422': { description: Invalid event or unavailable lesson }
+  /me/reviews:
+    get:
+      summary: Read the authenticated learner's adaptive review queue
+      tags: [Learning]
+      operationId: getLearnerAdaptiveReviewQueue
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+      responses:
+        '200': { description: Server-calculated learner review queue and scheduling evidence }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '400': { $ref: '#/components/responses/BadRequest' }
   /me/reviews/due:
     get:
       summary: Read due Laravel spaced-review lessons for the authenticated learner
