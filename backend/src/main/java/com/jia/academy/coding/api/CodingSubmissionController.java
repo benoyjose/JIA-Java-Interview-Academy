@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;import java.security.MessageDigest;impo
 import org.springframework.http.HttpStatus;import org.springframework.security.core.annotation.AuthenticationPrincipal;import org.springframework.transaction.annotation.Transactional;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;import org.springframework.jdbc.core.JdbcTemplate;
 @RestController @RequestMapping("/api/v1/coding-submissions")
 public class CodingSubmissionController {
- private static final UUID DEFAULT_ACADEMY=UUID.fromString("50000000-0000-0000-0000-000000000001");private final JdbcTemplate jdbc; private final CodingSubmissionLifecyclePolicy lifecycle=new CodingSubmissionLifecyclePolicy();
+ private final JdbcTemplate jdbc; private final CodingSubmissionLifecyclePolicy lifecycle=new CodingSubmissionLifecyclePolicy();
  public CodingSubmissionController(JdbcTemplate jdbc){this.jdbc=jdbc;}
  @PostMapping @ResponseStatus(HttpStatus.ACCEPTED) @Transactional
  public Map<String,Object> submit(@AuthenticationPrincipal CurrentUser user,@RequestBody Map<String,Object> request){
@@ -34,7 +34,8 @@ public class CodingSubmissionController {
   else if(decision.action()==CodingSubmissionLifecyclePolicy.Action.REQUEST_RUNNING_CANCELLATION)jdbc.update("UPDATE coding_submissions SET cancel_requested=TRUE,updated_at=now() WHERE id=?",submissionId);
   return Map.of("submissionId",submissionId,"status",decision.responseStatus(),"cancelRequested",decision.cancelRequested(),"cancellationAction",decision.action().name());
  }
- private static UUID academyId(CurrentUser u){return u.academyIds()==null||u.academyIds().isEmpty()?DEFAULT_ACADEMY:u.academyIds().getFirst();}
+ static UUID requireAcademyId(List<UUID> academyIds){if(academyIds==null||academyIds.isEmpty()||academyIds.getFirst()==null)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Registered academy context is required");return academyIds.getFirst();}
+ private static UUID academyId(CurrentUser u){return requireAcademyId(u.academyIds());}
  private static void requireUser(CurrentUser u){if(u==null||u.id()==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Authentication required");}
  private static UUID uuid(Object v,String f){if(v instanceof String s)try{return UUID.fromString(s);}catch(IllegalArgumentException ignored){}throw bad(f+" must be a UUID");}
  private static String string(Object v,String f){if(v instanceof String s&&!s.isBlank())return s;throw bad(f+" is required");}
