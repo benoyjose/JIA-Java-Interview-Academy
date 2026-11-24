@@ -1,0 +1,3 @@
+import {describe,it,expect} from "vitest";import {filterReviewWorkbench,reviewWorkbenchSummary} from "./reviewWorkbench";
+const rows=[{id:"1",title:"Streams",status:"PENDING",updatedAt:"2026-01-01",reviewer:"A",severity:3},{id:"2",title:"Kafka",status:"APPROVED",updatedAt:"2026-02-01",reviewer:"B",severity:1}];
+describe("review workbench",()=>{it("filters and ranks deterministically",()=>{expect(filterReviewWorkbench(rows,{query:"kaf",status:"ALL",reviewer:"ALL",sort:"updated-desc"}).map(x=>x.id)).toEqual(["2"]);});it("summarizes queue",()=>{expect(reviewWorkbenchSummary(rows)).toMatchObject({total:2,pending:1,reviewers:2});});});
