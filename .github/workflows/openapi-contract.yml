@@ -7,6 +7,8 @@ on:
       - '.github/workflows/openapi-contract.yml'
       - 'scripts/verify-spring-openapi-routes.mjs'
       - 'scripts/verify-laravel-openapi-routes.mjs'
+      - 'docs/api/BACKEND_PARITY_MATRIX.md'
+      - 'scripts/validate-backend-parity-matrix.mjs'
       - 'backend-laravel/routes/api.php'
   push:
     branches: [main]
@@ -31,5 +33,7 @@ jobs:
         run: node scripts/verify-spring-openapi-routes.mjs
       - name: Verify Laravel routes are documented
         run: node scripts/verify-laravel-openapi-routes.mjs
+      - name: Validate backend parity inventory
+        run: node scripts/validate-backend-parity-matrix.mjs
       - name: Lint OpenAPI contract
         run: npx --yes @redocly/cli lint docs/api/openapi.yaml --extends=minimal

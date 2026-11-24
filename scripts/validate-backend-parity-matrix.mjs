@@ -10,7 +10,7 @@ if (!text.includes(header.join(" | "))) {
   console.error("Parity matrix is missing its canonical table header.");
   process.exit(1);
 }
-const data = rows.filter((row) => row[0] !== "Capability");
+const data = rows.filter((row) => row[0] !== "Capability" && !row.every((cell) => /^-+$/.test(cell)));
 if (data.length < 8) {
   console.error("Parity matrix unexpectedly contains fewer than eight capability rows.");
   process.exit(1);
