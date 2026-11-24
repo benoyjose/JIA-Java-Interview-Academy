@@ -67,6 +67,33 @@ paths:
                   totalPages: { type: integer }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /me/mastery:
+    get:
+      summary: Read authenticated learner topic mastery evidence
+      tags: [Learning]
+      operationId: getLearnerMastery
+      responses:
+        '200':
+          description: Topic-level quiz accuracy and completed lesson evidence; mastery is an indicative signal, not certification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [modelVersion, topics]
+                properties:
+                  modelVersion: { type: integer, const: 1 }
+                  topics:
+                    type: array
+                    items:
+                      type: object
+                      required: [topicSlug, topicName, answers, correct, completedLessons]
+                      properties:
+                        topicSlug: { type: string }
+                        topicName: { type: string }
+                        answers: { type: integer, minimum: 0 }
+                        correct: { type: integer, minimum: 0 }
+                        completedLessons: { type: integer, minimum: 0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me/study-plan:
     get:
       summary: Generate an authenticated learner's personalized daily study plan
@@ -205,26 +232,6 @@ paths:
         '200': { description: Current status and cancellation state }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
-  /me/study-plan:
-    get:
-      summary: Get a personalized study plan within a daily time budget
-      tags: [Learner Discovery]
-      operationId: getPersonalizedStudyPlan
-      parameters:
-        - { name: dailyMinutes, in: query, schema: { type: integer, minimum: 10, maximum: 180, default: 30 } }
-      responses:
-        '200':
-          description: Server-derived prioritized study tasks
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [dailyMinutes, tasks]
-                properties:
-                  dailyMinutes: { type: integer }
-                  tasks: { type: array, items: { type: object } }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
   /health/live:
     get:
       summary: Report API process liveness
@@ -2209,87 +2216,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-
-  /coding-submissions:
-    post:
-      summary: Queue a Java coding exercise submission without executing untrusted code
-      tags: [Learning]
-      operationId: createCodingSubmission
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [exerciseId, idempotencyKey, language, sourceCode]
-              properties:
-                exerciseId: { type: string, format: uuid }
-                idempotencyKey: { type: string, format: uuid }
-                language: { type: string, const: JAVA }
-                sourceCode: { type: string, minLength: 1, maxLength: 65536 }
-      responses:
-        '202':
-          description: Submission queued; sandbox execution remains disabled
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [submissionId, status, executionEnabled, idempotentReplay]
-                properties:
-                  submissionId: { type: string, format: uuid }
-                  status: { type: string, enum: [QUEUED, RUNNING, CANCELLED, COMPLETED, FAILED] }
-                  createdAt: { type: string, format: date-time }
-                  executionEnabled: { type: boolean, const: false }
-                  idempotentReplay: { type: boolean }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '413': { description: Source exceeds the 64 KiB limit }
-  /coding-submissions/{submissionId}:
-    get:
-      summary: Read status of the authenticated learner's coding submission
-      tags: [Learning]
-      operationId: getCodingSubmissionStatus
-      parameters:
-        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
-      responses:
-        '200':
-          description: Learner-scoped submission status; source code is not returned
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [submissionId, status, executionEnabled, cancelRequested]
-                properties:
-                  submissionId: { type: string, format: uuid }
-                  status: { type: string }
-                  createdAt: { type: string, format: date-time }
-                  updatedAt: { type: string, format: date-time }
-                  cancelRequested: { type: boolean }
-                  executionEnabled: { type: boolean, const: false }
-                  message: { type: string }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /coding-submissions/{submissionId}/cancel:
-    post:
-      summary: Cancel a queued submission or request cancellation of a running submission
-      tags: [Learning]
-      operationId: cancelCodingSubmission
-      parameters:
-        - { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
-      responses:
-        '200':
-          description: Cancellation state updated for the authenticated learner's submission
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [submissionId, status, cancelRequested]
-                properties:
-                  submissionId: { type: string, format: uuid }
-                  status: { type: string }
-                  cancelRequested: { type: boolean }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
 
 components:
   securitySchemes:
