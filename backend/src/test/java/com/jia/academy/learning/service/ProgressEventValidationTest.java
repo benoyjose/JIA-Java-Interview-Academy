@@ -75,12 +75,12 @@ class ProgressEventValidationTest {
         // Contract: projection uses the latest event-time tuple, with UUID as a deterministic tie-break.
         assertTrue(ProgressEventService.isProjectionEventNewer(
                 java.time.Instant.parse("2026-11-24T10:00:01Z"), UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff")));
+                java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("00000000-0000-0000-0000-000000000002")));
         assertFalse(ProgressEventService.isProjectionEventNewer(
-                java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+                java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("00000000-0000-0000-0000-000000000002"),
                 java.time.Instant.parse("2026-11-24T10:00:01Z"), UUID.fromString("00000000-0000-0000-0000-000000000001")));
         assertTrue(ProgressEventService.isProjectionEventNewer(
-                java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+                java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("00000000-0000-0000-0000-000000000002"),
                 java.time.Instant.parse("2026-11-24T10:00:00Z"), UUID.fromString("00000000-0000-0000-0000-000000000001")));
     }
 }
