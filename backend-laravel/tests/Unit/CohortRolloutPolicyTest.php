@@ -1,6 +1,8 @@
 <?php
-namespace Tests\\Unit;
-use App\\Services\\CohortRolloutPolicy; use InvalidArgumentException; use PHPUnit\\Framework\\TestCase;
+namespace Tests\Unit;
+use App\Services\CohortRolloutPolicy;
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
 final class CohortRolloutPolicyTest extends TestCase {
  public function test_assignment_is_stable_and_percentage_bounded():void {
   $p=new CohortRolloutPolicy(); self::assertSame($p->assign('u-1','exp-a',37),$p->assign('u-1','exp-a',37));
