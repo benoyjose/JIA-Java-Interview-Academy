@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-public struct JIAReviewCard:Codable,Sendable,Equatable,Identifiable{
+public struct JIAQueuedReviewCard:Codable,Sendable,Equatable,Identifiable{
  public let lessonSlug:String;public let title:String;public let prompt:String;public let answer:String
  public var id:String{lessonSlug}
 }
@@ -10,9 +10,9 @@ public struct JIAReviewSessionState:Sendable,Equatable{
 }
 @MainActor public final class JIASpacedReviewSession:ObservableObject{
  @Published public private(set) var state:JIAReviewSessionState
- public let cards:[JIAReviewCard]
- public init(cards:[JIAReviewCard]){self.cards=cards;self.state=JIAReviewSessionState(index:0,completed:0,total:cards.count,answerRevealed:false)}
- public var current:JIAReviewCard?{cards.indices.contains(state.index) ? cards[state.index]:nil}
+ public let cards:[JIAQueuedReviewCard]
+ public init(cards:[JIAQueuedReviewCard]){self.cards=cards;self.state=JIAReviewSessionState(index:0,completed:0,total:cards.count,answerRevealed:false)}
+ public var current:JIAQueuedReviewCard?{cards.indices.contains(state.index) ? cards[state.index]:nil}
  public func reveal(){guard current != nil else{return};state=JIAReviewSessionState(index:state.index,completed:state.completed,total:state.total,answerRevealed:true)}
  @discardableResult public func grade(_ rating:Int)throws->JIAReviewSessionState{
   guard (0...5).contains(rating)else{throw JIAReviewSessionError.invalidRating}
@@ -25,7 +25,7 @@ public enum JIAReviewSessionError:Error{case invalidRating,finished,answerNotRev
 public struct JIASpacedReviewSessionView:View{
  @ObservedObject private var session:JIASpacedReviewSession
  public init(session:JIASpacedReviewSession){self.session=session}
- public var body:some View{List{Section("Review session"){
+ public var body:some View{List{Section{
   ProgressView(value:Double(session.state.completed),total:Double(max(1,session.state.total)))
   if let card=session.current{Text(card.title).font(.headline);Text(card.prompt)
    if session.state.answerRevealed{Text(card.answer)}
