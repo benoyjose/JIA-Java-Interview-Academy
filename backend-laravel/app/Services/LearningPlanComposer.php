@@ -1,5 +1,5 @@
 <?php
-namespace App\\Services;
+namespace App\Services;
 use InvalidArgumentException;
 /** Produces an explainable, bounded study plan from learner-owned progress and due reviews. */
 final class LearningPlanComposer {
