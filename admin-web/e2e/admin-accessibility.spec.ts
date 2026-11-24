@@ -47,10 +47,10 @@ test("taxonomy actions expose item-specific accessible names", async ({ page }) 
       }) });
     }
     if (path === "/auth/refresh") return route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
-    if (path === "/taxonomy/technologies") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([
+    if (path === "/admin/taxonomy/technologies") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([
       { id: "technology-1", slug: "java", name: "Java", description: null, sortOrder: 0, status: "ACTIVE" },
     ]) });
-    if (path === "/taxonomy/categories") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([
+    if (path === "/admin/taxonomy/categories") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([
       { id: "category-1", technologySlug: "java", parentId: null, slug: "streams", name: "Streams", sortOrder: 0, status: "ACTIVE", lessonCount: 0, questionCount: 0 },
     ]) });
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], page: 0, size: 25, totalItems: 0, totalPages: 0 }) });
