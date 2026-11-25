@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,7 +47,7 @@ public class StudyPlanController {
             WHERE s.user_id=? AND s.academy_id=? AND s.due_at<=now()
               AND l.status='PUBLISHED'
             ORDER BY s.due_at ASC,l.slug ASC LIMIT 50
-            """, rs -> candidates.add(new Task("SPACED_REVIEW", "Review " + rs.getString("title"),
+            """, (RowCallbackHandler) rs -> candidates.add(new Task("SPACED_REVIEW", "Review " + rs.getString("title"),
                 rs.getString("slug"), rs.getString("topic_slug"), 10,
                 "Scheduled review is due", 100)), user.id(), academy);
 
@@ -87,7 +88,7 @@ public class StudyPlanController {
                 JOIN technologies t ON t.id=c.technology_id
                 WHERE t.academy_id=? AND l.status='PUBLISHED'
                 ORDER BY t.sort_order ASC,c.sort_order ASC,l.slug ASC LIMIT 5
-                """, rs -> candidates.add(new Task("START_LESSON", "Start " + rs.getString("title"),
+                """, (RowCallbackHandler) rs -> candidates.add(new Task("START_LESSON", "Start " + rs.getString("title"),
                     rs.getString("slug"), rs.getString("topic_slug"), 15,
                     "Recommended starting point for a new learner", 50)), academy);
         }
