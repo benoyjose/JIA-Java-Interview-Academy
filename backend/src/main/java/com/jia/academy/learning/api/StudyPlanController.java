@@ -117,10 +117,11 @@ public class StudyPlanController {
                 ORDER BY t.sort_order ASC,c.sort_order ASC,l.slug ASC LIMIT 5
                 """, (RowCallbackHandler) rs -> candidates.add(new Task("START_LESSON", "Start " + rs.getString("title"),
                     rs.getString("slug"), rs.getString("topic_slug"), 15,
-                    "Recommended starting point for a new learner", 50)), academy);
+                    "Recommended starting point for a new learner", 50)), academy, user.id());
         }
 
         return Map.of("academyId", academy.toString(), "dailyMinutes", dailyMinutes,
+            "planVersion", 2, "curriculumPrerequisitesEnabled", true,
             "tasks", planner.allocate(candidates, dailyMinutes));
     }
 }
