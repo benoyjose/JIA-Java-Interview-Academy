@@ -92,7 +92,13 @@ paths:
                         topicName: { type: string }
                         answers: { type: integer, minimum: 0 }
                         correct: { type: integer, minimum: 0 }
-                        completedLessons: { type: integer, minimum: 0 }\n                        availableLessons: { type: integer, minimum: 0 }\n                        masteryScore: { type: integer, minimum: 0, maximum: 100 }\n                        masteryBand: { type: string, enum: [NOT_ASSESSED, DEVELOPING, PRACTICING, MASTERED, REVIEW_DUE] }\n                        reviewDue: { type: boolean }\n                        lastDemonstratedAt: { type: [string, 'null'], format: date-time }\n                        masteryModelVersion: { type: integer, const: 1 }
+                        completedLessons: { type: integer, minimum: 0 }
+                        availableLessons: { type: integer, minimum: 0 }
+                        masteryScore: { type: integer, minimum: 0, maximum: 100 }
+                        masteryBand: { type: string, enum: [NOT_ASSESSED, DEVELOPING, PRACTICING, MASTERED, REVIEW_DUE] }
+                        reviewDue: { type: boolean }
+                        lastDemonstratedAt: { type: [string, 'null'], format: date-time }
+                        masteryModelVersion: { type: integer, const: 1 }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /me/commitment:
     get:
