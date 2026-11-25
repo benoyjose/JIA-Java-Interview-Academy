@@ -74,7 +74,7 @@ paths:
       operationId: getLearnerMastery
       responses:
         '200':
-          description: Topic-level quiz accuracy and completed lesson evidence; mastery is an indicative signal, not certification
+          description: Server-derived, versioned topic mastery estimate using objective answers, published lesson completion and review recency; indicative, not certification
           content:
             application/json:
               schema:
@@ -86,13 +86,13 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [topicSlug, topicName, answers, correct, completedLessons]
+                      required: [topicSlug, topicName, answers, correct, completedLessons, availableLessons, masteryScore, masteryBand, reviewDue, masteryModelVersion]
                       properties:
                         topicSlug: { type: string }
                         topicName: { type: string }
                         answers: { type: integer, minimum: 0 }
                         correct: { type: integer, minimum: 0 }
-                        completedLessons: { type: integer, minimum: 0 }
+                        completedLessons: { type: integer, minimum: 0 }\n                        availableLessons: { type: integer, minimum: 0 }\n                        masteryScore: { type: integer, minimum: 0, maximum: 100 }\n                        masteryBand: { type: string, enum: [NOT_ASSESSED, DEVELOPING, PRACTICING, MASTERED, REVIEW_DUE] }\n                        reviewDue: { type: boolean }\n                        lastDemonstratedAt: { type: [string, 'null'], format: date-time }\n                        masteryModelVersion: { type: integer, const: 1 }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /me/commitment:
     get:
@@ -156,7 +156,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [dailyMinutes, tasks]
+                required: [dailyMinutes, planVersion, curriculumPrerequisitesEnabled, tasks]
                 properties:
                   dailyMinutes: { type: integer, minimum: 10, maximum: 180 }
                   generatedAt: { type: [string, 'null'], format: date-time }
