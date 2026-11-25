@@ -35,13 +35,27 @@ public class StudyPlanController {
         UUID academy = LearnerAcademyContext.resolve(user, request);
         if (dailyMinutes < 10 || dailyMinutes > 180)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dailyMinutes must be between 10 and 180");
+
         List<Task> candidates = new ArrayList<>();
+        // Due reviews are placed before routine continuation/practice. The server owns due dates.
+        jdbc.query("""
+            SELECT l.slug,l.title,c.slug topic_slug,s.due_at
+            FROM learner_revision_schedules s
+            JOIN lessons l ON l.id=s.lesson_id
+            JOIN categories c ON c.id=l.category_id
+            WHERE s.user_id=? AND s.academy_id=? AND s.due_at<=now()
+              AND l.status='PUBLISHED'
+            ORDER BY s.due_at ASC,l.slug ASC LIMIT 50
+            """, rs -> candidates.add(new Task("SPACED_REVIEW", "Review " + rs.getString("title"),
+                rs.getString("slug"), rs.getString("topic_slug"), 10,
+                "Scheduled review is due", 100)), user.id(), academy);
+
         jdbc.query("""
             SELECT l.slug,l.title,p.progress_percent
             FROM learner_lesson_progress p JOIN lessons l ON l.id=p.lesson_id
             JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id
             WHERE p.user_id=? AND t.academy_id=? AND l.status='PUBLISHED' AND p.progress_percent<100
-            ORDER BY p.updated_at DESC LIMIT 100
+            ORDER BY p.updated_at DESC,l.slug ASC LIMIT 100
             """, rs -> {
             double progress = rs.getBigDecimal("progress_percent").doubleValue();
             candidates.add(new Task("CONTINUE_LESSON", "Continue " + rs.getString("title"),
@@ -49,6 +63,7 @@ public class StudyPlanController {
                 progress > 0 ? "Resume from " + Math.round(progress) + "% complete" : "Start a published lesson",
                 25 + (int) Math.round(progress / 4)));
         }, user.id(), academy);
+
         jdbc.query("""
             SELECT c.slug,c.name,ROUND(AVG(CASE WHEN aa.is_correct THEN 100.0 ELSE 0.0 END)) AS accuracy
             FROM quiz_attempts a JOIN quiz_attempt_questions aq ON aq.attempt_id=a.id
@@ -63,6 +78,20 @@ public class StudyPlanController {
                 rs.getString("slug"), 10, "Topic accuracy is " + accuracy + "%",
                 StudyPlanService.topicPriority(accuracy)));
         }, user.id(), academy);
+
+        // A first-time learner must receive a useful start rather than an empty plan.
+        if (candidates.isEmpty()) {
+            jdbc.query("""
+                SELECT l.slug,l.title,c.slug topic_slug
+                FROM lessons l JOIN categories c ON c.id=l.category_id
+                JOIN technologies t ON t.id=c.technology_id
+                WHERE t.academy_id=? AND l.status='PUBLISHED'
+                ORDER BY t.sort_order ASC,c.sort_order ASC,l.slug ASC LIMIT 5
+                """, rs -> candidates.add(new Task("START_LESSON", "Start " + rs.getString("title"),
+                    rs.getString("slug"), rs.getString("topic_slug"), 15,
+                    "Recommended starting point for a new learner", 50)), academy);
+        }
+
         return Map.of("academyId", academy.toString(), "dailyMinutes", dailyMinutes,
             "tasks", planner.allocate(candidates, dailyMinutes));
     }
