@@ -46,6 +46,15 @@ public class StudyPlanController {
             JOIN categories c ON c.id=l.category_id
             WHERE s.user_id=? AND s.academy_id=? AND s.due_at<=now()
               AND l.status='PUBLISHED'
+              AND NOT EXISTS (
+                  SELECT 1 FROM lesson_prerequisites lp
+                  WHERE lp.lesson_id=l.id
+                    AND NOT EXISTS (
+                        SELECT 1 FROM learner_lesson_progress done
+                        WHERE done.user_id=s.user_id AND done.lesson_id=lp.prerequisite_lesson_id
+                          AND done.status='COMPLETED'
+                    )
+              )
             ORDER BY s.due_at ASC,l.slug ASC LIMIT 50
             """, (RowCallbackHandler) rs -> candidates.add(new Task("SPACED_REVIEW", "Review " + rs.getString("title"),
                 rs.getString("slug"), rs.getString("topic_slug"), 10,
@@ -56,6 +65,15 @@ public class StudyPlanController {
             FROM learner_lesson_progress p JOIN lessons l ON l.id=p.lesson_id
             JOIN categories c ON c.id=l.category_id JOIN technologies t ON t.id=c.technology_id
             WHERE p.user_id=? AND t.academy_id=? AND l.status='PUBLISHED' AND p.progress_percent<100
+              AND NOT EXISTS (
+                  SELECT 1 FROM lesson_prerequisites lp
+                  WHERE lp.lesson_id=l.id
+                    AND NOT EXISTS (
+                        SELECT 1 FROM learner_lesson_progress done
+                        WHERE done.user_id=p.user_id AND done.lesson_id=lp.prerequisite_lesson_id
+                          AND done.status='COMPLETED'
+                    )
+              )
             ORDER BY p.updated_at DESC,l.slug ASC LIMIT 100
             """, rs -> {
             double progress = rs.getBigDecimal("progress_percent").doubleValue();
@@ -87,6 +105,15 @@ public class StudyPlanController {
                 FROM lessons l JOIN categories c ON c.id=l.category_id
                 JOIN technologies t ON t.id=c.technology_id
                 WHERE t.academy_id=? AND l.status='PUBLISHED'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM lesson_prerequisites lp
+                      WHERE lp.lesson_id=l.id
+                        AND NOT EXISTS (
+                            SELECT 1 FROM learner_lesson_progress done
+                            WHERE done.user_id=? AND done.lesson_id=lp.prerequisite_lesson_id
+                              AND done.status='COMPLETED'
+                        )
+                  )
                 ORDER BY t.sort_order ASC,c.sort_order ASC,l.slug ASC LIMIT 5
                 """, (RowCallbackHandler) rs -> candidates.add(new Task("START_LESSON", "Start " + rs.getString("title"),
                     rs.getString("slug"), rs.getString("topic_slug"), 15,
