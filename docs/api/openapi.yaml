@@ -100,6 +100,38 @@ paths:
                         lastDemonstratedAt: { type: [string, 'null'], format: date-time }
                         masteryModelVersion: { type: integer, const: 1 }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/reminder-preferences:
+    get:
+      summary: Read authenticated learner reminder, quiet-hours and study-goal preferences
+      tags: [Learning]
+      operationId: getLearnerReminderPreferences
+      responses:
+        '200':
+          description: Persisted preferences or server defaults
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerReminderPreferences'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      summary: Replace authenticated learner reminder and study-goal preferences
+      tags: [Learning]
+      operationId: updateLearnerReminderPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LearnerReminderPreferences'
+      responses:
+        '200':
+          description: Saved preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerReminderPreferences'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /me/commitment:
     get:
       summary: Read the authenticated learner's daily goal and streak
@@ -2368,6 +2400,1185 @@ paths:
         '200': { description: Deterministic interval and due date }
         '401': { $ref: '#/components/responses/Unauthorized' }
 components:
+  schemas:
+    LearnerReminderPreferences:
+      type: object
+      required: [enabled, timezone, reminderTime, quietStart, quietEnd, dailyGoalMinutes, weeklyGoalDays]
+      properties:
+        enabled: { type: boolean }
+        timezone: { type: string, maxLength: 64, description: IANA timezone identifier }
+        reminderTime: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    LearnerProgressEvent:
+      type: object
+      required: [eventId, eventType, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+        occurredAt: { type: string, format: date-time }
+        lessonSlug: { type: [string, 'null'], maxLength: 160 }
+        payload: { type: object, maxProperties: 30, description: Optional non-sensitive metadata; server validates content and 8 KiB limit }
+    LearnerProgressEventReceipt:
+      type: object
+      required: [eventId, status, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        status: { type: string, enum: [ACCEPTED, DUPLICATE] }
+        occurredAt: { type: string, format: date-time }
+    LearnerNotificationPreferences:
+      type: object
+      required: [remindersEnabled, pushEnabled, timezone]
+      properties:
+        remindersEnabled: { type: boolean }
+        pushEnabled: { type: boolean }
+        quietStart: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        quietEnd: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        timezone: { type: string, maxLength: 80, example: 'Asia/Kolkata' }
+    RevisionDue:
+      type: object
+      required: [lessonSlug, title, stage, dueAt]
+      properties:
+        lessonSlug: { type: string }
+        title: { type: string }
+        stage: { type: integer, minimum: 0, maximum: 5 }
+        dueAt: { type: string, format: date-time }
+    LearnerNotification:
+      type: object
+      required: [id, title, message, payload, status, scheduledAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        payload: { type: string, description: JSON payload serialized by this endpoint }
+        status: { type: string, enum: [PENDING, SENT, READ, SKIPPED] }
+        scheduledAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [BAD_REQUEST, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR, HTTP_ERROR]
+        message: { type: string }
+        traceId: { type: string, description: Optional request correlation identifier }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    User:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        roles:
+          type: array
+          items: { type: string }
+    TokenResponse:
+      type: object
+      description: Access tokens expire after 15 minutes. Refresh tokens are single-use, rotate on refresh, and expire after 30 days.
+      required: [accessToken, refreshToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string, description: Short-lived bearer token; expires after 15 minutes }
+        refreshToken: { type: string, description: Single-use rotating refresh token; valid for up to 30 days }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time, description: Access-token expiration timestamp }
+        user: { $ref: '#/components/schemas/User' }
+    Technology:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Category:
+      type: object
+      required: [id, slug, name, sortOrder, technologySlug]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer }
+        technologySlug: { type: string }
+    LessonSummary:
+      type: object
+      required: [id, slug, title, difficulty, contentRevision]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        contentRevision: { type: integer }
+
+    QuizDifficulty:
+      type: string
+      enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT]
+    QuizAvailability:
+      type: object
+      required: [difficulty, availableQuestionCount]
+      properties:
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        availableQuestionCount: { type: integer, minimum: 0 }
+    QuizQuestion:
+      type: object
+      required: [position, questionId, revisionId, questionType, prompt, difficulty]
+      properties:
+        position: { type: integer }
+        questionId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        questionType: { type: string }
+        prompt: { type: object, additionalProperties: true }
+        options: { type: [array, 'null'], items: { type: object, additionalProperties: true } }
+        hint: { type: [string, 'null'] }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+    QuizAttemptStart:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt, challengeDate]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string }
+        questionCount: { type: integer }
+        durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
+        deadlineAt: { type: [string, 'null'], format: date-time }
+        challengeDate: { type: [string, 'null'], format: date, description: UTC calendar date for DAILY_CHALLENGE; the same attempt and question snapshot is returned on repeat starts that day. }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuizQuestion' }
+    QuizAttemptResult:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, gradedQuestionCount, selfReviewQuestionCount, scorePercent, submittedAt, timedOut]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        questionCount: { type: integer }
+        correctCount: { type: integer }
+        gradedQuestionCount: { type: integer, minimum: 0 }
+        selfReviewQuestionCount: { type: integer, minimum: 0 }
+        scorePercent: { type: number, minimum: 0, maximum: 100 }
+        submittedAt: { type: string, format: date-time }
+        timedOut: { type: boolean }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [position, isCorrect, requiresSelfReview, explanation]
+            properties:
+              position: { type: integer }
+              isCorrect: { type: [boolean, 'null'], description: Null when rubric-based self-review is required. }
+              requiresSelfReview: { type: boolean }
+              explanation: { type: string }
+    QuizAttemptSummary:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, correctCount, scorePercent, startedAt, status]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string, enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA] }
+        technologySlug: { type: [string, 'null'] }
+        categorySlug: { type: [string, 'null'] }
+        questionCount: { type: integer }
+        correctCount: { type: [integer, 'null'] }
+        scorePercent: { type: [number, 'null'] }
+        startedAt: { type: string, format: date-time }
+        status: { type: string }
+    QuizPerformance:
+      type: object
+      required: [byDifficulty, byTopic]
+      properties:
+        byDifficulty:
+          type: array
+          items:
+            type: object
+            required: [difficulty, attempts, questionsAttempted, correctAnswers, accuracyPercent]
+            properties:
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              questionsAttempted: { type: integer }
+              correctAnswers: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+              bestScorePercent: { type: [number, 'null'] }
+              latestAttemptAt: { type: [string, 'null'], format: date-time }
+        byTopic:
+          type: array
+          items:
+            type: object
+            required: [technologySlug, difficulty, attempts, accuracyPercent]
+            properties:
+              technologySlug: { type: [string, 'null'] }
+              categorySlug: { type: [string, 'null'] }
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+    AdminLessonPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    ReviewQueuePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ContentReviewTask' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminLessonListItem:
+      type: object
+      required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        categorySlug: { type: string }
+        status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        contentRevision: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        draftRevision: { type: [integer, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    LessonAuthoringDetail:
+      type: object
+      required: [id, slug, title, categorySlug, difficulty, sourceType, contentJson, status, revisionNumber, editingDraft, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        categorySlug: { type: string }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        status: { type: string }
+        revisionNumber: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        editingDraft: { type: boolean }
+        changeNote: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    ReviewDetail:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, difficulty, sourceType, contentJson, revisionNumber, submittedBy, submittedAt, lessonStatus]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        revisionNumber: { type: integer }
+        changeNote: { type: [string, 'null'] }
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        lessonStatus: { type: string }
+    LessonDraftRequest:
+      type: object
+      required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
+      properties:
+        categorySlug: { type: string, maxLength: 100 }
+        slug: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 700 }
+        difficulty: { type: string, enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT] }
+        sourceType: { type: string, enum: [USER_ORIGINAL, ADMIN_AUTHORED, EXTERNAL_REFERENCE] }
+        contentJson: { type: string, description: JSON lesson document with schemaVersion and blocks }
+        changeNote: { type: [string, 'null'], maxLength: 500 }
+    LessonDraft:
+      type: object
+      required: [id, slug, title, status, revisionNumber]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, const: DRAFT }
+        revisionNumber: { type: integer, minimum: 1 }
+    ContentReviewTask:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, submittedBy, status, submittedAt]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        submittedBy: { type: string }
+        status: { type: string, const: PENDING }
+        submittedAt: { type: string, format: date-time }
+    ContentRelease:
+      type: object
+      required: [version, createdAt, items]
+      properties:
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, slug, title, contentRevision, checksum]
+            properties:
+              id: { type: string, format: uuid }
+              slug: { type: string }
+              title: { type: string }
+              contentRevision: { type: integer, minimum: 1 }
+              checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          required: [sourceType]
+          properties:
+            sourceType: { type: string }
+            contentJson: { type: [string, 'null'] }
+ }
+        quietStart: { type: string, description: Empty string disables quiet hours, pattern: '^$|^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    LearnerProgressEvent:
+      type: object
+      required: [eventId, eventType, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+        occurredAt: { type: string, format: date-time }
+        lessonSlug: { type: [string, 'null'], maxLength: 160 }
+        payload: { type: object, maxProperties: 30, description: Optional non-sensitive metadata; server validates content and 8 KiB limit }
+    LearnerProgressEventReceipt:
+      type: object
+      required: [eventId, status, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        status: { type: string, enum: [ACCEPTED, DUPLICATE] }
+        occurredAt: { type: string, format: date-time }
+    LearnerNotificationPreferences:
+      type: object
+      required: [remindersEnabled, pushEnabled, timezone]
+      properties:
+        remindersEnabled: { type: boolean }
+        pushEnabled: { type: boolean }
+        quietStart: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        quietEnd: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        timezone: { type: string, maxLength: 80, example: 'Asia/Kolkata' }
+    RevisionDue:
+      type: object
+      required: [lessonSlug, title, stage, dueAt]
+      properties:
+        lessonSlug: { type: string }
+        title: { type: string }
+        stage: { type: integer, minimum: 0, maximum: 5 }
+        dueAt: { type: string, format: date-time }
+    LearnerNotification:
+      type: object
+      required: [id, title, message, payload, status, scheduledAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        payload: { type: string, description: JSON payload serialized by this endpoint }
+        status: { type: string, enum: [PENDING, SENT, READ, SKIPPED] }
+        scheduledAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [BAD_REQUEST, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR, HTTP_ERROR]
+        message: { type: string }
+        traceId: { type: string, description: Optional request correlation identifier }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    User:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        roles:
+          type: array
+          items: { type: string }
+    TokenResponse:
+      type: object
+      description: Access tokens expire after 15 minutes. Refresh tokens are single-use, rotate on refresh, and expire after 30 days.
+      required: [accessToken, refreshToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string, description: Short-lived bearer token; expires after 15 minutes }
+        refreshToken: { type: string, description: Single-use rotating refresh token; valid for up to 30 days }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time, description: Access-token expiration timestamp }
+        user: { $ref: '#/components/schemas/User' }
+    Technology:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Category:
+      type: object
+      required: [id, slug, name, sortOrder, technologySlug]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer }
+        technologySlug: { type: string }
+    LessonSummary:
+      type: object
+      required: [id, slug, title, difficulty, contentRevision]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        contentRevision: { type: integer }
+
+    QuizDifficulty:
+      type: string
+      enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT]
+    QuizAvailability:
+      type: object
+      required: [difficulty, availableQuestionCount]
+      properties:
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        availableQuestionCount: { type: integer, minimum: 0 }
+    QuizQuestion:
+      type: object
+      required: [position, questionId, revisionId, questionType, prompt, difficulty]
+      properties:
+        position: { type: integer }
+        questionId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        questionType: { type: string }
+        prompt: { type: object, additionalProperties: true }
+        options: { type: [array, 'null'], items: { type: object, additionalProperties: true } }
+        hint: { type: [string, 'null'] }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+    QuizAttemptStart:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt, challengeDate]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string }
+        questionCount: { type: integer }
+        durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
+        deadlineAt: { type: [string, 'null'], format: date-time }
+        challengeDate: { type: [string, 'null'], format: date, description: UTC calendar date for DAILY_CHALLENGE; the same attempt and question snapshot is returned on repeat starts that day. }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuizQuestion' }
+    QuizAttemptResult:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, gradedQuestionCount, selfReviewQuestionCount, scorePercent, submittedAt, timedOut]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        questionCount: { type: integer }
+        correctCount: { type: integer }
+        gradedQuestionCount: { type: integer, minimum: 0 }
+        selfReviewQuestionCount: { type: integer, minimum: 0 }
+        scorePercent: { type: number, minimum: 0, maximum: 100 }
+        submittedAt: { type: string, format: date-time }
+        timedOut: { type: boolean }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [position, isCorrect, requiresSelfReview, explanation]
+            properties:
+              position: { type: integer }
+              isCorrect: { type: [boolean, 'null'], description: Null when rubric-based self-review is required. }
+              requiresSelfReview: { type: boolean }
+              explanation: { type: string }
+    QuizAttemptSummary:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, correctCount, scorePercent, startedAt, status]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string, enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA] }
+        technologySlug: { type: [string, 'null'] }
+        categorySlug: { type: [string, 'null'] }
+        questionCount: { type: integer }
+        correctCount: { type: [integer, 'null'] }
+        scorePercent: { type: [number, 'null'] }
+        startedAt: { type: string, format: date-time }
+        status: { type: string }
+    QuizPerformance:
+      type: object
+      required: [byDifficulty, byTopic]
+      properties:
+        byDifficulty:
+          type: array
+          items:
+            type: object
+            required: [difficulty, attempts, questionsAttempted, correctAnswers, accuracyPercent]
+            properties:
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              questionsAttempted: { type: integer }
+              correctAnswers: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+              bestScorePercent: { type: [number, 'null'] }
+              latestAttemptAt: { type: [string, 'null'], format: date-time }
+        byTopic:
+          type: array
+          items:
+            type: object
+            required: [technologySlug, difficulty, attempts, accuracyPercent]
+            properties:
+              technologySlug: { type: [string, 'null'] }
+              categorySlug: { type: [string, 'null'] }
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+    AdminLessonPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    ReviewQueuePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ContentReviewTask' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminLessonListItem:
+      type: object
+      required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        categorySlug: { type: string }
+        status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        contentRevision: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        draftRevision: { type: [integer, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    LessonAuthoringDetail:
+      type: object
+      required: [id, slug, title, categorySlug, difficulty, sourceType, contentJson, status, revisionNumber, editingDraft, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        categorySlug: { type: string }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        status: { type: string }
+        revisionNumber: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        editingDraft: { type: boolean }
+        changeNote: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    ReviewDetail:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, difficulty, sourceType, contentJson, revisionNumber, submittedBy, submittedAt, lessonStatus]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        revisionNumber: { type: integer }
+        changeNote: { type: [string, 'null'] }
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        lessonStatus: { type: string }
+    LessonDraftRequest:
+      type: object
+      required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
+      properties:
+        categorySlug: { type: string, maxLength: 100 }
+        slug: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 700 }
+        difficulty: { type: string, enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT] }
+        sourceType: { type: string, enum: [USER_ORIGINAL, ADMIN_AUTHORED, EXTERNAL_REFERENCE] }
+        contentJson: { type: string, description: JSON lesson document with schemaVersion and blocks }
+        changeNote: { type: [string, 'null'], maxLength: 500 }
+    LessonDraft:
+      type: object
+      required: [id, slug, title, status, revisionNumber]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, const: DRAFT }
+        revisionNumber: { type: integer, minimum: 1 }
+    ContentReviewTask:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, submittedBy, status, submittedAt]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        submittedBy: { type: string }
+        status: { type: string, const: PENDING }
+        submittedAt: { type: string, format: date-time }
+    ContentRelease:
+      type: object
+      required: [version, createdAt, items]
+      properties:
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, slug, title, contentRevision, checksum]
+            properties:
+              id: { type: string, format: uuid }
+              slug: { type: string }
+              title: { type: string }
+              contentRevision: { type: integer, minimum: 1 }
+              checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          required: [sourceType]
+          properties:
+            sourceType: { type: string }
+            contentJson: { type: [string, 'null'] }
+ }
+        quietEnd: { type: string, description: Empty string disables quiet hours, pattern: '^$|^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+  schemas:
+    LearnerProgressEvent:
+      type: object
+      required: [eventId, eventType, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string, enum: [LESSON_STARTED, LESSON_COMPLETED, QUESTION_ANSWERED, QUIZ_SUBMITTED, BOOKMARK_CHANGED, REVIEW_COMPLETED] }
+        occurredAt: { type: string, format: date-time }
+        lessonSlug: { type: [string, 'null'], maxLength: 160 }
+        payload: { type: object, maxProperties: 30, description: Optional non-sensitive metadata; server validates content and 8 KiB limit }
+    LearnerProgressEventReceipt:
+      type: object
+      required: [eventId, status, occurredAt]
+      properties:
+        eventId: { type: string, format: uuid }
+        status: { type: string, enum: [ACCEPTED, DUPLICATE] }
+        occurredAt: { type: string, format: date-time }
+    LearnerNotificationPreferences:
+      type: object
+      required: [remindersEnabled, pushEnabled, timezone]
+      properties:
+        remindersEnabled: { type: boolean }
+        pushEnabled: { type: boolean }
+        quietStart: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        quietEnd: { type: [string, 'null'], pattern: '^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$' }
+        timezone: { type: string, maxLength: 80, example: 'Asia/Kolkata' }
+    RevisionDue:
+      type: object
+      required: [lessonSlug, title, stage, dueAt]
+      properties:
+        lessonSlug: { type: string }
+        title: { type: string }
+        stage: { type: integer, minimum: 0, maximum: 5 }
+        dueAt: { type: string, format: date-time }
+    LearnerNotification:
+      type: object
+      required: [id, title, message, payload, status, scheduledAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        payload: { type: string, description: JSON payload serialized by this endpoint }
+        status: { type: string, enum: [PENDING, SENT, READ, SKIPPED] }
+        scheduledAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [BAD_REQUEST, UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR, HTTP_ERROR]
+        message: { type: string }
+        traceId: { type: string, description: Optional request correlation identifier }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    User:
+      type: object
+      required: [id, name, roles]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'], format: email }
+        roles:
+          type: array
+          items: { type: string }
+    TokenResponse:
+      type: object
+      description: Access tokens expire after 15 minutes. Refresh tokens are single-use, rotate on refresh, and expire after 30 days.
+      required: [accessToken, refreshToken, tokenType, expiresAt, user]
+      properties:
+        accessToken: { type: string, description: Short-lived bearer token; expires after 15 minutes }
+        refreshToken: { type: string, description: Single-use rotating refresh token; valid for up to 30 days }
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time, description: Access-token expiration timestamp }
+        user: { $ref: '#/components/schemas/User' }
+    Technology:
+      type: object
+      required: [id, slug, name, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    Category:
+      type: object
+      required: [id, slug, name, sortOrder, technologySlug]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        sortOrder: { type: integer }
+        technologySlug: { type: string }
+    LessonSummary:
+      type: object
+      required: [id, slug, title, difficulty, contentRevision]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        contentRevision: { type: integer }
+
+    QuizDifficulty:
+      type: string
+      enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT]
+    QuizAvailability:
+      type: object
+      required: [difficulty, availableQuestionCount]
+      properties:
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        availableQuestionCount: { type: integer, minimum: 0 }
+    QuizQuestion:
+      type: object
+      required: [position, questionId, revisionId, questionType, prompt, difficulty]
+      properties:
+        position: { type: integer }
+        questionId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        questionType: { type: string }
+        prompt: { type: object, additionalProperties: true }
+        options: { type: [array, 'null'], items: { type: object, additionalProperties: true } }
+        hint: { type: [string, 'null'] }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+    QuizAttemptStart:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, questions, durationLimitSeconds, deadlineAt, challengeDate]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string }
+        questionCount: { type: integer }
+        durationLimitSeconds: { type: [integer, 'null'], minimum: 60, maximum: 21600 }
+        deadlineAt: { type: [string, 'null'], format: date-time }
+        challengeDate: { type: [string, 'null'], format: date, description: UTC calendar date for DAILY_CHALLENGE; the same attempt and question snapshot is returned on repeat starts that day. }
+        questions:
+          type: array
+          items: { $ref: '#/components/schemas/QuizQuestion' }
+    QuizAttemptResult:
+      type: object
+      required: [attemptId, difficulty, questionCount, correctCount, gradedQuestionCount, selfReviewQuestionCount, scorePercent, submittedAt, timedOut]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        questionCount: { type: integer }
+        correctCount: { type: integer }
+        gradedQuestionCount: { type: integer, minimum: 0 }
+        selfReviewQuestionCount: { type: integer, minimum: 0 }
+        scorePercent: { type: number, minimum: 0, maximum: 100 }
+        submittedAt: { type: string, format: date-time }
+        timedOut: { type: boolean }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [position, isCorrect, requiresSelfReview, explanation]
+            properties:
+              position: { type: integer }
+              isCorrect: { type: [boolean, 'null'], description: Null when rubric-based self-review is required. }
+              requiresSelfReview: { type: boolean }
+              explanation: { type: string }
+    QuizAttemptSummary:
+      type: object
+      required: [attemptId, difficulty, mode, questionCount, correctCount, scorePercent, startedAt, status]
+      properties:
+        attemptId: { type: string, format: uuid }
+        difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+        mode: { type: string, enum: [PRACTICE, TIMED_MOCK, DAILY_CHALLENGE, WEAK_AREA] }
+        technologySlug: { type: [string, 'null'] }
+        categorySlug: { type: [string, 'null'] }
+        questionCount: { type: integer }
+        correctCount: { type: [integer, 'null'] }
+        scorePercent: { type: [number, 'null'] }
+        startedAt: { type: string, format: date-time }
+        status: { type: string }
+    QuizPerformance:
+      type: object
+      required: [byDifficulty, byTopic]
+      properties:
+        byDifficulty:
+          type: array
+          items:
+            type: object
+            required: [difficulty, attempts, questionsAttempted, correctAnswers, accuracyPercent]
+            properties:
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              questionsAttempted: { type: integer }
+              correctAnswers: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+              bestScorePercent: { type: [number, 'null'] }
+              latestAttemptAt: { type: [string, 'null'], format: date-time }
+        byTopic:
+          type: array
+          items:
+            type: object
+            required: [technologySlug, difficulty, attempts, accuracyPercent]
+            properties:
+              technologySlug: { type: [string, 'null'] }
+              categorySlug: { type: [string, 'null'] }
+              difficulty: { $ref: '#/components/schemas/QuizDifficulty' }
+              attempts: { type: integer }
+              accuracyPercent: { type: [number, 'null'] }
+    AdminLessonPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminLessonListItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    ReviewQueuePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ContentReviewTask' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalItems: { type: integer, minimum: 0, format: int64 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminLessonListItem:
+      type: object
+      required: [id, slug, title, categorySlug, status, contentRevision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        categorySlug: { type: string }
+        status: { type: string, enum: [DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED] }
+        contentRevision: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        draftRevision: { type: [integer, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    LessonAuthoringDetail:
+      type: object
+      required: [id, slug, title, categorySlug, difficulty, sourceType, contentJson, status, revisionNumber, editingDraft, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        categorySlug: { type: string }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        status: { type: string }
+        revisionNumber: { type: integer }
+        publishedRevision: { type: [integer, 'null'] }
+        editingDraft: { type: boolean }
+        changeNote: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+    ReviewDetail:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, difficulty, sourceType, contentJson, revisionNumber, submittedBy, submittedAt, lessonStatus]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        summary: { type: [string, 'null'] }
+        difficulty: { type: string }
+        sourceType: { type: string }
+        contentJson: { type: string }
+        revisionNumber: { type: integer }
+        changeNote: { type: [string, 'null'] }
+        submittedBy: { type: string }
+        submittedAt: { type: string, format: date-time }
+        lessonStatus: { type: string }
+    LessonDraftRequest:
+      type: object
+      required: [categorySlug, slug, title, difficulty, sourceType, contentJson]
+      properties:
+        categorySlug: { type: string, maxLength: 100 }
+        slug: { type: string, maxLength: 120 }
+        title: { type: string, maxLength: 200 }
+        summary: { type: [string, 'null'], maxLength: 700 }
+        difficulty: { type: string, enum: [BEGINNER, NOVICE, PROFESSIONAL, EXPERT] }
+        sourceType: { type: string, enum: [USER_ORIGINAL, ADMIN_AUTHORED, EXTERNAL_REFERENCE] }
+        contentJson: { type: string, description: JSON lesson document with schemaVersion and blocks }
+        changeNote: { type: [string, 'null'], maxLength: 500 }
+    LessonDraft:
+      type: object
+      required: [id, slug, title, status, revisionNumber]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        status: { type: string, const: DRAFT }
+        revisionNumber: { type: integer, minimum: 1 }
+    ContentReviewTask:
+      type: object
+      required: [taskId, lessonId, revisionId, slug, title, submittedBy, status, submittedAt]
+      properties:
+        taskId: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        revisionId: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        submittedBy: { type: string }
+        status: { type: string, const: PENDING }
+        submittedAt: { type: string, format: date-time }
+    ContentRelease:
+      type: object
+      required: [version, createdAt, items]
+      properties:
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, slug, title, contentRevision, checksum]
+            properties:
+              id: { type: string, format: uuid }
+              slug: { type: string }
+              title: { type: string }
+              contentRevision: { type: integer, minimum: 1 }
+              checksum: { type: string, pattern: '^[a-f0-9]{64}$' }
+    Lesson:
+      allOf:
+        - $ref: '#/components/schemas/LessonSummary'
+        - type: object
+          required: [sourceType]
+          properties:
+            sourceType: { type: string }
+            contentJson: { type: [string, 'null'] }
+ }
+        dailyGoalMinutes: { type: integer, minimum: 0, maximum: 240 }
+        weeklyGoalDays: { type: integer, minimum: 1, maximum: 7 }
   securitySchemes:
     bearerAuth:
       type: http
