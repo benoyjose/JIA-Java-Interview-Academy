@@ -19,6 +19,27 @@ final class LearnerReminderScheduleTest extends TestCase
         self::assertSame('2026-11-25T08:00:00+05:30', $policy->nextAt('08:00', 'Asia/Kolkata', $now)->toIso8601String());
     }
 
+    public function testDaytimeQuietWindowMovesOccurrenceToEndSameDay(): void
+    {
+        $now = CarbonImmutable::parse('2026-11-24T16:00:00+05:30');
+        $next = (new LearnerReminderSchedule())->nextAt('19:00', 'Asia/Kolkata', $now, '18:00', '20:00');
+        self::assertSame('2026-11-24T20:00:00+05:30', $next->toIso8601String());
+    }
+
+    public function testOvernightQuietWindowMovesEarlyOccurrenceToMorningBoundary(): void
+    {
+        $now = CarbonImmutable::parse('2026-11-24T06:30:00+05:30');
+        $next = (new LearnerReminderSchedule())->nextAt('07:00', 'Asia/Kolkata', $now, '22:00', '08:00');
+        self::assertSame('2026-11-24T08:00:00+05:30', $next->toIso8601String());
+    }
+
+    public function testOvernightOccurrenceAfterQuietStartMovesToNextMorning(): void
+    {
+        $now = CarbonImmutable::parse('2026-11-24T09:00:00+05:30');
+        $next = (new LearnerReminderSchedule())->nextAt('07:00', 'Asia/Kolkata', $now, '22:00', '08:00');
+        self::assertSame('2026-11-25T08:00:00+05:30', $next->toIso8601String());
+    }
+
     public function testRejectsInvalidWallClock(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -29,5 +50,19 @@ final class LearnerReminderScheduleTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
         (new LearnerReminderSchedule())->nextAt('08:00', 'Not/AZone', CarbonImmutable::now());
+    }
+
+    public function testQuietWindowMustBeValidAndPaired(): void
+    {
+        $policy = new LearnerReminderSchedule();
+        $now = CarbonImmutable::parse('2026-11-24T10:00:00+05:30');
+        foreach ([['22:00', null], [null, '08:00'], ['invalid', '08:00'], ['08:00', '08:00']] as [$start, $end]) {
+            try {
+                $policy->nextAt('19:00', 'Asia/Kolkata', $now, $start, $end);
+                self::fail('Invalid quiet window should be rejected');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
     }
 }
