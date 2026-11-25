@@ -73,8 +73,9 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
     }
 
     /** Highest release manifest fully validated and downloaded on this installation. */
-    fun lastValidatedManifestVersion(): Long = appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
-        .getLong(KEY_VALIDATED_MANIFEST_VERSION, 0L)
+    fun lastValidatedManifestVersion(): Long =
+        appContext.getSharedPreferences("jia_offline_settings", Context.MODE_PRIVATE)
+            .getLong(KEY_VALIDATED_MANIFEST_VERSION, 0L)
 
     /** Reject a server rollback before touching the currently cached release. */
     fun requireManifestVersionNotOlder(version: Long) {
@@ -395,7 +396,7 @@ class OfflineLearningStore(context: Context) : AutoCloseable {
     companion object {
         private const val MAX_CONTENT_CHARS = 2_000_000
         private const val KEY_VALIDATED_MANIFEST_VERSION = "validated_manifest_version"
-    private const val KEY_CACHE_LIMIT_BYTES = "offline_cache_limit_bytes"
+        private const val KEY_CACHE_LIMIT_BYTES = "offline_cache_limit_bytes"
         private const val KEY_PENDING_QUEUE_LIMIT = "offline_pending_queue_limit"
         const val MIN_CACHE_LIMIT_BYTES = 1L * 1024L * 1024L
         const val DEFAULT_CACHE_LIMIT_BYTES = 64L * 1024L * 1024L

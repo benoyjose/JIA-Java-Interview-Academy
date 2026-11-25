@@ -3,6 +3,7 @@ package com.jia.academy.app.learning
 import com.jia.academy.app.catalogue.LessonDetail
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import java.nio.charset.StandardCharsets
 
 /** Observable outcome for a manifest-driven offline content refresh. */
 data class OfflineDownloadProgress(
@@ -21,9 +22,7 @@ data class OfflineDownloadSummary(
 /**
  * Downloads a validated release manifest sequentially. The caller owns the coroutine Job and can
  * cancel it at any time; cancellation is checked before each item and is never swallowed.
- *
- * Lesson bytes are validated before cacheLesson is called, so a failed revision/checksum leaves
- * the previously cached last-known-good lesson untouched.
+ * Lesson bytes are validated before cacheLesson, preserving the last-known-good revision on error.
  */
 internal class OfflineManifestDownloadCoordinator(
     private val store: OfflineLearningStore,
@@ -51,6 +50,15 @@ internal class OfflineManifestDownloadCoordinator(
                 }
                 val content = lesson.contentJson
                     ?: throw IllegalArgumentException("Manifest lesson ${item.slug} has no content")
+                val actualBytes = content.toByteArray(StandardCharsets.UTF_8).size.toLong()
+                require(actualBytes <= OfflineReleaseManifest.MAX_ITEM_BYTES) {
+                    "Downloaded lesson ${item.slug} exceeds the offline item size limit"
+                }
+                item.byteSize?.let { expected ->
+                    require(actualBytes == expected) {
+                        "Downloaded lesson byte size does not match manifest for ${item.slug}"
+                    }
+                }
                 require(OfflineContentChecksum.sha256(content).equals(item.checksum, ignoreCase = true)) {
                     "Downloaded lesson checksum does not match manifest for ${item.slug}"
                 }
@@ -60,10 +68,9 @@ internal class OfflineManifestDownloadCoordinator(
             }
             onProgress(OfflineDownloadProgress(manifest.version, index + 1, manifest.items.size, null))
         }
-        // Advance the rollback watermark only after every item has passed integrity validation.
+        // Advance rollback watermark only after every item passed integrity validation.
         store.recordValidatedManifestVersion(manifest.version)
-        // Prune only after every manifest item was fetched and integrity-checked. A failed or
-        // cancelled download keeps the last known-good library intact.
+        // Prune only after every manifest item was fetched and integrity-checked.
         if (OfflineReleaseReconciliation.shouldPruneAfterDownload(true, true)) {
             store.reconcileCachedLessons(manifest.items.map { it.slug }.toSet())
         }

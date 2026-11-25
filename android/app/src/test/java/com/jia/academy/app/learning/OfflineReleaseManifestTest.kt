@@ -18,6 +18,36 @@ class OfflineReleaseManifestTest {
         assertEquals("a".repeat(64), manifest.items.single().checksum)
     }
 
+    @Test fun acceptsOptionalDeclaredByteSizeAndKeepsLegacyManifestCompatible() {
+        val sized = validItem().put("byteSize", 1024)
+        val manifest = OfflineReleaseManifest.parse(JSONObject().put("version", 1).put("items", JSONArray().put(sized)))
+        assertEquals(1024L, manifest.items.single().byteSize)
+        val legacy = OfflineReleaseManifest.parse(JSONObject().put("version", 1).put("items", JSONArray().put(validItem())))
+        assertEquals(null, legacy.items.single().byteSize)
+    }
+
+    @Test fun rejectsItemAndAggregateStorageLimits() {
+        assertThrows(IllegalArgumentException::class.java) {
+            OfflineReleaseManifest.parse(JSONObject().put("version", 1)
+                .put("items", JSONArray().put(validItem().put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES + 1))))
+        }
+        val items = JSONArray()
+            .put(validItem("lesson-one").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-two").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-three").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-four").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-five").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-six").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-seven").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-eight").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-nine").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-ten").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+            .put(validItem("lesson-eleven").put("byteSize", OfflineReleaseManifest.MAX_ITEM_BYTES))
+        assertThrows(IllegalArgumentException::class.java) {
+            OfflineReleaseManifest.parse(JSONObject().put("version", 1).put("items", items))
+        }
+    }
+
     @Test fun rejectsMissingOrNonPositiveVersion() {
         assertThrows(IllegalArgumentException::class.java) {
             OfflineReleaseManifest.parse(JSONObject().put("items", JSONArray()))
