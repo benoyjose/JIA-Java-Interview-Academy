@@ -26,3 +26,32 @@ export function validateCurriculumDependencies(graph: Record<string, string[]>):
   for (const node of Object.keys(graph)) visit(node, []);
   return issues;
 }
+
+/** Returns a stable prerequisite-first lesson order, or null when the graph is invalid. */
+export function getCurriculumSequence(graph: Record<string, string[]>): string[] | null {
+  if (validateCurriculumDependencies(graph).length > 0) return null;
+  const indegree = new Map<string, number>();
+  const dependents = new Map<string, string[]>();
+  for (const lessonId of Object.keys(graph)) {
+    indegree.set(lessonId, graph[lessonId].length);
+    for (const prerequisiteId of graph[lessonId]) {
+      dependents.set(prerequisiteId, [...(dependents.get(prerequisiteId) ?? []), lessonId]);
+    }
+  }
+  // Sorting each ready batch makes output independent of object/edge insertion order.
+  const ready = [...indegree].filter(([, degree]) => degree === 0).map(([id]) => id).sort();
+  const sequence: string[] = [];
+  while (ready.length > 0) {
+    const current = ready.shift()!;
+    sequence.push(current);
+    for (const dependent of (dependents.get(current) ?? []).sort()) {
+      const next = indegree.get(dependent)! - 1;
+      indegree.set(dependent, next);
+      if (next === 0) {
+        ready.push(dependent);
+        ready.sort();
+      }
+    }
+  }
+  return sequence.length === Object.keys(graph).length ? sequence : null;
+}
