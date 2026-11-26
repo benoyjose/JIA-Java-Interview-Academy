@@ -2412,58 +2412,6 @@ components:
         quietEnd: { type: string, description: "Empty string disables quiet hours", pattern: "^$|^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$" }
         dailyGoalMinutes: { type: integer, minimum: 0, maximum: 240 }
         weeklyGoalDays: { type: integer, minimum: 1, maximum: 7 }
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: Opaque token
-  parameters:
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema: { type: string }
-  responses:
-    BadRequest:
-      description: Invalid request
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    Unauthorized:
-      description: Authentication is required
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    Forbidden:
-      description: Permission denied
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    NotFound:
-      description: Not found or not published
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    Conflict:
-      description: Resource state conflict
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    ValidationError:
-      description: Request validation failed
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    RateLimited:
-      description: Request rate limit exceeded
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
-    InternalError:
-      description: Unexpected server error
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ApiError' }
     LearnerProgressEvent:
       type: object
       required: [eventId, eventType, occurredAt]
@@ -2800,3 +2748,56 @@ components:
           properties:
             sourceType: { type: string }
             contentJson: { type: [string, 'null'] }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque token
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found or not published
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Resource state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Request rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
