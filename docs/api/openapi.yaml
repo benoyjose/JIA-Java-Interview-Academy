@@ -2464,7 +2464,6 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
-  schemas:
     LearnerProgressEvent:
       type: object
       required: [eventId, eventType, occurredAt]
