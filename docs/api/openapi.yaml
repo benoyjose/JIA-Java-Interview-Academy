@@ -1191,6 +1191,62 @@ paths:
       responses:
         '204': { description: Category archived }
         '409': { description: 'Category has child categories, lessons or questions' }
+  /admin/lessons/{lessonId}/prerequisites:
+    get:
+      summary: Read academy-scoped prerequisites for an authored lesson
+      tags: [Content Admin]
+      operationId: getAdminLessonPrerequisites
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Prerequisite lessons ordered by title
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, slug, title]
+                  properties:
+                    id: { type: string, format: uuid }
+                    slug: { type: string }
+                    title: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace lesson prerequisite edges after academy and cycle validation
+      tags: [Content Admin]
+      operationId: replaceAdminLessonPrerequisites
+      parameters:
+        - name: lessonId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prerequisiteLessonIds]
+              properties:
+                prerequisiteLessonIds:
+                  type: array
+                  maxItems: 250
+                  uniqueItems: true
+                  items: { type: string, format: uuid }
+      responses:
+        '200': { description: Replaced prerequisite set; response contains resolved lesson summaries }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Prerequisite graph would contain a cycle }
   /admin/lessons/{lessonId}/history:
     get:
       summary: List lesson revisions and review decisions

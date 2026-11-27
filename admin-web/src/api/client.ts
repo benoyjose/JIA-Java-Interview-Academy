@@ -85,7 +85,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
-export const api = {
+export const api = {\n  lessonPrerequisites: (id: string, signal?: AbortSignal) => request<PrerequisiteLesson[]>(`/admin/lessons/${encodeURIComponent(id)}/prerequisites`, { signal }),\n  replaceLessonPrerequisites: (id: string, prerequisiteLessonIds: string[]) => request<PrerequisiteLesson[]>(`/admin/lessons/${encodeURIComponent(id)}/prerequisites`, { method: "PUT", body: JSON.stringify({ prerequisiteLessonIds }) }),
   login: (email: string, password: string) => request<TokenResponse>("/auth/login", {
     method: "POST", body: JSON.stringify({ email, password, deviceName: "JIA Admin Web" }),
   }),
