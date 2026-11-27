@@ -38,7 +38,7 @@ public class CurriculumPrerequisiteAdminService {
         requireLesson(lessonId, academy);
         if (prerequisiteIds == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "prerequisiteLessonIds is required");
         Set<UUID> desired = new LinkedHashSet<>(prerequisiteIds);
-        if (desired.size() != prerequisiteIds.size())
+        if (desired.size() > 250)\n            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A lesson can have at most 250 prerequisites");\n        if (desired.size() != prerequisiteIds.size())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Prerequisite lesson IDs must be unique");
         if (desired.contains(lessonId))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A lesson cannot be its own prerequisite");
